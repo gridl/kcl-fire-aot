@@ -4,7 +4,6 @@ import sys
 import logging
 from dotenv import find_dotenv, load_dotenv
 
-import numpy as np
 import ftplib
 import datetime
 import re
@@ -18,10 +17,11 @@ import matplotlib.pyplot as plt
 import config
 
 
-def ftp_connect():
+def ftp_connect(doy):
     ftp = ftplib.FTP("ladsweb.nascom.nasa.gov")
     ftp.login()
     ftp.cwd('allData/6/MYD021KM/' + str(config.year) + '/')
+    ftp.cwd(str(doy))
     return ftp
 
 
@@ -79,20 +79,20 @@ def main():
     logger = logging.getLogger(__name__)
     logger.info('making final data set from raw data')
 
-    ftp = ftp_connect()
-
     for doy in config.doy_range:
 
-        # change into the correct ftp dir
-        ftp.cwd(str(doy))
-
+        # connect to ftp and move to correct doy
+        ftp = ftp_connect(doy)
         file_list = get_files(ftp, doy)
+        ftp.close()
+
         for f in file_list:
 
             filename = f.split(None, 8)[-1].lstrip()
 
             time_stamp = re.search("[.][0-9]{4}[.]", filename).group()
-            if int(time_stamp[1:-1]) < config.min_time:
+            if (int(time_stamp[1:-1]) < config.min_time) | \
+               (int(time_stamp[1:-1]) > config.max_time):
                 continue
 
             mod_url = get_mod_url(doy, time_stamp)
@@ -103,21 +103,19 @@ def main():
 
             if process_flag:
 
-                print os.getcwd()
-
                 # save the png quicklook
 
                 # download the file
+                ftp = ftp_connect(doy)
                 local_filename = os.path.join(r"../../data/raw/l1b", filename)
                 lf = open(local_filename, "wb")
                 logger.info('downloading MODIS file', filename)
                 ftp.retrbinary("RETR " + filename, lf.write, 8*1024)
                 lf.close()
+                ftp.close()
 
                 # do the digitising
 
-        # change back the ftp dir
-        ftp.cwd('..')
 
 
 
