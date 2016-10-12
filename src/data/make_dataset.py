@@ -25,6 +25,7 @@ def main():
 
     year = 2012
     doy_range = np.arange(267, 300, 1)
+    min_time = 1600
 
     ftp = ftplib.FTP("ladsweb.nascom.nasa.gov")
     ftp.login()
@@ -41,6 +42,9 @@ def main():
         for f in file_list:
             time_stamp = re.search("[.][0-9]{4}[.]", f).group()
 
+            if int(time_stamp[1:-1]) < min_time:
+                continue
+
             date = datetime.datetime(year, 1, 1) + datetime.timedelta(doy - 1)
             date = date.strftime("%Y_%m_%d")
             mod_url = "http://modis-atmos.gsfc.nasa.gov/IMAGES/MYD02/GRANULE/{0}/{1}rgb143.jpg".format(date,
@@ -54,6 +58,7 @@ def main():
                     shutil.copyfileobj(r.raw, fname)
 
                 im = ndimage.imread('test.jpg', mode="RGB")
+                plt.figure(figsize=(18,18))
                 plt.imshow(im)
                 plt.show()
 
