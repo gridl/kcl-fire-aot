@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import sys
 import logging
 from dotenv import find_dotenv, load_dotenv
 
@@ -25,10 +26,8 @@ def ftp_connect():
 
 
 def get_files(ftp, doy):
-    ftp.cwd(str(doy))
     file_list = []
     ftp.retrlines("LIST", file_list.append)
-    ftp.cwd('..')
     return file_list
 
 
@@ -47,14 +46,29 @@ def get_image(mod_url):
         with open('current.jpg', 'wb') as fname:
             r.raw.decode_content = True
             shutil.copyfileobj(r.raw, fname)
+    return r.status_code
 
 
 def display_image():
     im = ndimage.imread('current.jpg', mode="RGB")
-    plt.figure(figsize=(18, 18))
+    plt.figure(figsize=(16, 16))
     plt.imshow(im)
-    plt.show()
+    plt.draw()
+    plt.pause(1)  # <-------
 
+    # raw_input returns the empty string for "enter"
+    yes = set(['yes', 'y', 'ye', ''])
+    no = set(['no', 'n'])
+
+    choice = raw_input("Process image: [y,n]").lower()
+    if choice in yes:
+        plt.close()
+        return True
+    elif choice in no:
+        plt.close()
+        return False
+    else:
+        sys.stdout.write("Please respond with 'yes' or 'no'")
 
 
 def main():
@@ -69,16 +83,41 @@ def main():
 
     for doy in config.doy_range:
 
+        # change into the correct ftp dir
+        ftp.cwd(str(doy))
+
         file_list = get_files(ftp, doy)
         for f in file_list:
 
-            time_stamp = re.search("[.][0-9]{4}[.]", f).group()
+            filename = f.split(None, 8)[-1].lstrip()
+
+            time_stamp = re.search("[.][0-9]{4}[.]", filename).group()
             if int(time_stamp[1:-1]) < config.min_time:
                 continue
 
             mod_url = get_mod_url(doy, time_stamp)
-            get_image(mod_url)
-            display_image()
+            status = get_image(mod_url)
+            if status != 200:  # no access then continue
+                continue
+            process_flag = display_image()
+
+            if process_flag:
+
+                print os.getcwd()
+
+                # save the png quicklook
+
+                # download the file
+                local_filename = os.path.join(r"../../data/raw/l1b", filename)
+                lf = open(local_filename, "wb")
+                logger.info('downloading MODIS file', filename)
+                ftp.retrbinary("RETR " + filename, lf.write, 8*1024)
+                lf.close()
+
+                # do the digitising
+
+        # change back the ftp dir
+        ftp.cwd('..')
 
 
 
@@ -86,8 +125,7 @@ def main():
 
 
 
-
-                    # if desiredata features in image then load data
+                # if desiredata features in image then load data
     #ftp://ladsweb.nascom.nasa.gov/allData/6/MYD021KM/2011/267/
 
     # perform manual feature extraction
