@@ -1,19 +1,63 @@
 # -*- coding: utf-8 -*-
 import os
-import click
 import logging
 from dotenv import find_dotenv, load_dotenv
 
+import numpy as np
+import ftplib
+import datetime
+import re
 
-@click.command()
-@click.argument('input_filepath', type=click.Path(exists=True))
-@click.argument('output_filepath', type=click.Path())
-def main(input_filepath, output_filepath):
-    """ Runs data processing scripts to turn raw data from (../raw) into
-        cleaned data ready to be analyzed (saved in ../processed).
+import requests
+import shutil
+
+
+def main():
+    """ Loads MODIS data files for the specified geographic region,
+        timeframe, and time stamps.  The user can then process these
+        images and extract smoke plumes.
     """
     logger = logging.getLogger(__name__)
     logger.info('making final data set from raw data')
+
+    year = 2012
+    doy_range = np.arange(267, 300, 1)
+
+    ftp = ftplib.FTP("ladsweb.nascom.nasa.gov")
+    ftp.login()
+    ftp.cwd('allData/6/MYD021KM/' + str(year) + '/')
+
+    for doy in doy_range:
+
+        ftp.cwd(str(doy))
+        file_list = []
+        ftp.retrlines("LIST", file_list.append)
+
+        ftp.cwd('..')
+
+        for f in file_list:
+            time_stamp = re.search("[.][0-9]{4}[.]", f).group()
+
+            date = datetime.datetime(year, 1, 1) + datetime.timedelta(doy - 1)
+            date = date.strftime("%Y_%m_%d")
+            mod_url = "http://modis-atmos.gsfc.nasa.gov/IMAGES/MYD02/GRANULE/{0}/{1}rgb143.jpg".format(date,
+                                                                                                       str(doy) +
+                                                                                                       time_stamp)
+            r = requests.get(mod_url, stream=True)
+            if r.status_code == 200:
+                with open('test.jpg', 'wb') as fname:
+                    r.raw.decode_content = True
+                    shutil.copyfileobj(r.raw, fname)
+
+                    # if desiredata features in image then load data
+    #ftp://ladsweb.nascom.nasa.gov/allData/6/MYD021KM/2011/267/
+
+    # perform manual feature extraction
+
+    # store in database
+
+    # close off data
+
 
 
 if __name__ == '__main__':
