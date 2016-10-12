@@ -11,6 +11,9 @@ import re
 import requests
 import shutil
 
+import scipy.ndimage as ndimage
+import matplotlib.pyplot as plt
+
 
 def main():
     """ Loads MODIS data files for the specified geographic region,
@@ -45,9 +48,16 @@ def main():
                                                                                                        time_stamp)
             r = requests.get(mod_url, stream=True)
             if r.status_code == 200:
+
                 with open('test.jpg', 'wb') as fname:
                     r.raw.decode_content = True
                     shutil.copyfileobj(r.raw, fname)
+
+                im = ndimage.imread('test.jpg', mode="RGB")
+                plt.imshow(im)
+                plt.show()
+
+
 
                     # if desiredata features in image then load data
     #ftp://ladsweb.nascom.nasa.gov/allData/6/MYD021KM/2011/267/
