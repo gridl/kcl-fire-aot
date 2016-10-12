@@ -14,6 +14,48 @@ import shutil
 import scipy.ndimage as ndimage
 import matplotlib.pyplot as plt
 
+import config
+
+
+def ftp_connect():
+    ftp = ftplib.FTP("ladsweb.nascom.nasa.gov")
+    ftp.login()
+    ftp.cwd('allData/6/MYD021KM/' + str(config.year) + '/')
+    return ftp
+
+
+def get_files(ftp, doy):
+    ftp.cwd(str(doy))
+    file_list = []
+    ftp.retrlines("LIST", file_list.append)
+    ftp.cwd('..')
+    return file_list
+
+
+def get_mod_url(doy, time_stamp):
+    date = datetime.datetime(config.year, 1, 1) + datetime.timedelta(doy - 1)
+    date = date.strftime("%Y_%m_%d")
+    mod_url = "http://modis-atmos.gsfc.nasa.gov/IMAGES/MYD02/GRANULE/{0}/{1}rgb143.jpg".format(date,
+                                                                                           str(doy) +
+                                                                                           time_stamp)
+    return mod_url
+
+
+def get_image(mod_url):
+    r = requests.get(mod_url, stream=True)
+    if r.status_code == 200:
+        with open('current.jpg', 'wb') as fname:
+            r.raw.decode_content = True
+            shutil.copyfileobj(r.raw, fname)
+
+
+def display_image():
+    im = ndimage.imread('current.jpg', mode="RGB")
+    plt.figure(figsize=(18, 18))
+    plt.imshow(im)
+    plt.show()
+
+
 
 def main():
     """ Loads MODIS data files for the specified geographic region,
@@ -23,44 +65,25 @@ def main():
     logger = logging.getLogger(__name__)
     logger.info('making final data set from raw data')
 
-    year = 2012
-    doy_range = np.arange(267, 300, 1)
-    min_time = 1600
+    ftp = ftp_connect()
 
-    ftp = ftplib.FTP("ladsweb.nascom.nasa.gov")
-    ftp.login()
-    ftp.cwd('allData/6/MYD021KM/' + str(year) + '/')
+    for doy in config.doy_range:
 
-    for doy in doy_range:
-
-        ftp.cwd(str(doy))
-        file_list = []
-        ftp.retrlines("LIST", file_list.append)
-
-        ftp.cwd('..')
-
+        file_list = get_files(ftp, doy)
         for f in file_list:
-            time_stamp = re.search("[.][0-9]{4}[.]", f).group()
 
-            if int(time_stamp[1:-1]) < min_time:
+            time_stamp = re.search("[.][0-9]{4}[.]", f).group()
+            if int(time_stamp[1:-1]) < config.min_time:
                 continue
 
-            date = datetime.datetime(year, 1, 1) + datetime.timedelta(doy - 1)
-            date = date.strftime("%Y_%m_%d")
-            mod_url = "http://modis-atmos.gsfc.nasa.gov/IMAGES/MYD02/GRANULE/{0}/{1}rgb143.jpg".format(date,
-                                                                                                       str(doy) +
-                                                                                                       time_stamp)
-            r = requests.get(mod_url, stream=True)
-            if r.status_code == 200:
+            mod_url = get_mod_url(doy, time_stamp)
+            get_image(mod_url)
+            display_image()
 
-                with open('test.jpg', 'wb') as fname:
-                    r.raw.decode_content = True
-                    shutil.copyfileobj(r.raw, fname)
 
-                im = ndimage.imread('test.jpg', mode="RGB")
-                plt.figure(figsize=(18,18))
-                plt.imshow(im)
-                plt.show()
+
+
+
 
 
 
