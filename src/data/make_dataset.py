@@ -11,8 +11,13 @@ import re
 import requests
 import shutil
 
+import numpy as np
+from pyhdf.SD import SD, SDC
+from skimage import exposure
 import scipy.ndimage as ndimage
 import matplotlib.pyplot as plt
+import cv2
+
 
 import config
 
@@ -71,6 +76,145 @@ def display_image():
         sys.stdout.write("Please respond with 'yes' or 'no'")
 
 
+def read_modis(local_filename):
+
+    mod_data = SD(local_filename, SDC.READ)
+    mod_params_ref = mod_data.select("EV_1KM_RefSB").attributes()
+    ref = mod_data.select("EV_1KM_RefSB").get()
+
+    ref0 = 0
+    ref1 = 13
+    ref2 = 14
+
+    r = (ref[ref0, :, :] - mod_params_ref['reflectance_offsets'][ref0]) * mod_params_ref['reflectance_scales'][ref0]
+    g = (ref[ref1, :, :] - mod_params_ref['reflectance_offsets'][ref1]) * mod_params_ref['reflectance_scales'][ref1]
+    b = (ref[ref2, :, :] - mod_params_ref['reflectance_offsets'][ref2]) * mod_params_ref['reflectance_scales'][ref2]
+
+    b_eq = exposure.equalize_hist(b)
+    g_eq = exposure.equalize_hist(g)
+    r_eq = exposure.equalize_hist(r)
+
+    rb_eq = r_eq / b_eq
+    rb_eq = (rb_eq * (255 / np.max(rb_eq))).astype('uint8')
+
+    b_eq = np.round((b_eq * (255 / np.max(b_eq))) * 0.35).astype('uint8')
+    g_eq = np.round((g_eq * (255 / np.max(g_eq))) * 0.35).astype('uint8')
+    r_eq = np.round((r_eq * (255 / np.max(r_eq))) * 1.0).astype('uint8')
+
+    rgb = np.dstack((r_eq, g_eq, b_eq))
+    return rgb
+
+
+def digitise(img):
+
+    def click_and_crop(event, x, y, flags, param):
+        # grab references to the global variables
+
+        # if the left mouse button was clicked, record the starting
+        # (x, y) coordinates and indicate that cropping is being
+        # performed
+        if event == cv2.EVENT_LBUTTONDOWN:
+            current_pt = [(x, y)]
+            cropping = True
+
+        # check to see if the left mouse button was released
+        elif event == cv2.EVENT_LBUTTONUP:
+            # record the ending (x, y) coordinates and indicate that
+            # the cropping operation is finished
+            current_pt.append((x, y))
+            cropping = False
+
+            # draw a rectangle around the region of interest
+            cv2.rectangle(image, current_pt[0], current_pt[1], (0, 255, 0), 2)
+            cv2.imshow("image", image)
+
+
+    def draw_poly(event, x, y, flags, param):
+        # grab references to the global variables
+
+        # if the left mouse button was clicked, record the starting
+        # (x, y) coordinates and indicate that cropping is being
+        # performed
+        if event == cv2.EVENT_LBUTTONDOWN:
+            current_pt.append((x, y))
+
+        # check to see if the left mouse button was released
+        elif event == cv2.EVENT_LBUTTONUP:
+            # record the ending (x, y) coordinates and indicate that
+            # the cropping operation is finished
+
+            cv2.circle(image, (x, y), 1, (0, 255, 0), 2)
+            cv2.imshow("image", image)
+
+    # make a list to hold the final set of points
+    current_pt = []
+    image_pt = []
+
+    # lets make an outloop to iterate over the various parts of the image
+    y_start = [0, img.shape[0] / 2, img.shape[0]]
+    x_start = [0, img.shape[1] / 2, img.shape[1]]
+
+    for iy, y in enumerate(y_start[:-1]):
+        for ix, x in enumerate(x_start[:-1]):
+
+            img_sub = img[y: y_start[iy + 1], x:x_start[ix + 1]]
+
+            # load the image, clone it, and setup the mouse callback function
+            image = cv2.cvtColor(img_sub, cv2.COLOR_BGR2RGB)
+            base_image = image.copy()
+            digitised_image = image.copy()
+
+            cv2.namedWindow("image")
+            cv2.setMouseCallback("image", draw_poly)
+
+            # create a list to hold all reference points
+            quadrant_pt = []
+
+            # keep looping until the 'c' key is pressed
+            while True:
+
+                # display the image and wait for a keypress
+                cv2.imshow("image", image)
+                key = cv2.waitKey(1) & 0xFF
+
+                # if the 'x' ket is pressed, reset all points for quadrant
+                if key == ord("x"):
+                    image = base_image.copy()
+                    digitised_image = base_image.copy()
+                    current_pt = []
+                    quadrant_pt = []
+
+                # if the 'r' key is pressed, reset the current points and image
+                if key == ord("r"):
+                    image = digitised_image.copy()
+                    current_pt = []
+
+                # if the 'c' key is pressed update quadrant and the digistied plume in image, and reset current_pt
+                elif key == ord("c"):
+                    image = digitised_image.copy()
+                    cv2.fillConvexPoly(image, np.array(current_pt), (255, 0, 0, 120))
+                    digitised_image = image.copy()
+                    if current_pt:
+                        quadrant_pt.append(current_pt)
+                        current_pt = []
+
+                # if the 'q' key is pressed, break from the loop to stop digitising
+                elif key == ord("q"):
+                    break
+
+            # append the points from the quadrant to the image list
+            if quadrant_pt:
+                for item in quadrant_pt:
+                    image_pt.append(item)
+
+            print image_pt
+
+            # close all open windows
+            cv2.destroyAllWindows()
+
+    return image_pt
+
+
 def main():
     """ Loads MODIS data files for the specified geographic region,
         timeframe, and time stamps.  The user can then process these
@@ -78,6 +222,10 @@ def main():
     """
     logger = logging.getLogger(__name__)
     logger.info('making final data set from raw data')
+
+    global refPt, cropping
+    refPt = []
+    cropping = False
 
     for doy in config.doy_range:
 
@@ -103,19 +251,19 @@ def main():
 
             if process_flag:
 
-                # save the png quicklook
-
                 # download the file
-                ftp = ftp_connect(doy)
                 local_filename = os.path.join(r"../../data/raw/l1b", filename)
-                lf = open(local_filename, "wb")
-                logger.info('downloading MODIS file', filename)
-                ftp.retrbinary("RETR " + filename, lf.write, 8*1024)
-                lf.close()
-                ftp.close()
+
+                if not os.path.isfile(local_filename):  # if we dont have the file, then dl it
+                    ftp = ftp_connect(doy)
+                    lf = open(local_filename, "wb")
+                    ftp.retrbinary("RETR " + filename, lf.write, 8*1024)
+                    lf.close()
+                    ftp.close()
 
                 # do the digitising
-
+                img = read_modis(local_filename)
+                digitise(img)
 
 
 
