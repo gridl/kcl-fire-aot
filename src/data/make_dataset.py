@@ -199,6 +199,14 @@ def digitise(img):
     return image_pt
 
 
+def make_mask(img, image_pts):
+    matrix = np.zeros((img.shape[0], img.shape[1]))
+    for image_pt in image_pts:
+        image_pt_reshape = np.array(image_pt).reshape(-1, 1, 2).squeeze()
+        cv2.drawContours(matrix, [image_pt_reshape], -1, (1), thickness=-1)
+    return matrix
+
+
 def main():
     """ Loads MODIS data files for the specified geographic region,
         timeframe, and time stamps.  The user can then process these
@@ -248,29 +256,10 @@ def main():
                 # do the digitising
                 img = read_modis(local_filename)
                 image_pts = digitise(img)
+                plume_mask = make_mask(img, image_pts)
 
-                matrix = np.zeros((img.shape[0], img.shape[1]))
-                for image_pt in image_pts:
-                    image_pt_reshape = np.array(image_pt).reshape(-1, 1, 2).squeeze()
-                    cv2.drawContours(matrix, [image_pt_reshape], -1, (1), thickness=-1)
-
-                while True:
-                    cv2.imshow("image", matrix)
-                    key = cv2.waitKey(1) & 0xFF
-
-                    # if the 'c' key is pressed, break from the loop
-                    if key == ord("q"):
-                        break
-                cv2.destroyAllWindows()
-
-                # get the sample indicies
-                list_of_points_indices = np.nonzero(matrix)
-
-
-
-
-
-
+                plt.imshow(plume_mask, cmap='gray')
+                plt.show()
 
                 # if desiredata features in image then load data
     #ftp://ladsweb.nascom.nasa.gov/allData/6/MYD021KM/2011/267/
