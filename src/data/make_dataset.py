@@ -107,43 +107,22 @@ def read_modis(local_filename):
 
 def digitise(img):
 
-    def click_and_crop(event, x, y, flags, param):
+    def draw_poly(event, i, j, flags, param):
         # grab references to the global variables
 
         # if the left mouse button was clicked, record the starting
         # (x, y) coordinates and indicate that cropping is being
-        # performed
+        # performed (also add the image shifts)
         if event == cv2.EVENT_LBUTTONDOWN:
-            current_pt = [(x, y)]
-            cropping = True
-
-        # check to see if the left mouse button was released
-        elif event == cv2.EVENT_LBUTTONUP:
-            # record the ending (x, y) coordinates and indicate that
-            # the cropping operation is finished
-            current_pt.append((x, y))
-            cropping = False
-
-            # draw a rectangle around the region of interest
-            cv2.rectangle(image, current_pt[0], current_pt[1], (0, 255, 0), 2)
-            cv2.imshow("image", image)
-
-
-    def draw_poly(event, x, y, flags, param):
-        # grab references to the global variables
-
-        # if the left mouse button was clicked, record the starting
-        # (x, y) coordinates and indicate that cropping is being
-        # performed
-        if event == cv2.EVENT_LBUTTONDOWN:
-            current_pt.append((x, y))
+            current_pt.append((i + x, j + y))
+            print y, x
 
         # check to see if the left mouse button was released
         elif event == cv2.EVENT_LBUTTONUP:
             # record the ending (x, y) coordinates and indicate that
             # the cropping operation is finished
 
-            cv2.circle(image, (x, y), 1, (0, 255, 0), 2)
+            cv2.circle(image, (i, j), 1, (0, 255, 0), 2)
             cv2.imshow("image", image)
 
     # make a list to hold the final set of points
@@ -263,7 +242,24 @@ def main():
 
                 # do the digitising
                 img = read_modis(local_filename)
-                digitise(img)
+                image_pts = digitise(img)
+
+                matrix = np.zeros((img.shape[0], img.shape[1]))
+                for image_pt in image_pts:
+                    image_pt_reshape = np.array(image_pt).reshape(-1, 1, 2).squeeze()
+                    cv2.drawContours(matrix, [image_pt_reshape], -1, (1), thickness=-1)
+
+                while True:
+                    cv2.imshow("image", matrix)
+                    key = cv2.waitKey(1) & 0xFF
+
+                    # if the 'c' key is pressed, break from the loop
+                    if key == ord("q"):
+                        break
+                cv2.destroyAllWindows()
+
+                # get the sample indicies
+                list_of_points_indices = np.nonzero(matrix)
 
 
 
