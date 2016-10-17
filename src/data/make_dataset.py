@@ -114,8 +114,7 @@ def digitise(img):
         # (x, y) coordinates and indicate that cropping is being
         # performed (also add the image shifts)
         if event == cv2.EVENT_LBUTTONDOWN:
-            current_pt.append((i + x, j + y))
-            print y, x
+            current_pt.append((i, j))
 
         # check to see if the left mouse button was released
         elif event == cv2.EVENT_LBUTTONUP:
@@ -174,6 +173,12 @@ def digitise(img):
                     cv2.fillConvexPoly(image, np.array(current_pt), (255, 0, 0, 120))
                     digitised_image = image.copy()
                     if current_pt:
+
+                        # adjust the current points based on image quadrant shifts
+                        m_coords, n_coords = zip(*current_pt)
+                        current_pt = zip([m + x for m in m_coords],
+                                         [n + y for n in n_coords])
+
                         quadrant_pt.append(current_pt)
                         current_pt = []
 
