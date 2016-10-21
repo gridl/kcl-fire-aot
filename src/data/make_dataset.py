@@ -16,6 +16,7 @@ from pyhdf.SD import SD, SDC
 from skimage import exposure
 import scipy.ndimage as ndimage
 import matplotlib.pyplot as plt
+from matplotlib.patches import Circle
 import cv2
 
 
@@ -116,98 +117,59 @@ def read_modis(local_filename):
     return rgb
 
 
+class Annotate(object):
+    def __init__(self, im):
+        self.f = plt.figure(figsize=(30, 15))
+        self.ax = plt.gca()
+        self.im = self.ax.imshow(im)
+        self.x = []
+        self.y = []
+        self.polygons = []
+        self.ax.figure.canvas.mpl_connect('button_press_event', self.click)
+
+    def click(self, event):
+        if event.button == 3:
+            self.x.append(int(event.xdata))
+            self.y.append(int(event.ydata))
+            self.ax.add_patch(Circle((event.xdata, event.ydata), radius=1, facecolor='red', edgecolor='black'))
+            self.ax.figure.canvas.draw()
+
+
 def digitise(img):
 
-    def draw_poly(event, i, j, flags, param):
-        # grab references to the global variables
+    img_copy = img.copy()
+    polygons = []
 
-        # if the left mouse button was clicked, record the starting
-        # (x, y) coordinates and indicate that cropping is being
-        # performed (also add the image shifts)
-        if event == cv2.EVENT_LBUTTONDOWN:
-            current_pt.append((i, j))
+    while True:
 
-        # check to see if the left mouse button was released
-        elif event == cv2.EVENT_LBUTTONUP:
-            # record the ending (x, y) coordinates and indicate that
-            # the cropping operation is finished
+        # first set up the annotator and show the image
+        annotator = Annotate(img_copy)
+        plt.show()
 
-            cv2.circle(image, (i, j), 1, (0, 255, 0), 2)
-            cv2.imshow("image", image)
+        # show them what they have digitised, and check if they are OK with that
+        # if they are append the polygon, and modify the RGB to reflect the digitised region
+        pts = zip(annotator.x, annotator.y)
+        if not pts:
+            print "you must select some points"
+            continue
 
-    # make a list to hold the final set of points
-    current_pt = []
-    image_pt = []
+        digitised_copy = img_copy.copy()
 
-    # lets make an outloop to iterate over the various parts of the image
-    y_start = [0, img.shape[0] / 2, img.shape[0]]
-    x_start = [0, img.shape[1] / 2, img.shape[1]]
+        cv2.fillConvexPoly(digitised_copy, np.array(pts), (255, 255, 255, 255))
+        plt.imshow(digitised_copy)
+        plt.show()
 
-    for iy, y in enumerate(y_start[:-1]):
-        for ix, x in enumerate(x_start[:-1]):
+        happy = raw_input("Are you happy with this digitisation? [Y,n]")
+        if happy.lower() in ["", "y", "yes", 'ye']:
+            polygons.append(pts)
+            img_copy = digitised_copy
 
-            img_sub = img[y: y_start[iy + 1], x:x_start[ix + 1]]
+        # ask if they want to digitise some more?
+        more = raw_input("Do you want to digitise more plumes? [Y,n]")
+        if more.lower() not in ["", "y", "yes", 'ye']:
+            break
 
-            # load the image, clone it, and setup the mouse callback function
-            image = cv2.cvtColor(img_sub, cv2.COLOR_BGR2RGB)
-            base_image = image.copy()
-            digitised_image = image.copy()
-
-            cv2.namedWindow("image")
-            cv2.setMouseCallback("image", draw_poly)
-
-            # create a list to hold all reference points
-            quadrant_pt = []
-
-            # keep looping until the 'c' key is pressed
-            while True:
-
-                # display the image and wait for a keypress
-                cv2.imshow("image", image)
-                key = cv2.waitKey(1) & 0xFF
-
-                # if the 'x' ket is pressed, reset all points for quadrant
-                if key == ord("x"):
-                    image = base_image.copy()
-                    digitised_image = base_image.copy()
-                    current_pt = []
-                    quadrant_pt = []
-
-                # if the 'r' key is pressed, reset the current points and image
-                if key == ord("r"):
-                    image = digitised_image.copy()
-                    current_pt = []
-
-                # if the 'c' key is pressed update quadrant and the digistied plume in image, and reset current_pt
-                elif key == ord("c"):
-                    image = digitised_image.copy()
-                    cv2.fillConvexPoly(image, np.array(current_pt), (255, 0, 0, 120))
-                    digitised_image = image.copy()
-                    if current_pt:
-
-                        # adjust the current points based on image quadrant shifts
-                        m_coords, n_coords = zip(*current_pt)
-                        current_pt = zip([m + x for m in m_coords],
-                                         [n + y for n in n_coords])
-
-                        quadrant_pt.append(current_pt)
-                        current_pt = []
-
-                # if the 'q' key is pressed, break from the loop to stop digitising
-                elif key == ord("q"):
-                    break
-
-            # append the points from the quadrant to the image list
-            if quadrant_pt:
-                for item in quadrant_pt:
-                    image_pt.append(item)
-
-            print image_pt
-
-            # close all open windows
-            cv2.destroyAllWindows()
-
-    return image_pt
+    return polygons
 
 
 def make_mask(img, image_pts):
