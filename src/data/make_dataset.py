@@ -48,14 +48,14 @@ def get_mod_url(doy, time_stamp):
 def get_image(mod_url):
     r = requests.get(mod_url, stream=True)
     if r.status_code == 200:
-        with open('current.jpg', 'wb') as fname:
+        with open('../../data/interim/temp_modis_quicklook.jpg', 'wb') as fname:
             r.raw.decode_content = True
             shutil.copyfileobj(r.raw, fname)
     return r.status_code
 
 
 def display_image():
-    im = ndimage.imread('current.jpg', mode="RGB")
+    im = ndimage.imread('../../data/interim/temp_modis_quicklook.jpg', mode="RGB")
     plt.figure(figsize=(16, 16))
     plt.imshow(im)
     plt.draw()
@@ -65,43 +65,54 @@ def display_image():
     yes = set(['yes', 'y', 'ye', ''])
     no = set(['no', 'n'])
 
-    choice = raw_input("Process image: [y,n]").lower()
-    if choice in yes:
-        plt.close()
-        return True
-    elif choice in no:
-        plt.close()
-        return False
-    else:
-        sys.stdout.write("Please respond with 'yes' or 'no'")
+    while True:
+        choice = raw_input("Process image: [y,n]").lower()
+        if choice in yes:
+            plt.close()
+            return True
+        elif choice in no:
+            plt.close()
+            return False
+        else:
+            sys.stdout.write("Please respond with 'y' or 'n'")
+
 
 
 def read_modis(local_filename):
 
     mod_data = SD(local_filename, SDC.READ)
     mod_params_ref = mod_data.select("EV_1KM_RefSB").attributes()
+    mod_params_emm = mod_data.select("EV_1KM_Emissive").attributes()
     ref = mod_data.select("EV_1KM_RefSB").get()
+    emm = mod_data.select("EV_1KM_Emissive").get()
 
-    ref0 = 0
-    ref1 = 13
-    ref2 = 14
+    # switch the red and bluse channels, so the we get nice bright red plumes
+    ref_chan = 0
+    emm_chan = 10
+    r = (ref[ref_chan, :, :] - mod_params_ref['radiance_offsets'][ref_chan]) * mod_params_ref['radiance_scales'][
+        ref_chan]
+    b = (emm[emm_chan, :, :] - mod_params_emm['radiance_offsets'][emm_chan]) * mod_params_emm['radiance_scales'][
+        emm_chan]
+    g = (r - b) / (r + b)
 
-    r = (ref[ref0, :, :] - mod_params_ref['reflectance_offsets'][ref0]) * mod_params_ref['reflectance_scales'][ref0]
-    g = (ref[ref1, :, :] - mod_params_ref['reflectance_offsets'][ref1]) * mod_params_ref['reflectance_scales'][ref1]
-    b = (ref[ref2, :, :] - mod_params_ref['reflectance_offsets'][ref2]) * mod_params_ref['reflectance_scales'][ref2]
+    r = np.round((r * (255 / np.max(r))) * 1).astype('uint8')
+    g = np.round((g * (255 / np.max(g))) * 1).astype('uint8')
+    b = np.round((b * (255 / np.max(b))) * 1).astype('uint8')
 
-    b_eq = exposure.equalize_hist(b)
-    g_eq = exposure.equalize_hist(g)
-    r_eq = exposure.equalize_hist(r)
+    mini = 5
+    maxi = 95
 
-    rb_eq = r_eq / b_eq
-    rb_eq = (rb_eq * (255 / np.max(rb_eq))).astype('uint8')
+    r_min, r_max = np.percentile(r, (mini, maxi))
+    r = exposure.rescale_intensity(r, in_range=(r_min, r_max))
 
-    b_eq = np.round((b_eq * (255 / np.max(b_eq))) * 0.35).astype('uint8')
-    g_eq = np.round((g_eq * (255 / np.max(g_eq))) * 0.35).astype('uint8')
-    r_eq = np.round((r_eq * (255 / np.max(r_eq))) * 1.0).astype('uint8')
+    g_min, g_max = np.percentile(g, (mini, maxi))
+    g = exposure.rescale_intensity(g, in_range=(g_min, g_max))
 
-    rgb = np.dstack((r_eq, g_eq, b_eq))
+    b_min, b_max = np.percentile(b, (mini, maxi))
+    b = exposure.rescale_intensity(b, in_range=(b_min, b_max))
+
+    rgb = np.dstack((r, g, b))
+
     return rgb
 
 
@@ -258,11 +269,6 @@ def main():
                 image_pts = digitise(img)
                 plume_mask = make_mask(img, image_pts)
 
-                plt.imshow(plume_mask, cmap='gray')
-                plt.show()
-
-                # if desiredata features in image then load data
-    #ftp://ladsweb.nascom.nasa.gov/allData/6/MYD021KM/2011/267/
 
     # perform manual feature extraction
 
