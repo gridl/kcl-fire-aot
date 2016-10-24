@@ -23,18 +23,47 @@ import cv2
 import config
 
 
-def ftp_connect(doy):
+def ftp_connect_laads(doy, dir):
     ftp = ftplib.FTP("ladsweb.nascom.nasa.gov")
     ftp.login()
-    ftp.cwd('allData/6/MYD021KM/' + str(config.year) + '/')
+    ftp.cwd(dir + str(config.year) + '/')
     ftp.cwd(str(doy))
     return ftp
 
 
-def get_files(ftp, doy):
+def get_files(ftp):
     file_list = []
     ftp.retrlines("LIST", file_list.append)
     return file_list
+
+
+def assess_fire_pixels(doy, local_filename, filename_frp):
+
+    # see if data exists in frp dir, if not then dl it
+    if not os.path.isfile(local_filename):
+        ftp_laads = ftp_connect_laads(doy, dir='allData/6/MYD14/')
+        lf = open(local_filename, "wb")
+        ftp_laads.retrbinary("RETR " + filename_frp, lf.write, 8 * 1024)
+        lf.close()
+        ftp_laads.close()
+
+    frp_data = SD(local_filename, SDC.READ)
+    fire_mask = frp_data.select('fire mask').get() >= 7
+
+    # determine whether to process the scene or not
+    if frp_data.select('FP_power').checkempty():
+        process_flag = False
+    else:
+        power = frp_data.select('FP_power').get()
+        total_fires = len(power)
+        total_power = np.sum(power)
+        if total_fires > config.min_fires and total_power > config.min_power:
+            process_flag = True
+        else:
+            process_flag = False
+
+    return fire_mask, process_flag
+
 
 
 def get_mod_url(doy, time_stamp):
@@ -78,8 +107,15 @@ def display_image():
             sys.stdout.write("Please respond with 'y' or 'n'")
 
 
+def retrieve_l1(doy, local_filename, filename_l1):
+    ftp_laads = ftp_connect_laads(doy, dir='allData/6/MYD021KM/')
+    lf = open(local_filename, "wb")
+    ftp_laads.retrbinary("RETR " + filename_l1, lf.write, 8 * 1024)
+    lf.close()
+    ftp_laads.close()
 
-def read_modis(local_filename):
+
+def read_modis(local_filename, fire_mask):
 
     mod_data = SD(local_filename, SDC.READ)
     mod_params_ref = mod_data.select("EV_1KM_RefSB").attributes()
@@ -105,12 +141,15 @@ def read_modis(local_filename):
 
     r_min, r_max = np.percentile(r, (mini, maxi))
     r = exposure.rescale_intensity(r, in_range=(r_min, r_max))
+    r[fire_mask] = 255
 
     g_min, g_max = np.percentile(g, (mini, maxi))
     g = exposure.rescale_intensity(g, in_range=(g_min, g_max))
+    g[fire_mask] = 0
 
     b_min, b_max = np.percentile(b, (mini, maxi))
     b = exposure.rescale_intensity(b, in_range=(b_min, b_max))
+    b[fire_mask] = 0
 
     rgb = np.dstack((r, g, b))
 
@@ -186,26 +225,34 @@ def main():
         images and extract smoke plumes.
     """
     logger = logging.getLogger(__name__)
-    logger.info('making final data set from raw data')
-
-    global refPt, cropping
-    refPt = []
-    cropping = False
+    logger.info('making data set from raw data')
 
     for doy in config.doy_range:
 
         # connect to ftp and move to correct doy
-        ftp = ftp_connect(doy)
-        file_list = get_files(ftp, doy)
-        ftp.close()
+        ftp_laads = ftp_connect_laads(doy, dir='allData/6/MYD021KM/')
+        l1_file_list = get_files(ftp_laads)
+        ftp_laads.close()
+        ftp_laads = ftp_connect_laads(doy, dir='allData/6/MYD14/')
+        frp_file_list = get_files(ftp_laads)
+        ftp_laads.close()
 
-        for f in file_list:
+        # TODO need to ensure that the filenames are correctly associatied
+        for f_l1, f_frp in zip(l1_file_list, frp_file_list):
 
-            filename = f.split(None, 8)[-1].lstrip()
+            filename_l1 = f_l1.split(None, 8)[-1].lstrip()
+            filename_frp = f_frp.split(None, 8)[-1].lstrip()
 
-            time_stamp = re.search("[.][0-9]{4}[.]", filename).group()
+            time_stamp = re.search("[.][0-9]{4}[.]", filename_l1).group()
             if (int(time_stamp[1:-1]) < config.min_time) | \
                (int(time_stamp[1:-1]) > config.max_time):
+                continue
+
+            # asses is fire pixels in scene
+            local_filename = os.path.join(r"../../data/raw/frp/", filename_frp)
+            fire_mask, fires = assess_fire_pixels(doy, local_filename, filename_frp)
+
+            if not fires:
                 continue
 
             mod_url = get_mod_url(doy, time_stamp)
@@ -217,17 +264,13 @@ def main():
             if process_flag:
 
                 # download the file
-                local_filename = os.path.join(r"../../data/raw/l1b", filename)
+                local_filename = os.path.join(r"../../data/raw/l1b", filename_l1)
 
                 if not os.path.isfile(local_filename):  # if we dont have the file, then dl it
-                    ftp = ftp_connect(doy)
-                    lf = open(local_filename, "wb")
-                    ftp.retrbinary("RETR " + filename, lf.write, 8*1024)
-                    lf.close()
-                    ftp.close()
+                    retrieve_l1(doy, local_filename, filename_l1)
 
                 # do the digitising
-                img = read_modis(local_filename)
+                img = read_modis(local_filename, fire_mask)
                 image_pts = digitise(img)
                 plume_mask = make_mask(img, image_pts)
 
