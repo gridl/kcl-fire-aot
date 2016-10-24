@@ -160,7 +160,7 @@ class Annotate(object):
     def __init__(self, im):
         self.f = plt.figure(figsize=(30, 15))
         self.ax = plt.gca()
-        self.im = self.ax.imshow(im)
+        self.im = self.ax.imshow(im, interpolation='none')
         self.x = []
         self.y = []
         self.polygons = []
@@ -170,7 +170,7 @@ class Annotate(object):
         if event.button == 3:
             self.x.append(int(event.xdata))
             self.y.append(int(event.ydata))
-            self.ax.add_patch(Circle((event.xdata, event.ydata), radius=1, facecolor='red', edgecolor='black'))
+            self.ax.add_patch(Circle((event.xdata, event.ydata), radius=0.25, facecolor='red', edgecolor='black'))
             self.ax.figure.canvas.draw()
 
 
