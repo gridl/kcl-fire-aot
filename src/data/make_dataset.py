@@ -19,105 +19,27 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 import cv2
 
-
 import config
 
 
-def ftp_connect_laads(doy, dir):
-    ftp = ftplib.FTP("ladsweb.nascom.nasa.gov")
-    ftp.login()
-    ftp.cwd(dir + str(config.year) + '/')
-    ftp.cwd(str(doy))
-    return ftp
+def read_myd14(doy, local_filename, filename_frp):
 
-
-def get_files(ftp):
-    file_list = []
-    ftp.retrlines("LIST", file_list.append)
-    return file_list
-
-
-def assess_fire_pixels(doy, local_filename, filename_frp):
-
-    # see if data exists in frp dir, if not then dl it
-    if not os.path.isfile(local_filename):
-        ftp_laads = ftp_connect_laads(doy, dir='allData/6/MYD14/')
-        lf = open(local_filename, "wb")
-        ftp_laads.retrbinary("RETR " + filename_frp, lf.write, 8 * 1024)
-        lf.close()
-        ftp_laads.close()
 
     frp_data = SD(local_filename, SDC.READ)
     fire_mask = frp_data.select('fire mask').get() >= 7
 
     # determine whether to process the scene or not
-    if frp_data.select('FP_power').checkempty():
-        process_flag = False
-    else:
-        power = frp_data.select('FP_power').get()
-        total_fires = len(power)
-        total_power = np.sum(power)
-        if total_fires > config.min_fires and total_power > config.min_power:
-            process_flag = True
-        else:
-            process_flag = False
+    frp_data.select('FP_power').checkempty():
 
     return fire_mask, process_flag
 
 
-
-def get_mod_url(doy, time_stamp):
-    date = datetime.datetime(config.year, 1, 1) + datetime.timedelta(doy - 1)
-    date = date.strftime("%Y_%m_%d")
-    mod_url = "http://modis-atmos.gsfc.nasa.gov/IMAGES/MYD02/GRANULE/{0}/{1}rgb143.jpg".format(date,
-                                                                                           str(doy) +
-                                                                                           time_stamp)
-    return mod_url
+def read_myd021km(local_filename):
+    return SD(local_filename, SDC.READ)
 
 
-def get_image(mod_url):
-    r = requests.get(mod_url, stream=True)
-    if r.status_code == 200:
-        with open('../../data/interim/temp_modis_quicklook.jpg', 'wb') as fname:
-            r.raw.decode_content = True
-            shutil.copyfileobj(r.raw, fname)
-    return r.status_code
+def fcc_myd021km(mod_data, fire_mask):
 
-
-def display_image():
-    im = ndimage.imread('../../data/interim/temp_modis_quicklook.jpg', mode="RGB")
-    plt.figure(figsize=(16, 16))
-    plt.imshow(im)
-    plt.draw()
-    plt.pause(1)  # <-------
-
-    # raw_input returns the empty string for "enter"
-    yes = set(['yes', 'y', 'ye', ''])
-    no = set(['no', 'n'])
-
-    while True:
-        choice = raw_input("Process image: [y,n]").lower()
-        if choice in yes:
-            plt.close()
-            return True
-        elif choice in no:
-            plt.close()
-            return False
-        else:
-            sys.stdout.write("Please respond with 'y' or 'n'")
-
-
-def retrieve_l1(doy, local_filename, filename_l1):
-    ftp_laads = ftp_connect_laads(doy, dir='allData/6/MYD021KM/')
-    lf = open(local_filename, "wb")
-    ftp_laads.retrbinary("RETR " + filename_l1, lf.write, 8 * 1024)
-    lf.close()
-    ftp_laads.close()
-
-
-def read_modis(local_filename, fire_mask):
-
-    mod_data = SD(local_filename, SDC.READ)
     mod_params_ref = mod_data.select("EV_1KM_RefSB").attributes()
     mod_params_emm = mod_data.select("EV_1KM_Emissive").attributes()
     ref = mod_data.select("EV_1KM_RefSB").get()
@@ -163,7 +85,14 @@ class Annotate(object):
         self.im = self.ax.imshow(im, interpolation='none')
 
         # set up the circle to hold the fires
-        self.circ = Circle((0,0))
+        self.circ = Circle((0, 0), radius=0, facecolor='none', edgecolor='black')
+        self.ax.add_patch(self.circ)
+        self.x0_circ = None
+        self.y0_circ = None
+        self.x1_circ = None
+        self.y1_circ = None
+        self.rad = None
+
 
         # set up the polygon
         self.x = []
@@ -174,7 +103,6 @@ class Annotate(object):
         self.ax.figure.canvas.mpl_connect('button_press_event', self.click)
         self.ax.figure.canvas.mpl_connect('button_release_event', self.release)
 
-
     def click(self, event):
         if event.button == 3:
             self.x.append(int(event.xdata))
@@ -182,18 +110,25 @@ class Annotate(object):
             self.ax.add_patch(Circle((event.xdata, event.ydata), radius=0.25, facecolor='red', edgecolor='black'))
             self.ax.figure.canvas.draw()
         elif event.button == 2:
-            pass
+            self.x0_circ = int(event.xdata)
+            self.y0_circ = int(event.ydata)
 
     def release(self, event):
-        if event.botton == 2:
-            pass
+        if event.button == 2:
+            self.x1_circ = int(event.xdata)
+            self.y1_circ = int(event.ydata)
+            self.rad = np.sqrt((self.x0_circ - self.x1_circ)**2 +
+                               (self.y0_circ - self.y1_circ)**2)
+            self.circ.set_radius(self.rad)
+            self.circ.center = self.x0_circ,  self.y0_circ
+            self.ax.figure.canvas.draw()
 
 
 def digitise(img):
 
     img_copy = img.copy()
     smoke_polygons = []
-    fire_polygons = []
+    fire_circles = []
 
     while True:
 
@@ -205,18 +140,29 @@ def digitise(img):
         # if they are append the polygon, and modify the RGB to reflect the digitised region
         pts = zip(annotator.x, annotator.y)
         if not pts:
-            print "you must select some points"
+            print "you must select define a polygon containing smoke pixels"
+            continue
+        if annotator.x0_circ is None:
+            print "you must define a circle containing fire pixels"
             continue
 
         digitised_copy = img_copy.copy()
 
-        cv2.fillConvexPoly(digitised_copy, np.array(pts), (255, 255, 255, 255))
+        cv2.fillConvexPoly(digitised_copy, np.array(pts), (255, 255, 255, 125))
+        cv2.circle(digitised_copy,
+                   (annotator.x0_circ,
+                    annotator.y0_circ),
+                   int(annotator.rad),
+                   (0, 0, 0, 255))
         plt.imshow(digitised_copy)
         plt.show()
 
         happy = raw_input("Are you happy with this plume digitisation? [Y,n]")
         if happy.lower() in ["", "y", "yes", 'ye']:
             smoke_polygons.append(pts)
+            fire_circles.append((annotator.x0_circ,
+                                 annotator.y0_circ,
+                                 annotator.rad))
             img_copy = digitised_copy
 
         # ask if they want to digitise some more?
@@ -224,7 +170,7 @@ def digitise(img):
         if more.lower() not in ["", "y", "yes", 'ye']:
             break
 
-    return polygons
+    return smoke_polygons, fire_circles
 
 
 def make_mask(img, image_pts):
@@ -243,52 +189,19 @@ def main():
     logger = logging.getLogger(__name__)
     logger.info('making data set from raw data')
 
-    for doy in config.doy_range:
+    for f in os.listdir():
 
-        # connect to ftp and move to correct doy
-        ftp_laads = ftp_connect_laads(doy, dir='allData/6/MYD021KM/')
-        l1_file_list = get_files(ftp_laads)
-        ftp_laads.close()
-        ftp_laads = ftp_connect_laads(doy, dir='allData/6/MYD14/')
-        frp_file_list = get_files(ftp_laads)
-        ftp_laads.close()
+        # asses is fire pixels in scene
+        local_filename = os.path.join(r"../../data/raw/frp/", filename_frp)
+        fire_mask, fires = assess_fire_pixels(doy, local_filename, filename_frp)
 
-        # TODO need to ensure that the filenames are correctly associatied
-        for f_l1, f_frp in zip(l1_file_list, frp_file_list):
+        # download the file
+        local_filename = os.path.join(r"../../data/raw/l1b", filename_l1)
 
-            filename_l1 = f_l1.split(None, 8)[-1].lstrip()
-            filename_frp = f_frp.split(None, 8)[-1].lstrip()
-
-            time_stamp = re.search("[.][0-9]{4}[.]", filename_l1).group()
-            if (int(time_stamp[1:-1]) < config.min_time) | \
-               (int(time_stamp[1:-1]) > config.max_time):
-                continue
-
-            # asses is fire pixels in scene
-            local_filename = os.path.join(r"../../data/raw/frp/", filename_frp)
-            fire_mask, fires = assess_fire_pixels(doy, local_filename, filename_frp)
-
-            if not fires:
-                continue
-
-            mod_url = get_mod_url(doy, time_stamp)
-            status = get_image(mod_url)
-            if status != 200:  # no access then continue
-                continue
-            process_flag = display_image()
-
-            if process_flag:
-
-                # download the file
-                local_filename = os.path.join(r"../../data/raw/l1b", filename_l1)
-
-                if not os.path.isfile(local_filename):  # if we dont have the file, then dl it
-                    retrieve_l1(doy, local_filename, filename_l1)
-
-                # do the digitising
-                img = read_modis(local_filename, fire_mask)
-                image_pts = digitise(img)
-                plume_mask = make_mask(img, image_pts)
+        # do the digitising
+        img = read_modis(local_filename, fire_mask)
+        smoke_polygons, fire_circles = digitise(img)
+        plume_mask = make_mask(img, smoke_polygons)
 
 
     # perform manual feature extraction
