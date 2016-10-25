@@ -58,10 +58,14 @@ def assess_fires_present(doy, local_filename, filename_frp):
     if frp_data.select('FP_power').checkempty():
         process_flag = False
     else:
+        szn = frp_data.select('FP_SolZenAng').get()
         power = frp_data.select('FP_power').get()
         total_fires = len(power)
         total_power = np.sum(power)
-        if total_fires > config.min_fires and total_power > config.min_power:
+
+        if np.mean(szn) > 85:
+            process_flag = False
+        elif total_fires > config.min_fires and total_power > config.min_power:
             logger.info('Suitable scene: ' + filename_frp)
             logger.info('Total fires: ' + str(total_fires)
                         + " | Total Power: " + str(total_power))

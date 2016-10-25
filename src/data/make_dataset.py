@@ -22,16 +22,12 @@ import cv2
 import config
 
 
-def read_myd14(local_filename):
+def read_myd14(myd14_file):
+    return SD(myd14_file, SDC.READ)
 
 
-    frp_data = SD(local_filename, SDC.READ)
-    fire_mask = frp_data.select('fire mask').get() >= 7
-
-    # determine whether to process the scene or not
-    frp_data.select('FP_power').checkempty()
-
-    return fire_mask
+def firemask_myd14(myd14_data):
+    return myd14_data.select('fire mask').get() >= 7
 
 
 def read_myd021km(local_filename):
@@ -187,29 +183,28 @@ def main():
         images and extract smoke plumes.
     """
 
-    for filename_l1 in os.listdir(r"../../data/raw/l1b"):
+    for myd021km_fname in os.listdir(r"../../data/raw/l1b"):
 
         # find the frp file
         try:
-            time_stamp = re.search("[0-9]{7}[.][0-9]{4}[.]", filename_l1).group()
+            timestamp_myd = re.search("[0-9]{7}[.][0-9]{4}[.]", myd021km_fname).group()
         except Exception, e:
-            logger.warning("Could not extract time stamp from: ", filename_l1, "moving on to next file")
+            logger.warning("Could not extract time stamp from: ", myd021km_fname, "moving on to next file")
             continue
 
-        filename_frp = [f for f in os.listdir(r"../../data/raw/frp") if time_stamp in f]
+        myd14_fname = [f for f in os.listdir(r"../../data/raw/frp") if timestamp_myd in f]
 
-        if len(filename_frp) > 1:
-            logger.warning("More that one frp granule matched ", filename_l1, "selecting 0th option")
-        filename_frp = filename_frp[0]
+        if len(myd14_fname) > 1:
+            logger.warning("More that one frp granule matched " + myd021km_fname + "selecting 0th option")
+        myd14_fname = myd14_fname[0]
 
-        # asses is fire pixels in scene
-        fire_mask, fires = read_myd14(os.path.join(r"../../data/raw/frp/", filename_frp))
-
-        # download the file
-        local_filename = os.path.join(r"../../data/raw/l1b", filename_l1)
+        # read in the data
+        myd14 = read_myd14(os.path.join(r"../../data/raw/frp/", myd14_fname))
+        myd021km = read_myd021km(os.path.join(r"../../data/raw/l1b", myd021km_fname))
 
         # do the digitising
-        img = fcc_myd021km(local_filename, fire_mask)
+        myd14_fire_mask = firemask_myd14(myd14)
+        img = fcc_myd021km(myd021km, myd14_fire_mask)
         smoke_polygons, fire_circles = digitise(img)
         plume_mask = make_mask(img, smoke_polygons)
 
