@@ -22,16 +22,16 @@ import cv2
 import config
 
 
-def read_myd14(doy, local_filename, filename_frp):
+def read_myd14(local_filename):
 
 
     frp_data = SD(local_filename, SDC.READ)
     fire_mask = frp_data.select('fire mask').get() >= 7
 
     # determine whether to process the scene or not
-    frp_data.select('FP_power').checkempty():
+    frp_data.select('FP_power').checkempty()
 
-    return fire_mask, process_flag
+    return fire_mask
 
 
 def read_myd021km(local_filename):
@@ -186,20 +186,30 @@ def main():
         timeframe, and time stamps.  The user can then process these
         images and extract smoke plumes.
     """
-    logger = logging.getLogger(__name__)
-    logger.info('making data set from raw data')
 
-    for f in os.listdir():
+    for filename_l1 in os.listdir(r"../../data/raw/l1b"):
+
+        # find the frp file
+        try:
+            time_stamp = re.search("[0-9]{7}[.][0-9]{4}[.]", filename_l1).group()
+        except Exception, e:
+            logger.warning("Could not extract time stamp from: ", filename_l1, "moving on to next file")
+            continue
+
+        filename_frp = [f for f in os.listdir(r"../../data/raw/frp") if time_stamp in f]
+
+        if len(filename_frp) > 1:
+            logger.warning("More that one frp granule matched ", filename_l1, "selecting 0th option")
+        filename_frp = filename_frp[0]
 
         # asses is fire pixels in scene
-        local_filename = os.path.join(r"../../data/raw/frp/", filename_frp)
-        fire_mask, fires = assess_fire_pixels(doy, local_filename, filename_frp)
+        fire_mask, fires = read_myd14(os.path.join(r"../../data/raw/frp/", filename_frp))
 
         # download the file
         local_filename = os.path.join(r"../../data/raw/l1b", filename_l1)
 
         # do the digitising
-        img = read_modis(local_filename, fire_mask)
+        img = fcc_myd021km(local_filename, fire_mask)
         smoke_polygons, fire_circles = digitise(img)
         plume_mask = make_mask(img, smoke_polygons)
 
@@ -215,6 +225,8 @@ def main():
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     logging.basicConfig(level=logging.INFO, format=log_fmt)
+    logger = logging.getLogger(__name__)
+
 
     # not used in this stub but often useful for finding various files
     project_dir = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)
