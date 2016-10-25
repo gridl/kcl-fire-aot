@@ -161,10 +161,19 @@ class Annotate(object):
         self.f = plt.figure(figsize=(30, 15))
         self.ax = plt.gca()
         self.im = self.ax.imshow(im, interpolation='none')
+
+        # set up the circle to hold the fires
+        self.circ = Circle((0,0))
+
+        # set up the polygon
         self.x = []
         self.y = []
         self.polygons = []
+
+        # set up the events
         self.ax.figure.canvas.mpl_connect('button_press_event', self.click)
+        self.ax.figure.canvas.mpl_connect('button_release_event', self.release)
+
 
     def click(self, event):
         if event.button == 3:
@@ -172,12 +181,19 @@ class Annotate(object):
             self.y.append(int(event.ydata))
             self.ax.add_patch(Circle((event.xdata, event.ydata), radius=0.25, facecolor='red', edgecolor='black'))
             self.ax.figure.canvas.draw()
+        elif event.button == 2:
+            pass
+
+    def release(self, event):
+        if event.botton == 2:
+            pass
 
 
 def digitise(img):
 
     img_copy = img.copy()
-    polygons = []
+    smoke_polygons = []
+    fire_polygons = []
 
     while True:
 
@@ -198,9 +214,9 @@ def digitise(img):
         plt.imshow(digitised_copy)
         plt.show()
 
-        happy = raw_input("Are you happy with this digitisation? [Y,n]")
+        happy = raw_input("Are you happy with this plume digitisation? [Y,n]")
         if happy.lower() in ["", "y", "yes", 'ye']:
-            polygons.append(pts)
+            smoke_polygons.append(pts)
             img_copy = digitised_copy
 
         # ask if they want to digitise some more?
