@@ -113,6 +113,13 @@ def digitise(img):
     smoke_polygons = []
     background_rectangles = []
 
+    plt.figure(figsize=(30, 15))
+    plt.imshow(img)
+    plt.show()
+    arg = raw_input("Do you want to digitise this plume?: [y, N]")
+    if arg.lower() in ['', 'no', 'n']:
+        return None, None
+
     while True:
 
         # first set up the annotator and show the image
@@ -125,7 +132,7 @@ def digitise(img):
         if not pts:
             print "you must select define a polygon containing smoke pixels"
             continue
-        if annotator.x0_circ is None:
+        if annotator.x0_rect is None:
             print "you must define a circle containing fire pixels"
             continue
 
@@ -138,11 +145,12 @@ def digitise(img):
                       (annotator.x1_rect,
                        annotator.y1_rect),
                       (0, 0, 0, 255))
+        plt.figure(figsize=(30, 15))
         plt.imshow(digitised_copy)
         plt.show()
 
-        happy = raw_input("Are you happy with this plume digitisation? [Y,n]")
-        if happy.lower() in ["", "y", "yes", 'ye']:
+        arg = raw_input("Are you happy with this plume digitisation? [Y,n]")
+        if arg.lower() in ["", "y", "yes", 'ye']:
             smoke_polygons.append(pts)
             background_rectangles.append(((annotator.x0_rect,
                                            annotator.y0_rect),
@@ -151,8 +159,8 @@ def digitise(img):
             img_copy = digitised_copy
 
         # ask if they want to digitise some more?
-        more = raw_input("Do you want to digitise more plumes? [Y,n]")
-        if more.lower() not in ["", "y", "yes", 'ye']:
+        arg = raw_input("Do you want to digitise more plumes? [Y,n]")
+        if arg.lower() not in ["", "y", "yes", 'ye']:
             break
 
     return smoke_polygons, background_rectangles
@@ -194,7 +202,9 @@ def main():
         # do the digitising
         myd14_fire_mask = firemask_myd14(myd14)
         img = fcc_myd021km(myd021km, myd14_fire_mask)
-        smoke_polygons, fire_circles = digitise(img)
+        smoke_polygons, background_rectangles = digitise(img)
+        if (smoke_polygons is None) | (background_rectangles is None):
+            continue
         plume_mask = make_mask(img, smoke_polygons)
 
 
