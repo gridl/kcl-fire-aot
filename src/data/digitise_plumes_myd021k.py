@@ -99,8 +99,8 @@ class Annotate(object):
 
     def release(self, event):
         if event.button == 2:
-            self.x1_rect = event.xdata
-            self.y1_rect = event.ydata
+            self.x1_rect = int(event.xdata)
+            self.y1_rect = int(event.ydata)
             self.rect.set_width(self.x1_rect - self.x0_rect)
             self.rect.set_height(self.y1_rect - self.y0_rect)
             self.rect.set_xy((self.x0_rect, self.y0_rect))
@@ -111,7 +111,7 @@ def digitise(img):
 
     img_copy = img.copy()
     smoke_polygons = []
-    fire_circles = []
+    background_rectangles = []
 
     while True:
 
@@ -132,20 +132,22 @@ def digitise(img):
         digitised_copy = img_copy.copy()
 
         cv2.fillConvexPoly(digitised_copy, np.array(pts), (255, 255, 255, 125))
-        cv2.circle(digitised_copy,
-                   (annotator.x0_circ,
-                    annotator.y0_circ),
-                   int(annotator.rad),
-                   (0, 0, 0, 255))
+        cv2.rectangle(digitised_copy,
+                      (annotator.x0_rect,
+                       annotator.y0_rect),
+                      (annotator.x1_rect,
+                       annotator.y1_rect),
+                      (0, 0, 0, 255))
         plt.imshow(digitised_copy)
         plt.show()
 
         happy = raw_input("Are you happy with this plume digitisation? [Y,n]")
         if happy.lower() in ["", "y", "yes", 'ye']:
             smoke_polygons.append(pts)
-            fire_circles.append((annotator.x0_circ,
-                                 annotator.y0_circ,
-                                 annotator.rad))
+            background_rectangles.append(((annotator.x0_rect,
+                                           annotator.y0_rect),
+                                          (annotator.x1_rect,
+                                           annotator.y1_rect)))
             img_copy = digitised_copy
 
         # ask if they want to digitise some more?
@@ -153,7 +155,7 @@ def digitise(img):
         if more.lower() not in ["", "y", "yes", 'ye']:
             break
 
-    return smoke_polygons, fire_circles
+    return smoke_polygons, background_rectangles
 
 
 def make_mask(img, image_pts):
