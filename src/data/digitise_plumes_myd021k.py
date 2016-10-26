@@ -1,25 +1,16 @@
 # -*- coding: utf-8 -*-
 import os
-import sys
 import logging
 from dotenv import find_dotenv, load_dotenv
 
-import ftplib
-import datetime
 import re
-
-import requests
-import shutil
 
 import numpy as np
 from pyhdf.SD import SD, SDC
 from skimage import exposure
-import scipy.ndimage as ndimage
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 import cv2
-
-import config
 
 
 def read_myd14(myd14_file):
