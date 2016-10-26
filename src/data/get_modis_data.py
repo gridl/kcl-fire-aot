@@ -5,6 +5,7 @@ from dotenv import find_dotenv, load_dotenv
 
 import ftplib
 import re
+import time
 
 from pyhdf.SD import SD, SDC
 import numpy as np
@@ -13,9 +14,23 @@ import config
 
 
 def ftp_connect_laads():
-    ftp_laads = ftplib.FTP("ladsweb.nascom.nasa.gov")
-    ftp_laads.login()
-    return ftp_laads
+    try:
+        ftp_laads = ftplib.FTP("ladsweb.nascom.nasa.gov")
+        ftp_laads.login()
+        return ftp_laads
+    except:
+        logger.info("Could not acces laadsweb - trying again")
+        attempt = 1
+        while True:
+            try:
+                ftp_laads = ftplib.FTP("ladsweb.nascom.nasa.gov")
+                ftp_laads.login()
+                logger.info("Accessed laadsweb on attempt: " + str(attempt))
+                return ftp_laads
+            except:
+                logger.info("Could not access laadsweb - trying again")
+                time.sleep(5)
+                attempt += 1
 
 
 def ftp_cd(ftp_laads, doy, directory):
@@ -56,10 +71,9 @@ def assess_fires_present(ftp_laads, doy, local_filename, filename_frp):
         try:
             ftp_cd(ftp_laads, doy, 'allData/6/MYD14/')
         except:
-            ftp_laads = ftp_connect_laads
+            ftp_laads = ftp_connect_laads()
             ftp_cd(ftp_laads, doy, 'allData/6/MYD14/')
-        finally:
-            logger.fatal('Could not connect to database')
+
 
         lf = open(local_filename, "wb")
         ftp_laads.retrbinary("RETR " + filename_frp, lf.write, 8 * 1024)
@@ -93,10 +107,9 @@ def retrieve_l1(ftp_laads, doy, local_filename, filename_l1):
     try:
         ftp_cd(ftp_laads, doy, 'allData/6/MYD021KM/')
     except:
-        ftp_laads = ftp_connect_laads
+        ftp_laads = ftp_connect_laads()
         ftp_cd(ftp_laads, doy, 'allData/6/MYD021KM/')
-    finally:
-        logger.fatal('Could not connect to database')
+
 
     lf = open(local_filename, "wb")
     ftp_laads.retrbinary("RETR " + filename_l1, lf.write, 8 * 1024)
@@ -114,8 +127,10 @@ def main():
         logger.info("Downloading MODIS data with fires for DOY: " + str(doy))
 
         # get files lists from laads
-        l1_file_list = get_files(ftp_cd(ftp_laads, doy, 'allData/6/MYD021KM/'))
-        frp_file_list = get_files(ftp_cd(ftp_laads, doy, 'allData/6/MYD14/'))
+        ftp_cd(ftp_laads, doy, 'allData/6/MYD021KM/')
+        l1_file_list = get_files(ftp_laads)
+        ftp_cd(ftp_laads, doy, 'allData/6/MYD14/')
+        frp_file_list = get_files(ftp_laads)
 
         l1_filenames = [f.split(None, 8)[-1].lstrip() for f in l1_file_list]
         frp_filenames = [f.split(None, 8)[-1].lstrip() for f in frp_file_list]
@@ -132,7 +147,7 @@ def main():
 
             # asses is fire pixels in scene
             local_filename = os.path.join(r"../../data/raw/frp/", frp_filename)
-            fires_present = assess_fires_present(doy, local_filename, frp_filename)
+            fires_present = assess_fires_present(ftp_laads, doy, local_filename, frp_filename)
 
             if not fires_present:
                 continue
@@ -142,7 +157,7 @@ def main():
 
             if not os.path.isfile(local_filename):  # if we dont have the file, then dl it
                 logger.info("Downloading: " + l1_filename)
-                retrieve_l1(doy, local_filename, l1_filename)
+                retrieve_l1(ftp_laads, doy, local_filename, l1_filename)
 
 
 if __name__ == "__main__":
