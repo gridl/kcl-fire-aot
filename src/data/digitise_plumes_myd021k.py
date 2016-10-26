@@ -9,7 +9,7 @@ import numpy as np
 from pyhdf.SD import SD, SDC
 from skimage import exposure
 import matplotlib.pyplot as plt
-from matplotlib.patches import Circle
+from matplotlib.patches import Circle, Rectangle
 import cv2
 
 
@@ -71,20 +71,17 @@ class Annotate(object):
         self.ax = plt.gca()
         self.im = self.ax.imshow(im, interpolation='none')
 
-        # set up the circle to hold the fires
-        self.circ = Circle((0, 0), radius=0, facecolor='none', edgecolor='black')
-        self.ax.add_patch(self.circ)
-        self.x0_circ = None
-        self.y0_circ = None
-        self.x1_circ = None
-        self.y1_circ = None
-        self.rad = None
-
-
-        # set up the polygon
+        # set up the point holders for the polygon
         self.x = []
         self.y = []
-        self.polygons = []
+
+        # set up the rectangle to hold the background
+        self.rect = Rectangle((0, 0), 1, 1)
+        self.ax.add_patch(self.rect)
+        self.x0_rect = None
+        self.y0_rect = None
+        self.x1_rect = None
+        self.y1_rect = None
 
         # set up the events
         self.ax.figure.canvas.mpl_connect('button_press_event', self.click)
@@ -97,17 +94,16 @@ class Annotate(object):
             self.ax.add_patch(Circle((event.xdata, event.ydata), radius=0.25, facecolor='red', edgecolor='black'))
             self.ax.figure.canvas.draw()
         elif event.button == 2:
-            self.x0_circ = int(event.xdata)
-            self.y0_circ = int(event.ydata)
+            self.x0_rect = int(event.xdata)
+            self.y0_rect = int(event.ydata)
 
     def release(self, event):
         if event.button == 2:
-            self.x1_circ = int(event.xdata)
-            self.y1_circ = int(event.ydata)
-            self.rad = np.sqrt((self.x0_circ - self.x1_circ)**2 +
-                               (self.y0_circ - self.y1_circ)**2)
-            self.circ.set_radius(self.rad)
-            self.circ.center = self.x0_circ,  self.y0_circ
+            self.x1_rect = event.xdata
+            self.y1_rect = event.ydata
+            self.rect.set_width(self.x1_rect - self.x0_rect)
+            self.rect.set_height(self.y1_rect - self.y0_rect)
+            self.rect.set_xy((self.x0_rect, self.y0_rect))
             self.ax.figure.canvas.draw()
 
 
