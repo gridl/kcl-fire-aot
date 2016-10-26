@@ -39,6 +39,30 @@ def ftp_cd(ftp_laads, doy, directory):
     ftp_laads.cwd(str(doy))
 
 
+def get_file_lists(ftp_laads, doy):
+    try:
+        ftp_cd(ftp_laads, doy, 'allData/6/MYD021KM/')
+        l1_file_list = get_files(ftp_laads)
+        ftp_cd(ftp_laads, doy, 'allData/6/MYD14/')
+        frp_file_list = get_files(ftp_laads)
+        return l1_file_list, frp_file_list
+    except:
+        logger.info('Could not download data for DOY:' + str(doy) + "Reattempting...")
+        attempt = 1
+        while True:
+            try:
+                ftp_laads = ftp_connect_laads()
+                ftp_cd(ftp_laads, doy, 'allData/6/MYD021KM/')
+                l1_file_list = get_files(ftp_laads)
+                ftp_cd(ftp_laads, doy, 'allData/6/MYD14/')
+                frp_file_list = get_files(ftp_laads)
+                return l1_file_list, frp_file_list
+            except:
+                logger.info('Could not download data for DOY:' + str(doy) + "Reattempting...")
+                time.sleep(5)
+                attempt += 1
+
+
 def get_files(ftp_laads):
     file_list = []
     ftp_laads.retrlines("LIST", file_list.append)
@@ -127,10 +151,7 @@ def main():
         logger.info("Downloading MODIS data with fires for DOY: " + str(doy))
 
         # get files lists from laads
-        ftp_cd(ftp_laads, doy, 'allData/6/MYD021KM/')
-        l1_file_list = get_files(ftp_laads)
-        ftp_cd(ftp_laads, doy, 'allData/6/MYD14/')
-        frp_file_list = get_files(ftp_laads)
+        l1_file_list, frp_file_list = get_file_lists(ftp_laads, doy)
 
         l1_filenames = [f.split(None, 8)[-1].lstrip() for f in l1_file_list]
         frp_filenames = [f.split(None, 8)[-1].lstrip() for f in frp_file_list]
