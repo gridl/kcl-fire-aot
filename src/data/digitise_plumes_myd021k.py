@@ -9,6 +9,7 @@ import uuid
 import numpy as np
 import pandas as pd
 
+import scipy.ndimage as ndimage
 from pyhdf.SD import SD, SDC
 from skimage import exposure
 import matplotlib.pyplot as plt
@@ -244,12 +245,12 @@ def main():
             continue
 
         # before adding the plumes into lists interpolate the angular data
-        locational_data = {'vzn': 0,
-                           'van': 0,
-                           'szn': 0,
-                           'san': 0,
-                           'lat': 0,
-                           'lon': 0}
+        locational_data = {'vzn': ndimage.zoom(myd021km.select("SensorZenith").get(), 5, order=1)[:, :-1],
+                           'van': ndimage.zoom(myd021km.select("SensorAzimuth").get(), 5, order=1)[:, :-1],
+                           'szn': ndimage.zoom(myd021km.select("SolarZenith").get(), 5, order=1)[:, :-1],
+                           'san': ndimage.zoom(myd021km.select("SolarAzimuth").get(), 5, order=1)[:, :-1],
+                           'lat': ndimage.zoom(myd021km.select("Latitude").get(), 5, order=1)[:, :-1],
+                           'lon': ndimage.zoom(myd021km.select("Longitude").get(), 5, order=1)[:, :-1]}
 
         # process plumes and backgrounds
         for plume, background in zip(smoke_polygons, background_rectangles):
