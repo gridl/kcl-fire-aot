@@ -157,10 +157,7 @@ def digitise(img):
         arg = raw_input("Are you happy with this plume digitisation? [Y,n]")
         if arg.lower() in ["", "y", "yes", 'ye']:
             smoke_polygons.append(pts)
-            background_rectangles.append(((annotator.x0_rect,
-                                           annotator.y0_rect),
-                                          (annotator.x1_rect,
-                                           annotator.y1_rect)))
+            background_rectangles.append((annotator.x0_rect, annotator.x1_rect, annotator.y0_rect, annotator.y1_rect))
             img_copy = digitised_copy
 
         # ask if they want to digitise some more?
@@ -204,7 +201,15 @@ def extract_pixel_info(pixel, myd021km, locational_data, plume_id, plumes_list):
 
 
 def extract_background_info(background, plume_id, background_list):
-    pass
+
+    row_dict = {}
+    row_dict['plume_id'] = plume_id
+    row_dict['x0'] = background[0]
+    row_dict['x1'] = background[1]
+    row_dict['y0'] = background[2]
+    row_dict['y1'] = background[3]
+
+    background_list.append(row_dict)
 
 
 def main():
