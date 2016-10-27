@@ -177,7 +177,7 @@ def get_plume_pixels(img, image_pt):
     return matrix
 
 
-def extract_pixel_info(pixel, myd021km, plume_id, scaling, plumes_list):
+def extract_pixel_info(pixel, myd021km, locational_data, plume_id, plumes_list):
 
     row_dict = {}
 
@@ -194,9 +194,9 @@ def extract_pixel_info(pixel, myd021km, plume_id, scaling, plumes_list):
                                              group_attributes['radiance_scales'][b]
 
 
-    # extract the angles
-
-    # extract the latlons
+    # extract the angles and lat lons
+    for key, value in locational_data:
+        row_dict[key] = locational_data[value][pixel[0], pixel[1]]
 
     # lastly append to the data dictionary
     plumes_list.append(row_dict)
@@ -244,6 +244,12 @@ def main():
             continue
 
         # before adding the plumes into lists interpolate the angular data
+        locational_data = {'vzn': 0,
+                           'van': 0,
+                           'szn': 0,
+                           'san': 0,
+                           'lat': 0,
+                           'lon': 0}
 
         # process plumes and backgrounds
         for plume, background in zip(smoke_polygons, background_rectangles):
@@ -254,8 +260,7 @@ def main():
             extract_background_info(background, plume_id, background_list)
 
             for pixel in plume_pixels:
-                extract_pixel_info(pixel, myd021km, plume_id, plumes_list)
-
+                extract_pixel_info(pixel, myd021km, locational_data, plume_id, plumes_list)
 
         # write items to dataframe
 
