@@ -193,8 +193,8 @@ def extract_pixel_info(y, x, myd021km, locational_data, plume_id, plumes_list):
 
 
     # extract the angles and lat lons
-    for key, value in locational_data:
-        row_dict[key] = locational_data[value][y, x]
+    for key, value in locational_data.iteritems():
+        row_dict[key] = value[y, x]
 
     # lastly append to the data dictionary
     plumes_list.append(row_dict)
