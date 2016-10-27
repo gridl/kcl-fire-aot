@@ -4,13 +4,17 @@ import logging
 from dotenv import find_dotenv, load_dotenv
 
 import re
+import uuid
 
 import numpy as np
+import pandas as pd
+
 from pyhdf.SD import SD, SDC
 from skimage import exposure
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Rectangle
 import cv2
+
 
 
 def read_myd14(myd14_file):
@@ -69,14 +73,14 @@ class Annotate(object):
     def __init__(self, im):
         self.f = plt.figure(figsize=(30, 15))
         self.ax = plt.gca()
-        self.im = self.ax.imshow(im, interpolation='none')
+        self.im = self.ax.imshow(im, interpolation='nearest')
 
         # set up the point holders for the polygon
         self.x = []
         self.y = []
 
         # set up the rectangle to hold the background
-        self.rect = Rectangle((0, 0), 1, 1)
+        self.rect = Rectangle((0, 0), 1, 1,  edgecolor='black', facecolor='none')
         self.ax.add_patch(self.rect)
         self.x0_rect = None
         self.y0_rect = None
@@ -166,12 +170,19 @@ def digitise(img):
     return smoke_polygons, background_rectangles
 
 
-def make_mask(img, image_pts):
+def get_plume_pixels(img, image_pt):
     matrix = np.zeros((img.shape[0], img.shape[1]))
-    for image_pt in image_pts:
-        image_pt_reshape = np.array(image_pt).reshape(-1, 1, 2).squeeze()
-        cv2.drawContours(matrix, [image_pt_reshape], -1, (1), thickness=-1)
+    image_pt_reshape = np.array(image_pt).reshape(-1, 1, 2).squeeze()
+    cv2.drawContours(matrix, [image_pt_reshape], -1, (1), thickness=-1)
     return matrix
+
+
+def extract_pixel_info(pixel, myd021km, plume_id, plumes_list):
+    pass
+
+
+def extract_background_info(background, plume_id, background_list):
+    pass
 
 
 def main():
@@ -180,6 +191,11 @@ def main():
         images and extract smoke plumes.
     """
 
+    # set up holding lists that can be converted into dataframes after processing
+    plumes_list = []
+    background_list = []
+
+    # iterate over files
     for myd021km_fname in os.listdir(r"../../data/raw/l1b"):
 
         # find the frp file
@@ -205,14 +221,20 @@ def main():
         smoke_polygons, background_rectangles = digitise(img)
         if (smoke_polygons is None) | (background_rectangles is None):
             continue
-        plume_mask = make_mask(img, smoke_polygons)
+
+        # process plumes and backgrounds
+        for plume, background in zip(smoke_polygons, background_rectangles):
+
+            plume_id = uuid.uuid4()
+            plume_pixels = get_plume_pixels(img, plume)
+
+            extract_background_info(background, plume_id, background_list)
+
+            for pixel in plume_pixels:
+                extract_pixel_info(pixel, myd021km, plume_id, plumes_list)
 
 
-    # perform manual feature extraction
-
-    # store in database
-
-    # close off data
+        # write items to dataframe
 
 
 
