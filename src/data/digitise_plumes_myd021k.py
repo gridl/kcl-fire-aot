@@ -175,7 +175,7 @@ def get_plume_pixels(img, image_pt):
     return np.nonzero(matrix)
 
 
-def extract_pixel_info(pixel, myd021km, locational_data, plume_id, plumes_list):
+def extract_pixel_info(y, x, myd021km, locational_data, plume_id, plumes_list):
 
     row_dict = {}
 
@@ -185,16 +185,16 @@ def extract_pixel_info(pixel, myd021km, locational_data, plume_id, plumes_list):
     # extract the radiances
     for group in ['EV_250_Aggr1km_RefSB', 'EV_500_Aggr1km_RefSB', 'EV_1KM_RefSB', 'EV_1KM_Emissive']:
         group_attributes = myd021km.select(group).attributes()
-        for b, band in enumerate(group_attributes['band_names']):
+        for b, band in enumerate(group_attributes['band_names'].split(',')):
             # TODO check that the pixels being extracted are in the correct location
-            row_dict['band_' + str(band)] = (myd021km.select(group)[b, pixel[0], pixel[1]] -
-                                             group_attributes['radiance_offsets'][b]) * \
-                                             group_attributes['radiance_scales'][b]
+            row_dict['band_' + band] = (myd021km.select(group)[b, y, x] -
+                                        group_attributes['radiance_offsets'][b]) * \
+                                        group_attributes['radiance_scales'][b]
 
 
     # extract the angles and lat lons
     for key, value in locational_data:
-        row_dict[key] = locational_data[value][pixel[0], pixel[1]]
+        row_dict[key] = locational_data[value][y, x]
 
     # lastly append to the data dictionary
     plumes_list.append(row_dict)
@@ -225,6 +225,9 @@ def main():
     # iterate over files
     for myd021km_fname in os.listdir(r"../../data/raw/l1b"):
 
+
+        # TODO check if file exists in the pandas dataframe already, if it does, do not digitise
+
         # find the frp file
         try:
             timestamp_myd = re.search("[0-9]{7}[.][0-9]{4}[.]", myd021km_fname).group()
@@ -249,7 +252,7 @@ def main():
         if (smoke_polygons is None) | (background_rectangles is None):
             continue
 
-        # before adding the plumes into lists interpolate the angular data
+        # before adding the plumes into lists interpolate the angular data IS THIS RIGHT?
         locational_data = {'vzn': ndimage.zoom(myd021km.select("SensorZenith").get(), 5, order=1)[:, :-1],
                            'van': ndimage.zoom(myd021km.select("SensorAzimuth").get(), 5, order=1)[:, :-1],
                            'szn': ndimage.zoom(myd021km.select("SolarZenith").get(), 5, order=1)[:, :-1],
@@ -261,12 +264,12 @@ def main():
         for plume, background in zip(smoke_polygons, background_rectangles):
 
             plume_id = uuid.uuid4()
-            plume_pixels = get_plume_pixels(img, plume)
 
             extract_background_info(background, plume_id, background_list)
 
-            for pixel in plume_pixels:
-                extract_pixel_info(pixel, myd021km, locational_data, plume_id, plumes_list)
+            plume_pixels = get_plume_pixels(img, plume)
+            for y, x in zip(plume_pixels[0], plume_pixels[1]):
+                extract_pixel_info(int(y), int(x), myd021km, locational_data, plume_id, plumes_list)
 
         # write items to dataframe
 
