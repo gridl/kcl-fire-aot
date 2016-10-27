@@ -172,7 +172,7 @@ def get_plume_pixels(img, image_pt):
     matrix = np.zeros((img.shape[0], img.shape[1]))
     image_pt_reshape = np.array(image_pt).reshape(-1, 1, 2).squeeze()
     cv2.drawContours(matrix, [image_pt_reshape], -1, (1), thickness=-1)
-    return matrix
+    return np.nonzero(matrix)
 
 
 def extract_pixel_info(pixel, myd021km, locational_data, plume_id, plumes_list):
