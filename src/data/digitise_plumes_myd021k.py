@@ -9,7 +9,7 @@ import uuid
 import numpy as np
 import pandas as pd
 
-import scipy.misc as misc
+import scipy.ndimage as ndimage
 from pyhdf.SD import SD, SDC
 from skimage import exposure
 import matplotlib.pyplot as plt
@@ -186,12 +186,15 @@ def load_myd021km(myd021km):
         group_attributes = myd021km.select(group).attributes()
         for b, band in enumerate(group_attributes['band_names'].split(',')):
             # TODO check that the pixels being extracted are in the correct location
-            myd021km_data['band_' + band] = (myd021km.select(group)[b, ...] -
+            myd021km_data['band_' + band] = (myd021km.select(group)[b, :, :] -
                                         group_attributes['radiance_offsets'][b]) * \
                                         group_attributes['radiance_scales'][b]
 
     for group in ["SensorZenith", "SensorAzimuth", "SolarZenith", "SolarAzimuth", "Latitude", "Longitude"]:
-        myd021km_data[group] = misc.imresize(myd021km.select(group).get(), (2030, 1354))
+        # we drop the last pixel due to the fact that the modis x axis is not a whole number
+        # when divided into five.  So we end up with one pixel too many, this has very limited impact
+        # impact onthe accuracy as it shifts each pixel by 1/1354 - very small.
+        myd021km_data[group] = ndimage.zoom(myd021km.select(group).get(), 5, order=1)[:, :-1]
 
     return myd021km_data
 
@@ -292,6 +295,9 @@ def main():
         temp_bg_df = pd.DataFrame(background_list)
         myd021km_plume_df = pd.concat([myd021km_plume_df, temp_plume_df])
         myd021km_bg_df = pd.concat([myd021km_bg_df, temp_bg_df])
+
+        myd021km_plume_df.to_pickle(r"../../data/interim/myd021km_plumes_df.pickle")
+        myd021km_bg_df.to_pickle(r"../../data/interim/myd021km_bg_df.pickle")
 
 
 if __name__ == '__main__':
