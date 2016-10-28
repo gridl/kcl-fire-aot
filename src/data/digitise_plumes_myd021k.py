@@ -20,7 +20,6 @@ import countries
 import config
 
 
-
 def read_myd14(myd14_file):
     return SD(myd14_file, SDC.READ)
 
@@ -238,12 +237,13 @@ def main():
         images and extract smoke plumes.
     """
 
-    # TODO see if pandas dataframe exists, if it does read it in, if not create a new one
-
+    try:
+        myd021km_df = pd.read_pickle(r"../../data/interim/myd021km_df.pickle")
+    except:
+        myd021km_df = pd.DataFrame()
 
     # iterate over files
     for myd021km_fname in os.listdir(r"../../data/raw/l1b"):
-
 
         # TODO check if file exists in the pandas dataframe already, if it does, do not digitise
 
@@ -287,7 +287,7 @@ def main():
             for y, x in zip(plume_pixels[0], plume_pixels[1]):
                 extract_pixel_info(int(y), int(x), myd021km_data, myd021km_fname, plume_id, plumes_list)
 
-        # covert pixel list to dataframe and concatenate to main dataframe
+        # TODO covert pixel/background lists to dataframes and concatenate to main dataframes
 
 
 
