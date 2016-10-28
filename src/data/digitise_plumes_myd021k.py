@@ -205,7 +205,7 @@ def extract_pixel_info(y, x, myd021km_data, fname, plume_id,  plumes_list):
     row_dict['line'] = y
     row_dict['sample'] = x
     row_dict['sensor'] = "MYD"
-    row_dict['file_id'] = fname
+    row_dict['filename'] = fname
 
     # extract the data
     for k in myd021km_data:
@@ -238,16 +238,21 @@ def main():
     """
 
     try:
-        myd021km_df = pd.read_pickle(r"../../data/interim/myd021km_df.pickle")
+        myd021km_plume_df = pd.read_pickle(r"../../data/interim/myd021km_plumes_df.pickle")
+        myd021km_bg_df = pd.read_pickle(r"../../data/interim/myd021km_bg_df.pickle")
     except:
-        myd021km_df = pd.DataFrame()
+        logger.info("myd021km dataframe does not exist, creating now")
+        myd021km_plume_df = pd.DataFrame()
+        myd021km_bg_df = pd.DataFrame()
 
-    # iterate over files
     for myd021km_fname in os.listdir(r"../../data/raw/l1b"):
 
-        # TODO check if file exists in the pandas dataframe already, if it does, do not digitise
+        try:
+            if myd021km_fname in myd021km_plume_df['filename']:
+                continue
+        except:
+            logger.info("filename column not in dataframe - if the dataframe has just been created no problem!")
 
-        # find the frp file
         try:
             timestamp_myd = re.search("[0-9]{7}[.][0-9]{4}[.]", myd021km_fname).group()
         except Exception, e:
@@ -260,7 +265,6 @@ def main():
             logger.warning("More that one frp granule matched " + myd021km_fname + "selecting 0th option")
         myd14_fname = myd14_fname[0]
 
-        # read in the data
         myd14 = read_myd14(os.path.join(r"../../data/raw/frp/", myd14_fname))
         myd021km = read_myd021km(os.path.join(r"../../data/raw/l1b", myd021km_fname))
 
@@ -287,8 +291,11 @@ def main():
             for y, x in zip(plume_pixels[0], plume_pixels[1]):
                 extract_pixel_info(int(y), int(x), myd021km_data, myd021km_fname, plume_id, plumes_list)
 
-        # TODO covert pixel/background lists to dataframes and concatenate to main dataframes
-
+        # covert pixel/background lists to dataframes and concatenate to main dataframes
+        temp_plume_df = pd.DataFrame(plumes_list)
+        temp_bg_df = pd.DataFrame(background_list)
+        myd021km_plume_df = pd.concat([myd021km_plume_df, temp_plume_df])
+        myd021km_bg_df = pd.concat([myd021km_bg_df, temp_bg_df])
 
 
 if __name__ == '__main__':
