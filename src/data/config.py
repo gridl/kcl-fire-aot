@@ -10,4 +10,4 @@ myd = {'year': 2012,
        'min_power': 1000,  # minimum power of the fires in the scene
        }
 
-cc = countries.CountryChecker('TM_WORLD_BORDERS-0.3.shp')
+cc = countries.CountryChecker('../../data/external/TM_WORLD_BORDERS-0.3.shp')

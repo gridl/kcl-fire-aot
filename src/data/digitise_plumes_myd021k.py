@@ -197,28 +197,24 @@ def load_myd021km(myd021km):
     return myd021km_data
 
 
-def extract_pixel_info(y, x, myd021km, locational_data, plume_id, plumes_list):
+def extract_pixel_info(y, x, myd021km_data, fname, plume_id,  plumes_list):
 
     row_dict = {}
 
     row_dict['pixel_id'] = uuid.uuid4()
     row_dict['plume_id'] = plume_id
+    row_dict['line'] = y
+    row_dict['sample'] = x
+    row_dict['sensor'] = "MYD"
+    row_dict['file_id'] = fname
 
-    # extract the radiances
-    for group in ['EV_250_Aggr1km_RefSB', 'EV_500_Aggr1km_RefSB', 'EV_1KM_RefSB', 'EV_1KM_Emissive']:
-        group_attributes = myd021km.select(group).attributes()
-        for b, band in enumerate(group_attributes['band_names'].split(',')):
-            # TODO check that the pixels being extracted are in the correct location
-            row_dict['band_' + band] = (myd021km.select(group)[b, y, x] -
-                                        group_attributes['radiance_offsets'][b]) * \
-                                        group_attributes['radiance_scales'][b]
+    # extract the data
+    for k in myd021km_data:
+        row_dict[k] = myd021km_data[k][y, x]
 
-    cc = config.cc.getCountry(countries.Point(49.7821, 3.5708)).iso
-
-
-    # extract the angles and lat lons
-    for key, value in locational_data.iteritems():
-        row_dict[key] = value[y, x]
+    # inset the meta data
+    cc = config.cc.getCountry(countries.Point(row_dict['Latitude'], row_dict['Longitude'])).iso
+    row_dict['country_code'] = cc
 
     # lastly append to the data dictionary
     plumes_list.append(row_dict)
@@ -242,9 +238,8 @@ def main():
         images and extract smoke plumes.
     """
 
-    # set up holding lists that can be converted into dataframes after processing
-    plumes_list = []
-    background_list = []
+    # TODO see if pandas dataframe exists, if it does read it in, if not create a new one
+
 
     # iterate over files
     for myd021km_fname in os.listdir(r"../../data/raw/l1b"):
@@ -277,12 +272,11 @@ def main():
             continue
 
         # if we have a digitisation load in the myd021km data
-        load_myd021kmkm()
-
-        # before adding the plumes into lists interpolate the angular data IS THIS RIGHT?
-
+        myd021km_data = load_myd021km(myd021km)
 
         # process plumes and backgrounds
+        plumes_list = []
+        background_list = []
         for plume, background in zip(smoke_polygons, background_rectangles):
 
             plume_id = uuid.uuid4()
@@ -291,9 +285,9 @@ def main():
 
             plume_pixels = get_plume_pixels(img, plume)
             for y, x in zip(plume_pixels[0], plume_pixels[1]):
-                extract_pixel_info(int(y), int(x), myd021km, locational_data, plume_id, plumes_list)
+                extract_pixel_info(int(y), int(x), myd021km_data, myd021km_fname, plume_id, plumes_list)
 
-        # write items to dataframe
+        # covert pixel list to dataframe and concatenate to main dataframe
 
 
 
