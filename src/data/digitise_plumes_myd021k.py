@@ -15,7 +15,7 @@ from skimage import exposure
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Rectangle
 import cv2
-import countries
+
 
 import config
 
@@ -210,10 +210,6 @@ def extract_pixel_info(y, x, myd021km_data, fname, plume_id,  plumes_list):
     # extract the data
     for k in myd021km_data:
         row_dict[k] = myd021km_data[k][y, x]
-
-    # inset the meta data
-    cc = config.cc.getCountry(countries.Point(row_dict['Latitude'], row_dict['Longitude'])).iso
-    row_dict['country_code'] = cc
 
     # lastly append to the data dictionary
     plumes_list.append(row_dict)
