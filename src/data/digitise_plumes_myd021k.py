@@ -247,7 +247,7 @@ def main():
     for myd021km_fname in os.listdir(r"../../data/raw/l1b"):
 
         try:
-            if myd021km_fname in myd021km_plume_df['filename']:
+            if myd021km_plume_df['filename'].str.contains(myd021km_fname).any():
                 continue
         except:
             logger.info("filename column not in dataframe - if the dataframe has just been created no problem!")
