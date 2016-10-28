@@ -175,6 +175,10 @@ def get_plume_pixels(img, image_pt):
     return np.nonzero(matrix)
 
 
+def load_myd021kmkm():
+    pass
+
+
 def extract_pixel_info(y, x, myd021km, locational_data, plume_id, plumes_list):
 
     row_dict = {}
@@ -251,6 +255,9 @@ def main():
         smoke_polygons, background_rectangles = digitise(img)
         if (smoke_polygons is None) | (background_rectangles is None):
             continue
+
+        # if we have a digitisation load in the myd021km data
+        load_myd021kmkm()
 
         # before adding the plumes into lists interpolate the angular data IS THIS RIGHT?
         locational_data = {'vzn': ndimage.zoom(myd021km.select("SensorZenith").get(), 5, order=1)[:, :-1],
