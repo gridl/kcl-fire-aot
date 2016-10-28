@@ -9,12 +9,15 @@ import uuid
 import numpy as np
 import pandas as pd
 
-import scipy.ndimage as ndimage
+import scipy.misc as misc
 from pyhdf.SD import SD, SDC
 from skimage import exposure
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Rectangle
 import cv2
+import countries
+
+import config
 
 
 
@@ -175,8 +178,23 @@ def get_plume_pixels(img, image_pt):
     return np.nonzero(matrix)
 
 
-def load_myd021kmkm():
-    pass
+def load_myd021km(myd021km):
+
+    myd021km_data = {}
+
+    # extract the radiances
+    for group in ['EV_250_Aggr1km_RefSB', 'EV_500_Aggr1km_RefSB', 'EV_1KM_RefSB', 'EV_1KM_Emissive']:
+        group_attributes = myd021km.select(group).attributes()
+        for b, band in enumerate(group_attributes['band_names'].split(',')):
+            # TODO check that the pixels being extracted are in the correct location
+            myd021km_data['band_' + band] = (myd021km.select(group)[b, ...] -
+                                        group_attributes['radiance_offsets'][b]) * \
+                                        group_attributes['radiance_scales'][b]
+
+    for group in ["SensorZenith", "SensorAzimuth", "SolarZenith", "SolarAzimuth", "Latitude", "Longitude"]:
+        myd021km_data[group] = misc.imresize(myd021km.select(group).get(), (2030, 1354))
+
+    return myd021km_data
 
 
 def extract_pixel_info(y, x, myd021km, locational_data, plume_id, plumes_list):
@@ -194,6 +212,8 @@ def extract_pixel_info(y, x, myd021km, locational_data, plume_id, plumes_list):
             row_dict['band_' + band] = (myd021km.select(group)[b, y, x] -
                                         group_attributes['radiance_offsets'][b]) * \
                                         group_attributes['radiance_scales'][b]
+
+    cc = config.cc.getCountry(countries.Point(49.7821, 3.5708)).iso
 
 
     # extract the angles and lat lons
@@ -260,12 +280,7 @@ def main():
         load_myd021kmkm()
 
         # before adding the plumes into lists interpolate the angular data IS THIS RIGHT?
-        locational_data = {'vzn': ndimage.zoom(myd021km.select("SensorZenith").get(), 5, order=1)[:, :-1],
-                           'van': ndimage.zoom(myd021km.select("SensorAzimuth").get(), 5, order=1)[:, :-1],
-                           'szn': ndimage.zoom(myd021km.select("SolarZenith").get(), 5, order=1)[:, :-1],
-                           'san': ndimage.zoom(myd021km.select("SolarAzimuth").get(), 5, order=1)[:, :-1],
-                           'lat': ndimage.zoom(myd021km.select("Latitude").get(), 5, order=1)[:, :-1],
-                           'lon': ndimage.zoom(myd021km.select("Longitude").get(), 5, order=1)[:, :-1]}
+
 
         # process plumes and backgrounds
         for plume, background in zip(smoke_polygons, background_rectangles):
