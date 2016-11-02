@@ -140,7 +140,7 @@ def digitise(img):
             print "you must select define a polygon containing smoke pixels"
             continue
         if annotator.x0_rect is None:
-            print "you must define a circle containing fire pixels"
+            print "you must define a background rectangle"
             continue
 
         digitised_copy = img_copy.copy()

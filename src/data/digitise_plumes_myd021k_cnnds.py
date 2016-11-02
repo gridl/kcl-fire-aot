@@ -78,10 +78,6 @@ class Annotate(object):
         self.ax = plt.gca()
         self.im = self.ax.imshow(im, interpolation='nearest')
 
-        # set up the point holders for the polygon
-        self.x = []
-        self.y = []
-
         # set up the rectangle to hold the background
         self.rect = Rectangle((0, 0), 1, 1,  edgecolor='black', facecolor='none')
         self.ax.add_patch(self.rect)
@@ -95,12 +91,7 @@ class Annotate(object):
         self.ax.figure.canvas.mpl_connect('button_release_event', self.release)
 
     def click(self, event):
-        if event.button == 3:
-            self.x.append(int(event.xdata))
-            self.y.append(int(event.ydata))
-            self.ax.add_patch(Circle((event.xdata, event.ydata), radius=0.25, facecolor='red', edgecolor='black'))
-            self.ax.figure.canvas.draw()
-        elif event.button == 2:
+        if event.button == 2:
             self.x0_rect = int(event.xdata)
             self.y0_rect = int(event.ydata)
 
@@ -117,15 +108,14 @@ class Annotate(object):
 def digitise(img):
 
     img_copy = img.copy()
-    smoke_polygons = []
-    background_rectangles = []
+    smoke_rectangles = []
 
     plt.figure(figsize=(30, 15))
     plt.imshow(img)
     plt.show()
     arg = raw_input("Do you want to digitise this plume?: [y, N]")
     if arg.lower() in ['', 'no', 'n']:
-        return None, None
+        return None
 
     while True:
 
@@ -135,17 +125,11 @@ def digitise(img):
 
         # show them what they have digitised, and check if they are OK with that
         # if they are append the polygon, and modify the RGB to reflect the digitised region
-        pts = zip(annotator.x, annotator.y)
-        if not pts:
-            print "you must select define a polygon containing smoke pixels"
-            continue
         if annotator.x0_rect is None:
-            print "you must define a circle containing fire pixels"
+            print "you must define a plume rectangle"
             continue
 
         digitised_copy = img_copy.copy()
-
-        cv2.fillConvexPoly(digitised_copy, np.array(pts), (255, 255, 255, 125))
         cv2.rectangle(digitised_copy,
                       (annotator.x0_rect,
                        annotator.y0_rect),
@@ -156,10 +140,9 @@ def digitise(img):
         plt.imshow(digitised_copy)
         plt.show()
 
-        arg = raw_input("Are you happy with this plume digitisation? [Y,n]")
+        arg = raw_input("Are you happy with this plume rectangle? [Y,n]")
         if arg.lower() in ["", "y", "yes", 'ye']:
-            smoke_polygons.append(pts)
-            background_rectangles.append((annotator.x0_rect, annotator.x1_rect, annotator.y0_rect, annotator.y1_rect))
+            smoke_rectangles.append((annotator.x0_rect, annotator.x1_rect, annotator.y0_rect, annotator.y1_rect))
             img_copy = digitised_copy
 
         # ask if they want to digitise some more?
@@ -167,7 +150,7 @@ def digitise(img):
         if arg.lower() not in ["", "y", "yes", 'ye']:
             break
 
-    return smoke_polygons, background_rectangles
+    return smoke_rectangles
 
 
 def get_plume_pixels(img, image_pt):
@@ -218,10 +201,11 @@ def extract_pixel_info(y, x, myd021km_data, fname, plume_id,  plumes_list):
     plumes_list.append(row_dict)
 
 
-def extract_background_info(background, plume_id, background_list):
+def extract_background_info(background, myd021km_fname, plume_id, background_list):
 
     row_dict = {}
     row_dict['plume_id'] = plume_id
+    row_dict['filename'] = myd021km_fname
     row_dict['x0'] = background[0]
     row_dict['x1'] = background[1]
     row_dict['y0'] = background[2]
@@ -237,17 +221,15 @@ def main():
     """
 
     try:
-        myd021km_plume_df = pd.read_pickle(r"../../data/interim/myd021km_plumes_df.pickle")
-        myd021km_bg_df = pd.read_pickle(r"../../data/interim/myd021km_bg_df.pickle")
+        myd021km_cnn_df = pd.read_pickle(r"../../data/interim/myd021km_plumes_df.pickle")
     except:
         logger.info("myd021km dataframe does not exist, creating now")
-        myd021km_plume_df = pd.DataFrame()
-        myd021km_bg_df = pd.DataFrame()
+        myd021km_cnn_df = pd.DataFrame()
 
     for myd021km_fname in os.listdir(r"../../data/raw/l1b"):
 
         try:
-            if myd021km_plume_df['filename'].str.contains(myd021km_fname).any():
+            if myd021km_cnn_df['filename'].str.contains(myd021km_fname).any():
                 continue
         except:
             logger.info("filename column not in dataframe - if the dataframe has just been created no problem!")
@@ -270,34 +252,23 @@ def main():
         # do the digitising
         myd14_fire_mask = firemask_myd14(myd14)
         img = fcc_myd021km(myd021km, myd14_fire_mask)
-        smoke_polygons, background_rectangles = digitise(img)
-        if (smoke_polygons is None) | (background_rectangles is None):
+        smoke_polygons = digitise(img)
+        if smoke_polygons is None:
             continue
-
-        # if we have a digitisation load in the myd021km data
-        myd021km_data = load_myd021km(myd021km)
 
         # process plumes and backgrounds
         plumes_list = []
-        background_list = []
-        for plume, background in zip(smoke_polygons, background_rectangles):
+        for plume in smoke_polygons:
 
             plume_id = uuid.uuid4()
 
-            extract_background_info(background, plume_id, background_list)
-
-            plume_pixels = get_plume_pixels(img, plume)
-            for y, x in zip(plume_pixels[0], plume_pixels[1]):
-                extract_pixel_info(int(y), int(x), myd021km_data, myd021km_fname, plume_id, plumes_list)
+            extract_background_info(plume, myd021km_fname, plume_id, plumes_list)
 
         # covert pixel/background lists to dataframes and concatenate to main dataframes
         temp_plume_df = pd.DataFrame(plumes_list)
-        temp_bg_df = pd.DataFrame(background_list)
-        myd021km_plume_df = pd.concat([myd021km_plume_df, temp_plume_df])
-        myd021km_bg_df = pd.concat([myd021km_bg_df, temp_bg_df])
+        myd021km_cnn_df = pd.concat([myd021km_cnn_df, temp_plume_df])
 
-        myd021km_plume_df.to_pickle(r"../../data/interim/myd021km_plumes_df.pickle")
-        myd021km_bg_df.to_pickle(r"../../data/interim/myd021km_bg_df.pickle")
+        myd021km_cnn_df.to_pickle(r"../../data/interim/myd021km_plumes_cnn_df.pickle")
 
 
 if __name__ == '__main__':
