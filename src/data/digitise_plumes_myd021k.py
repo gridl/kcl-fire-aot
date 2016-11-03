@@ -121,7 +121,7 @@ def digitise(img):
     background_rectangles = []
 
     plt.figure(figsize=(30, 15))
-    plt.imshow(img)
+    plt.imshow(img, interpolation="nearest")
     plt.show()
     arg = raw_input("Do you want to digitise this plume?: [y, N]")
     if arg.lower() in ['', 'no', 'n']:
@@ -228,6 +228,10 @@ def extract_background_info(background, plume_id, background_list):
     row_dict['y1'] = background[3]
 
     background_list.append(row_dict)
+
+
+def extract_frp():
+    pass
 
 
 def main():
