@@ -111,7 +111,7 @@ def digitise(img):
     smoke_rectangles = []
 
     plt.figure(figsize=(30, 15))
-    plt.imshow(img)
+    plt.imshow(img, interpolation='nearest')
     plt.show()
     arg = raw_input("Do you want to digitise this plume?: [y, N]")
     if arg.lower() in ['', 'no', 'n']:
@@ -153,11 +153,11 @@ def digitise(img):
     return smoke_rectangles
 
 
-def get_plume_pixels(img, image_pt):
-    matrix = np.zeros((img.shape[0], img.shape[1]))
-    image_pt_reshape = np.array(image_pt).reshape(-1, 1, 2).squeeze()
-    cv2.drawContours(matrix, [image_pt_reshape], -1, (1), thickness=-1)
-    return np.nonzero(matrix)
+def get_rect_pixels(image_pt):
+    x_pts = np.arange(image_pt[0], image_pt[1], 1)
+    y_pts = np.arange(image_pt[2], image_pt[3], 1)
+    x_grid, y_grid = np.meshgrid(x_pts, y_pts)
+    return y_grid.flatten(), x_grid.flatten()
 
 
 def load_myd021km(myd021km):
@@ -201,19 +201,6 @@ def extract_pixel_info(y, x, myd021km_data, fname, plume_id,  plumes_list):
     plumes_list.append(row_dict)
 
 
-def extract_background_info(background, myd021km_fname, plume_id, background_list):
-
-    row_dict = {}
-    row_dict['plume_id'] = plume_id
-    row_dict['filename'] = myd021km_fname
-    row_dict['x0'] = background[0]
-    row_dict['x1'] = background[1]
-    row_dict['y0'] = background[2]
-    row_dict['y1'] = background[3]
-
-    background_list.append(row_dict)
-
-
 def main():
     """ Loads MODIS data files for the specified geographic region,
         timeframe, and time stamps.  The user can then process these
@@ -221,15 +208,15 @@ def main():
     """
 
     try:
-        myd021km_cnn_df = pd.read_pickle(r"../../data/interim/myd021km_plumes_df.pickle")
+        myd021km_ml_df = pd.read_pickle(r"../../data/interim/myd021km_plumes_ml_df.pickle")
     except:
         logger.info("myd021km dataframe does not exist, creating now")
-        myd021km_cnn_df = pd.DataFrame()
+        myd021km_ml_df = pd.DataFrame()
 
     for myd021km_fname in os.listdir(r"../../data/raw/l1b"):
 
         try:
-            if myd021km_cnn_df['filename'].str.contains(myd021km_fname).any():
+            if myd021km_ml_df['filename'].str.contains(myd021km_fname).any():
                 continue
         except:
             logger.info("filename column not in dataframe - if the dataframe has just been created no problem!")
@@ -252,23 +239,27 @@ def main():
         # do the digitising
         myd14_fire_mask = firemask_myd14(myd14)
         img = fcc_myd021km(myd021km, myd14_fire_mask)
-        smoke_polygons = digitise(img)
-        if smoke_polygons is None:
+        smoke_rectangle = digitise(img)
+        if smoke_rectangle is None:
             continue
 
+        # if we have a digitisation load in the myd021km data
+        myd021km_data = load_myd021km(myd021km)
+
         # process plumes and backgrounds
-        plumes_list = []
-        for plume in smoke_polygons:
+        rects_list = []
+        for rect in smoke_rectangle:
 
-            plume_id = uuid.uuid4()
+            rect_id = uuid.uuid4()
 
-            extract_background_info(plume, myd021km_fname, plume_id, plumes_list)
+            rect_pixels = get_rect_pixels(rect)
+            for y, x in zip(rect_pixels[0], rect_pixels[1]):
+                extract_pixel_info(int(y), int(x), myd021km_data, myd021km_fname, rect_id, rects_list)
+        # covert pixel
+        temp_plume_df = pd.DataFrame(rects_list)
+        myd021km_ml_df = pd.concat([myd021km_ml_df, temp_plume_df])
 
-        # covert pixel/background lists to dataframes and concatenate to main dataframes
-        temp_plume_df = pd.DataFrame(plumes_list)
-        myd021km_cnn_df = pd.concat([myd021km_cnn_df, temp_plume_df])
-
-        myd021km_cnn_df.to_pickle(r"../../data/interim/myd021km_plumes_cnn_df.pickle")
+        myd021km_ml_df.to_pickle(r"../../data/interim/myd021km_plumes_ml_df.pickle")
 
 
 if __name__ == '__main__':
