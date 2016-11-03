@@ -136,9 +136,6 @@ def digitise(img):
                       (annotator.x1_rect,
                        annotator.y1_rect),
                       (0, 0, 0, 255))
-        plt.figure(figsize=(30, 15))
-        plt.imshow(digitised_copy)
-        plt.show()
 
         arg = raw_input("Are you happy with this plume rectangle? [Y,n]")
         if arg.lower() in ["", "y", "yes", 'ye']:
@@ -182,12 +179,12 @@ def load_myd021km(myd021km):
     return myd021km_data
 
 
-def extract_pixel_info(y, x, myd021km_data, fname, plume_id,  plumes_list):
+def extract_pixel_info(y, x, myd021km_data, fname, rect_id,  rect_list):
 
     row_dict = {}
 
     row_dict['pixel_id'] = uuid.uuid4()
-    row_dict['plume_id'] = plume_id
+    row_dict['rect_id'] = rect_id
     row_dict['line'] = y
     row_dict['sample'] = x
     row_dict['sensor'] = "MYD"
@@ -198,7 +195,7 @@ def extract_pixel_info(y, x, myd021km_data, fname, plume_id,  plumes_list):
         row_dict[k] = myd021km_data[k][y, x]
 
     # lastly append to the data dictionary
-    plumes_list.append(row_dict)
+    rect_list.append(row_dict)
 
 
 def main():
@@ -247,17 +244,17 @@ def main():
         myd021km_data = load_myd021km(myd021km)
 
         # process plumes and backgrounds
-        rects_list = []
+        rect_list = []
         for rect in smoke_rectangle:
 
             rect_id = uuid.uuid4()
 
             rect_pixels = get_rect_pixels(rect)
             for y, x in zip(rect_pixels[0], rect_pixels[1]):
-                extract_pixel_info(int(y), int(x), myd021km_data, myd021km_fname, rect_id, rects_list)
+                extract_pixel_info(int(y), int(x), myd021km_data, myd021km_fname, rect_id, rect_list)
         # covert pixel
-        temp_plume_df = pd.DataFrame(rects_list)
-        myd021km_ml_df = pd.concat([myd021km_ml_df, temp_plume_df])
+        temp_rect_df = pd.DataFrame(rect_list)
+        myd021km_ml_df = pd.concat([myd021km_ml_df, temp_rect_df])
 
         myd021km_ml_df.to_pickle(r"../../data/interim/myd021km_plumes_ml_df.pickle")
 
