@@ -177,61 +177,68 @@ def get_plume_pixels(img, image_pt):
     return np.nonzero(matrix)
 
 
-def load_myd021km(myd021km):
+# def load_myd021km(myd021km):
+#
+#     myd021km_data = {}
+#
+#     # extract the radiances
+#     for group in ['EV_250_Aggr1km_RefSB', 'EV_500_Aggr1km_RefSB', 'EV_1KM_RefSB', 'EV_1KM_Emissive']:
+#         group_attributes = myd021km.select(group).attributes()
+#         for b, band in enumerate(group_attributes['band_names'].split(',')):
+#             # TODO check that the pixels being extracted are in the correct location
+#             myd021km_data['band_' + band] = (myd021km.select(group)[b, :, :] -
+#                                         group_attributes['radiance_offsets'][b]) * \
+#                                         group_attributes['radiance_scales'][b]
+#
+#     for group in ["SensorZenith", "SensorAzimuth", "SolarZenith", "SolarAzimuth", "Latitude", "Longitude"]:
+#         # we drop the last pixel due to the fact that the modis x axis is not a whole number
+#         # when divided into five.  So we end up with one pixel too many, this has very limited impact
+#         # impact onthe accuracy as it shifts each pixel by 1/1354 - very small.
+#         myd021km_data[group] = ndimage.zoom(myd021km.select(group).get(), 5, order=1)[:, :-1]
+#
+#     return myd021km_data
+#
+#
+# def extract_pixel_info(y, x, myd021km_data, fname, plume_id,  plumes_list):
+#
+#     row_dict = {}
+#
+#     row_dict['pixel_id'] = uuid.uuid4()
+#     row_dict['plume_id'] = plume_id
+#     row_dict['line'] = y
+#     row_dict['sample'] = x
+#     row_dict['sensor'] = "MYD"
+#     row_dict['filename'] = fname
+#
+#     # extract the data
+#     for k in myd021km_data:
+#         row_dict[k] = myd021km_data[k][y, x]
+#
+#     # lastly append to the data dictionary
+#     plumes_list.append(row_dict)
 
-    myd021km_data = {}
 
-    # extract the radiances
-    for group in ['EV_250_Aggr1km_RefSB', 'EV_500_Aggr1km_RefSB', 'EV_1KM_RefSB', 'EV_1KM_Emissive']:
-        group_attributes = myd021km.select(group).attributes()
-        for b, band in enumerate(group_attributes['band_names'].split(',')):
-            # TODO check that the pixels being extracted are in the correct location
-            myd021km_data['band_' + band] = (myd021km.select(group)[b, :, :] -
-                                        group_attributes['radiance_offsets'][b]) * \
-                                        group_attributes['radiance_scales'][b]
-
-    for group in ["SensorZenith", "SensorAzimuth", "SolarZenith", "SolarAzimuth", "Latitude", "Longitude"]:
-        # we drop the last pixel due to the fact that the modis x axis is not a whole number
-        # when divided into five.  So we end up with one pixel too many, this has very limited impact
-        # impact onthe accuracy as it shifts each pixel by 1/1354 - very small.
-        myd021km_data[group] = ndimage.zoom(myd021km.select(group).get(), 5, order=1)[:, :-1]
-
-    return myd021km_data
-
-
-def extract_pixel_info(y, x, myd021km_data, fname, plume_id,  plumes_list):
+def extract_background_bounds(background, plume_id, background_list):
 
     row_dict = {}
-
-    row_dict['pixel_id'] = uuid.uuid4()
     row_dict['plume_id'] = plume_id
-    row_dict['line'] = y
-    row_dict['sample'] = x
-    row_dict['sensor'] = "MYD"
-    row_dict['filename'] = fname
-
-    # extract the data
-    for k in myd021km_data:
-        row_dict[k] = myd021km_data[k][y, x]
-
-    # lastly append to the data dictionary
-    plumes_list.append(row_dict)
-
-
-def extract_background_info(background, plume_id, background_list):
-
-    row_dict = {}
-    row_dict['plume_id'] = plume_id
-    row_dict['x0'] = background[0]
-    row_dict['x1'] = background[1]
-    row_dict['y0'] = background[2]
-    row_dict['y1'] = background[3]
+    row_dict['bg_extent'] = background
 
     background_list.append(row_dict)
 
 
-def extract_frp():
-    pass
+def extract_plume_bounds(plume, fname, plume_id, plumes_list):
+
+    row_dict = {}
+
+    row_dict['plume_id'] = plume_id
+    row_dict['sensor'] = "MYD"
+    row_dict['filename'] = fname
+    row_dict['plume_extent'] = plume
+
+    # lastly append to the data dictionary
+    plumes_list.append(row_dict)
+
 
 
 def main():
@@ -279,7 +286,7 @@ def main():
             continue
 
         # if we have a digitisation load in the myd021km data
-        myd021km_data = load_myd021km(myd021km)
+        #myd021km_data = load_myd021km(myd021km)
 
         # process plumes and backgrounds
         plumes_list = []
@@ -288,11 +295,12 @@ def main():
 
             plume_id = uuid.uuid4()
 
-            extract_background_info(background, plume_id, background_list)
+            extract_background_bounds(background, plume_id, background_list)
+            extract_plume_bounds(plume, myd021km_fname, plume_id, plumes_list)
 
-            plume_pixels = get_plume_pixels(img, plume)
-            for y, x in zip(plume_pixels[0], plume_pixels[1]):
-                extract_pixel_info(int(y), int(x), myd021km_data, myd021km_fname, plume_id, plumes_list)
+            # plume_pixels = get_plume_pixels(img, plume)
+            # for y, x in zip(plume_pixels[0], plume_pixels[1]):
+            #     extract_pixel_info(int(y), int(x), myd021km_data, myd021km_fname, plume_id, plumes_list)
 
         # covert pixel/background lists to dataframes and concatenate to main dataframes
         temp_plume_df = pd.DataFrame(plumes_list)
