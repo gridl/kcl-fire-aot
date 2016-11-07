@@ -35,8 +35,8 @@ def ftp_connect_laads():
 
 def ftp_cd(ftp_laads, doy, directory):
     ftp_laads.cwd("/")
-    ftp_laads.cwd(directory + str(config.myd['year']) + '/')
-    ftp_laads.cwd(str(doy))
+    ftp_laads.cwd(directory + config.myd['year'] + '/')
+    ftp_laads.cwd(doy)
 
 
 def get_file_lists(ftp_laads, doy):
@@ -47,7 +47,7 @@ def get_file_lists(ftp_laads, doy):
         frp_file_list = get_files(ftp_laads)
         return l1_file_list, frp_file_list
     except:
-        logger.info('Could not download data for DOY:' + str(doy) + "Reattempting...")
+        logger.info('Could not download data for DOY: ' + doy + " Reattempting...")
         attempt = 1
         while True:
             try:
@@ -58,7 +58,7 @@ def get_file_lists(ftp_laads, doy):
                 frp_file_list = get_files(ftp_laads)
                 return l1_file_list, frp_file_list
             except:
-                logger.info('Could not download data for DOY:' + str(doy) + "Reattempting...")
+                logger.info('Could not download data for DOY: ' + doy + " Reattempting...")
                 time.sleep(5)
                 attempt += 1
 
@@ -148,7 +148,9 @@ def main():
 
     for doy in config.myd['doy_range']:
 
-        logger.info("Downloading MODIS data with fires for DOY: " + str(doy))
+        doy = str(doy).zfill(3)
+
+        logger.info("Downloading MODIS data with fires for DOY: " + doy)
 
         # get files lists from laads
         l1_file_list, frp_file_list = get_file_lists(ftp_laads, doy)
