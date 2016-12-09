@@ -258,6 +258,8 @@ def main():
 
     for myd021km_fname in os.listdir(r"../../data/raw/l1b"):
 
+        logger.info("Processing modis granule: " + myd021km_fname)
+
         try:
             timestamp_myd = re.search("[0-9]{7}[.][0-9]{4}[.]", myd021km_fname).group()
         except Exception, e:

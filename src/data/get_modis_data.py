@@ -104,7 +104,11 @@ def assess_fires_present(ftp_laads, doy, local_filename, filename_frp):
         lf.close()
 
     # determine whether to process the scene or not
-    frp_data = SD(local_filename, SDC.READ)
+    try:
+        frp_data = SD(local_filename, SDC.READ)
+    except:
+        process_flag = False
+        return process_flag
     if frp_data.select('FP_power').checkempty():
         process_flag = False
     else:
