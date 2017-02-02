@@ -38,8 +38,6 @@ parser = argparse.ArgumentParser(description='Run ORAC regression tests.')
 reg = parser.add_argument_group('Regression test parameters')
 reg.add_argument('-A', '--all_phases', action='store_true',
                  help = 'Sets phases to run all possible tests.')
-reg.add_argument('-B', '--benchmark', action='store_true',
-                 help = 'Produce benchmark output files i.e. a clean revision.')
 reg.add_argument('-L', '--long', action='store_true',
                  help = 'Process full orbits rather than short segments.')
 reg.add_argument('-t', '--tests', type=str, nargs='+', metavar='TEST',
@@ -67,19 +65,6 @@ if args.out_dir:
     base_out_dir = args.out_dir
 else:
     base_out_dir = defaults.data_dir +'/testoutput'
-
-# Increment version number (as this is usually run on uncommited code)
-#if not args.revision:
-#    cwd = os.getcwd()
-#    os.chdir(args.orac_dir + '/pre_processing')
-#    args.revision = ou.get_svn_revision()
-#    os.chdir(cwd)
-
-#    if not args.benchmark:
-#        args.revision += 1
-
-#-----------------------------------------------------------------------------
-
 
 try:
     for test in args.tests:
