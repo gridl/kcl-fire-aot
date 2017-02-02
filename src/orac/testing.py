@@ -27,23 +27,9 @@ regress = {}
 # Short tests
 regress['DAYMYDS'] = ('MYD021KM.A2008172.0405.005.2009317014309.hdf',
                       (700, 1299, 1200, 1204))
-regress['NITMYDS'] = (
-    'MYD021KM.A2008172.1630.005.2009317021545.bscs_000500531943.hdf',
-    (500, 1099, 900, 904))
-regress['DAYAATSRS'] = (
-    'ATS_TOA_1PRUPA20080620_002337_000065272069_00345_32964_0666.N1',
-    (1, 512, 21366, 21370))
-regress['NITAATSRS'] = (regress['DAYAATSRS'][0], (1, 512, 37450, 37454))
-regress['DAYAVHRRS'] = (
-    'noaa18_20080620_0050_99999_satproj_00000_13111_avhrr.h5',
-    (1, 409, 5190, 5194))
-regress['NITAVHRRS'] = (regress['DAYAVHRRS'][0], (1, 409, 10150, 10154))
 
 # Long tests
 regress['DAYMYD']    = (regress['DAYMYDS'][0],   (0, 0, 0, 0))
-regress['NITMYD']    = (regress['NITMYDS'][0],   (0, 0, 0, 0))
-regress['AATSR']     = (regress['DAYAATSRS'][0], (0, 0, 0, 0))
-regress['AVHRR']     = (regress['DAYAVHRRS'][0], (0, 0, 0, 0))
 
 #-----------------------------------------------------------------------------
 
