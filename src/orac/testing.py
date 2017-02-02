@@ -55,15 +55,11 @@ ou.args_postproc(parser)
 ou.args_cc4cl(parser)
 args = parser.parse_args()
 
+# Lets just run over MODIS
+args.tests = ['DAYMYD']
+
 if args.all_phases:
     args.phases = ou.settings.keys()
-    # For now, only run ATSR through all phases
-    if args.long:
-        args.tests = ['AATSR']
-    else:
-        args.tests = ['DAYAATSRS']
-elif args.long:
-    args.tests = ['DAYMYD', 'NITMYD', 'AATSR', 'AVHRR']
 
 if args.in_dir == None:
     args.in_dir = [ defaults.data_dir + '/testinput' ]
