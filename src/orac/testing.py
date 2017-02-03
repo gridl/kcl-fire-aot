@@ -16,22 +16,10 @@ import tempfile
 import warnings
 
 
-# Calibrate how regression warnings are displayed
-for key in defaults.warn_filt.keys():
-    warnings.simplefilter(defaults.warn_filt[key], ou.__dict__[key])
 
-#-----------------------------------------------------------------------------
+target = 'MYD021KM.A2008172.0405.005.2009317014309.hdf'
+limit = (0, 0, 0, 0)
 
-# Define the regression tests
-regress = {}
-# Short tests
-regress['DAYMYDS'] = ('MYD021KM.A2008172.0405.005.2009317014309.hdf',
-                      (700, 1299, 1200, 1204))
-
-# Long tests
-regress['DAYMYD']    = (regress['DAYMYDS'][0],   (0, 0, 0, 0))
-
-#-----------------------------------------------------------------------------
 
 # Define parser
 parser = argparse.ArgumentParser(description='Run ORAC regression tests.')
