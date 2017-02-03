@@ -1539,6 +1539,7 @@ def cc4cl(orig):
                                                                   args.revision))
 
     # Run preprocessor (checking if we're clobbering a previous run)
+    print 'Running preprocessor'
     if args.clobber >= 3 or not os.path.isfile(args.out_dir + '/' +
                                                outroot + '.config.nc'):
         # Settings for batch processing
@@ -1555,6 +1556,7 @@ def cc4cl(orig):
         jid_pre = None
 
     # Run main processor
+    print 'Running main'
     jid_main    = [] # ID no. for each queued job
     main_files  = [] # Main files that are generated
     args.target = outroot
@@ -1600,6 +1602,7 @@ def cc4cl(orig):
                          jid_main, written_dirs, phs, '')
 
     # Run postprocessor
+    print 'running postprocessor'
     args.in_dir = written_dirs
     args.out_dir = orig.out_dir
     check_args_postproc(args)
