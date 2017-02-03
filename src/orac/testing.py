@@ -71,7 +71,8 @@ try:
         cprint(test, ou.colouring['header'])
 
         # Set filename to be processed and output folder
-        args.target  = regress[test][0]
+        args.target  = regress[test][0]  # for regression test file to be processes is set here
+                                         # in normal running it is set in args_common
         args.limit   = regress[test][1]
         args.out_dir = base_out_dir + '/' + test
 
