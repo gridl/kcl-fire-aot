@@ -39,7 +39,6 @@ limit = (0, 0, 0, 0)
 
 args.target = target
 args.limit = limit
-args.phases = ou.settings.keys()
 
 args.in_dir = [ defaults.data_dir + '/testinput' ]
 base_out_dir = args.out_dir
