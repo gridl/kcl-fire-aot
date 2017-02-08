@@ -1501,8 +1501,10 @@ def do_main_proc(args, main_files, job_name, log_path, jid_pre, jid_main,
                   'ram'      : args.ram[1]}
 
         main_driver = build_main_driver(args)
-        jd = call_exe(args, args.orac_dir + '/src/orac', main_driver, values)
-        if jd != None:
+        print "    ...calling main exec"
+	jd = call_exe(args, args.orac_dir + '/src/orac', main_driver, values)
+        print "    ...exectuion returned with value:", jd
+	if jd != None:
             jid_main.append(jd)
         written_dirs.unique_append(args.out_dir)
 
@@ -1535,6 +1537,8 @@ def cc4cl(orig):
     args.out_dir += '/' + args.pre_dir
     check_args_preproc(args)
     (pre_driver, outroot) = build_preproc_driver(args)
+    print pre_driver
+    print outroot
     job_name = inst.time.strftime('{}_%Y-%m-%d-%H-%M_R{}_'.format(inst.inst,
                                                                   args.revision))
 
@@ -1556,12 +1560,13 @@ def cc4cl(orig):
         jid_pre = None
 
     # Run main processor
-    print 'Running main'
+    print 'Running main...'
     jid_main    = [] # ID no. for each queued job
     main_files  = [] # Main files that are generated
     args.target = outroot
     args.in_dir = [args.out_dir]
     for phs in args.phases:
+	print "    ...for phase:", phs
         args.phase   = phs
         args.sad_dir = settings[phs].sad
 
