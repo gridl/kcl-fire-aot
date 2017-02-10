@@ -1565,7 +1565,7 @@ def cc4cl(orig):
     args.target = outroot
     args.in_dir = [args.out_dir]
     for phs in args.phases:
-	    print "    ...for phase:", phs
+        print "    ...for phase:", phs
         args.phase   = phs
         args.sad_dir = settings[phs].sad
 
