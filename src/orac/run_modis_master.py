@@ -35,11 +35,14 @@ pre_cmd = mod_dir + '/' + l1name \
 
 os.system('./orac_preproc.py ' + pre_cmd)
 
+
+'''
 # Call the processing for the desired phases/types
 # Path to the preprocessed files
 msi_root = glob.glob(predir + '/*_' + yr + doy + hr + mn + '_*.msi.nc')
 #msi_root = os.path.basename(msi_root[:len(msi_root) - 7])
 print msi_root
+print ''
 
 # Call main first time  TODO Set channels to the right ones
 proc_cmd = '-i ' + predir \
@@ -69,3 +72,4 @@ post_cmd = '-i ' + maindir + \
 os.system('./orac_postproc.py ' + post_cmd)
 
 # Clean-up
+'''
