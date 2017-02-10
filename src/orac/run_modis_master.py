@@ -19,16 +19,18 @@ nrt_ws='/group_workspaces/cems/nrt_ecmwf_metop'
 rsg_ws='/group_workspaces/cems/rsgnceo'
 nceo_ws='/group_workspaces/cems2/nceo_generic'
 orac_dir='/home/users/gethomas/orac_code'
+
 hritscdir=rsg_ws+'/scratch/seviri_nrt/hrit'
+
 preoutdir=rsg_ws+'/scratch/seviri_nrt/preproc_out/'+yr+'/'+mth+'/'+day
 prooutdir=rsg_ws+'/scratch/seviri_nrt/proc_out/'+yr+'/'+mth+'/'+day
 postoutdir=rsg_ws+'/scratch/seviri_nrt/post_out/'+yr+'/'+mth+'/'+day
+
 cldsaddir='/group_workspaces/cems/cloud_ecv/orac/sad_dir'
 cldphs=['WAT','ICE']
 aersaddir='/group_workspaces/cems/nceo_aerosolfire/gethomas/luts'
-aerphs=['A70','A71','A72','A73','A74','A74','A75','A76','A77','A78','A79']
-#pixellimit='1800 2100 1809 2100' # test region near sub-satellite point
-pixellimit='1701 2100 3201 3600' # Region centred on UK?
+aerphs=['AMZ','BOR','CER','AFR']  # Amazon, Boreal, Cerrado, Africa
+
 #posoutdir=rsg_ws+'/public/nrt_rolling/nrt_cloud_seviri_msg3'
 if not(os.access(preoutdir, os.F_OK)):
     os.makedirs(preoutdir)
@@ -44,21 +46,17 @@ os.putenv('LD_LIBRARY_PATH', os.getenv('LD_LIBRARY_PATH')+':'
 # Preprocessor script arguments
 ecmwf_flag=4
 data_in=nceo_ws+'/cloud_ecv/data_in'
-# UoWis emissivity data 
-emis_dir=data_in+'/emissivity'
-# RTTOV emissivity atlas
-atlas_dir=data_in+'/rttov/emis_data'
-# MODIS land surface albedo/BRDF data
-mcd43c3_dir=data_in+'/modis/MCD43C3_MODIS_Albedo_neu'
-mcd43c1_dir=data_in+'/modis/MCD43C1_MODIS_BRDF_neu'
-# RTTOV coefficient files
-coef_dir=data_in+'/coeffs'
-# ECMWF EMOS regridding library auxilary files
-emos_dir=orac_dir+'/libraries/emos'
-# Ice/snow coverage data
-nise_dir=data_in+'/ice_snow'
-# Full path+name to USGS DEM
-usgs_file=data_in+'/dem/Aux_file_CM_SAF_AVHRR_GAC_ori_0.05deg.nc'
+emis_dir=data_in+'/emissivity'  # UoWis emissivity data
+atlas_dir=data_in+'/rttov/emis_data'  # RTTOV emissivity atlas
+mcd43c3_dir=data_in+'/modis/MCD43C3_MODIS_Albedo_neu' # MODIS land surface albedo data
+mcd43c1_dir=data_in+'/modis/MCD43C1_MODIS_BRDF_neu'   # MODIS land surface BRDF data
+coef_dir=data_in+'/coeffs' # RTTOV coefficient files
+emos_dir=orac_dir+'/libraries/emos' # ECMWF EMOS regridding library auxilary files
+nise_dir=data_in+'/ice_snow'  # Ice/snow coverage data
+usgs_file=data_in+'/dem/Aux_file_CM_SAF_AVHRR_GAC_ori_0.05deg.nc' # Full path+name to USGS DEM
+pixellimit= '800, 900, 1000, 1100'  # SET TO ZEROES WHEN FULL PROCESSING
+
+
 
 # Check for updated ECMWF forecast data for the current timeslot
 # Set-up ECMWF paths (both for raw forecast files and netcdf versions)
@@ -118,46 +116,67 @@ for f in uncompressed_l1:
 os.chdir(orac_dir+'/trunk/tools')
 print " **** Calling ORAC preprocessing on file: ****"
 print "   "+hritscdir+'/'+l1name
-preproc_cmd=hritscdir+'/'+l1name +' -o '+ preoutdir \
-    +' --batch --orac_dir '+ orac_dir+'/trunk' \
-    +' --emis_dir '+ emis_dir +' --mcd43c3_dir '+ mcd43c3_dir \
-    +' --mcd43c1_dir '+ mcd43c1_dir +' --atlas_dir '+ atlas_dir \
-    +' --coef_dir '+ coef_dir +' --ecmwf_dir '+ ecmwf_out \
-    +' --emos_dir '+ emos_dir +' --nise_dir '+ nise_dir \
-    +' --usgs_file '+ usgs_file +' --day_flag 1 --ecmwf_nlevels 137' \
-    +' --use_ecmwf_snow --ecmwf_flag 4 --skip_ecmwf_hr' \
-    +' --channel_ids 1 2 3 4 7 9 10 --limit '+ pixellimit
-os.system('./orac_preproc.py '+preproc_cmd)
+pre_cmd = hritscdir+'/'+l1name \
+          +' -o '+ preoutdir \
+          +' --batch ' \
+          +' --orac_dir '+ orac_dir+'/trunk' \
+          +' --emis_dir '+ emis_dir \
+          +' --mcd43c3_dir ' + mcd43c3_dir \
+          +' --mcd43c1_dir ' + mcd43c1_dir \
+          +' --atlas_dir '+ atlas_dir \
+          +' --coef_dir '+ coef_dir \
+          +' --ecmwf_dir '+ ecmwf_out \
+          +' --emos_dir '+ emos_dir \
+          +' --nise_dir '+ nise_dir \
+          +' --usgs_file '+ usgs_file \
+          +' --day_flag 1 --ecmwf_nlevels 137' \
+          +' --use_ecmwf_snow --ecmwf_flag 4 --skip_ecmwf_hr' \
+          +' --channel_ids 1 2 3 4 7 9 10' \
+          +' --limit '+ pixellimit
+
+os.system('./orac_preproc.py '+pre_cmd)
 
 # Call the processing for the desired phases/types
 # Path to the preprocessed files
 msi_root=glob.glob(preoutdir+'/*_'+yr+mth+day+hr+mn+'_*.msi.nc')
-msi_root=os.path.basename(msi_root[_root=msi_root[:len(msi_root)-7]
+msi_root=os.path.basename(msi_root[_root=msi_root[:len(msi_root)-7]])
 
-proc_cmd='-i '+ preoutdir +' -o '+ prooutdir \
-    +' --orac_dir '+ orac_dir+'/trunk --sad_dir '+ cldsaddir \
-    +' --use_channel 1 1 1 0 0 1 1 --phase '
+# Call main first time  TODO Set channels to the right ones
+proc_cmd= '-i '+ preoutdir \
+         +' -o '+ prooutdir \
+         +' --orac_dir ' + orac_dir +'/trunk'\
+         +' --sad_dir '+ cldsaddir \
+         +' --use_channel 1 1 1 0 0 1 1'\
+         +' --phase '
+
 for phs in cldphs:
     print' **** Calling ORAC for type: '+phs+' ****'
     os.system('./orac_main.py '+ proc_cmd + phs +' '
               + msi_root)
 
-proc_cmd='-i '+ preoutdir +' -o '+ prooutdir \
-    +' --orac_dir '+ orac_dir+'/trunk --sad_dir '+ aersaddir \
-    +' --use_channel 1 1 1 0 0 0 0 -a AppCld1L --ret_class ClsAerOx' \
-    +' --phase '
-#    +' --extra_lines /home/users/gethomas/orac_code/aerosol_scripts_py/xtra_driver_lines.txt' \
+# Call main for aerosol phase, does this need to be done for MODIS?  Also set channels correctly
+proc_cmd= '-i '+ preoutdir \
+         +' -o '+ prooutdir \
+         +' --orac_dir '+ orac_dir+'/trunk'\
+         +' --sad_dir '+ aersaddir \
+         +' --use_channel 1 1 1 0 0 0 0' \
+         +' -a AppCld1L' \
+         +' --ret_class ClsAerOx' \
+         +' --phase '
+#        +' --extra_lines /home/users/gethomas/orac_code/aerosol_scripts_py/xtra_driver_lines.txt' \
+
 for phs in aerphs:
     print' **** Calling ORAC for type: '+phs+' ****'
     os.system('./orac_main.py '+ proc_cmd + phs +' '
               +msi_root)
 
-
 # Call the post-processor
-post_cmd='-i '+ prooutdir +' -o '+postoutdir \
-    +' --orac_dir '+ orac_dir +'/trunk --verbose' \
-    +' --compress '+ msi_root \
-    +' --phases '+' '.join(aerphs)+' '+' '.join(cldphs)  
+post_cmd='-i '+ prooutdir +\
+         ' -o '+postoutdir \
+         +' --orac_dir '+ orac_dir +'/trunk' \
+         + '--verbose' \
+         +' --compress '+ msi_root \
+         +' --phases '+' '.join(aerphs)+' '+' '.join(cldphs)
 os.system('./orac_postproc.py '+ post_cmd)
 
 # Clean-up
