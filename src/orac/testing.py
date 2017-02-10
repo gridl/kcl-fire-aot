@@ -34,7 +34,7 @@ args = parser.parse_args()
 
 
 target = 'MYD021KM.A2008172.0405.005.2009317014309.hdf'
-limit = (400, 900, 600, 1100)
+limit = (800, 900, 1000, 1100)
 
 
 args.target = target

@@ -1502,9 +1502,10 @@ def do_main_proc(args, main_files, job_name, log_path, jid_pre, jid_main,
 
         main_driver = build_main_driver(args)
         print "    ...calling main exec"
-	jd = call_exe(args, args.orac_dir + '/src/orac', main_driver, values)
+        print "    ...main exe location", args.orac_dir + '/src/orac'
+        jd = call_exe(args, args.orac_dir + '/src/orac', main_driver, values)
         print "    ...exectuion returned with value:", jd
-	if jd != None:
+        if jd != None:
             jid_main.append(jd)
         written_dirs.unique_append(args.out_dir)
 
@@ -1564,7 +1565,7 @@ def cc4cl(orig):
     args.target = outroot
     args.in_dir = [args.out_dir]
     for phs in args.phases:
-	print "    ...for phase:", phs
+	    print "    ...for phase:", phs
         args.phase   = phs
         args.sad_dir = settings[phs].sad
 
