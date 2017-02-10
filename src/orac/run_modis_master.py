@@ -44,7 +44,6 @@ print msi_root
 # Call main first time  TODO Set channels to the right ones
 proc_cmd = '-i ' + predir \
            + ' -o ' + maindir \
-           + ' --sad_dir ' + cldsaddir \
            + ' --phase '
 
 for phs in cldphs:
@@ -54,7 +53,6 @@ for phs in cldphs:
 # Call main for aerosol phase, does this need to be done for MODIS?  Also set channels correctly
 proc_cmd = '-i ' + predir \
            + ' -o ' + maindir \
-           + ' --sad_dir ' + aersaddir \
            + ' --phase '
 #        +' --extra_lines /home/users/gethomas/orac_code/aerosol_scripts_py/xtra_driver_lines.txt' \
 

@@ -9,7 +9,8 @@ data_dir = '/home/users/dnfisher/soft/orac/data'
 ecmwf_flag  = '2'
 
 # Paths
-aer_sad_dir = '/group_workspaces/cems/aerosol_cci/aux/luts/orac_luts'
+aer_sad_dir = '/group_workspaces/cems/nceo_aerosolfire/gethomas/luts'
+sad_dir     = '/group_workspaces/cems/cloud_ecv/orac/sad_dir'
 atlas_dir   = '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/rttov/emis_data'
 calib_file  = '/group_workspaces/cems/aerosol_cci/aux/aatsr_calibration/AATSR_VIS_DRIFT_V03-00.DAT'
 coef_dir    = '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/coeffs'
@@ -24,7 +25,6 @@ nise_dir    = '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/ice_snow'
 occci_dir   = '/group_workspaces/cems/aerosol_cci/aux/oceancolour_cci/geographic_iop_v2.0'
 orac_lib    = environ['ORAC_LIB']
 orac_trunk  = '/home/users/dnfisher/soft/orac/trunk'
-sad_dir     = '/group_workspaces/cems/cloud_ecv/orac/sad_dir'
 spam_dir    = '/badc/ecmwf-era-interim/data/sp/am'
 usgs_file   = '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/dem/Aux_file_CM_SAF_AVHRR_GAC_ori_0.05deg.nc'
 
