@@ -864,7 +864,6 @@ def args_preproc(parser):
 
     other = parser.add_argument_group('Other paths')
     
-    print 'Line 870: EMOS dir - ', defaults.emos_dir
     other.add_argument('--emos_dir', type=str, nargs='?', metavar='DIR',
                        default = defaults.emos_dir,
                        help = 'Path for EMOS library temporary files.')
@@ -1501,10 +1500,7 @@ def do_main_proc(args, main_files, job_name, log_path, jid_pre, jid_main,
                   'ram'      : args.ram[1]}
 
         main_driver = build_main_driver(args)
-        print "    ...calling main exec"
-        print "    ...main exe location", args.orac_dir + '/src/orac'
         jd = call_exe(args, args.orac_dir + '/src/orac', main_driver, values)
-        print "    ...exectuion returned with value:", jd
         if jd != None:
             jid_main.append(jd)
         written_dirs.unique_append(args.out_dir)
@@ -1542,7 +1538,6 @@ def cc4cl(orig):
                                                                   args.revision))
 
     # Run preprocessor (checking if we're clobbering a previous run)
-    print 'Running preprocessor'
     if args.clobber >= 3 or not os.path.isfile(args.out_dir + '/' +
                                                outroot + '.config.nc'):
         # Settings for batch processing
@@ -1559,13 +1554,11 @@ def cc4cl(orig):
         jid_pre = None
 
     # Run main processor
-    print 'Running main...'
     jid_main    = [] # ID no. for each queued job
     main_files  = [] # Main files that are generated
     args.target = outroot
     args.in_dir = [args.out_dir]
     for phs in args.phases:
-        print "    ...for phase:", phs
         args.phase   = phs
         args.sad_dir = settings[phs].sad
 
@@ -1606,7 +1599,6 @@ def cc4cl(orig):
                          jid_main, written_dirs, phs, '')
 
     # Run postprocessor
-    print 'running postprocessor'
     args.in_dir = written_dirs
     args.out_dir = orig.out_dir
     check_args_postproc(args)
