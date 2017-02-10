@@ -59,3 +59,13 @@ warn_filt['FieldMissing']    = 'once'
 warn_filt['InconsistentDim'] = 'error'
 warn_filt['RoundingError']   = 'once'
 warn_filt['Acceptable']      = 'ignore'
+
+# Queuing system setup...
+from orac_batch import bsub as batch
+
+# Arguments that should be included in every call
+batch_values = {'email'    : email}
+
+# Initialisation of script file
+batch_script = """#!/bin/bash --noprofile
+"""
