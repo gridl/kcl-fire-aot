@@ -6,14 +6,18 @@ import glob
 
 # TODO set up iterator to loop over a list of modis files
 # Hard code in the paths and the files for now
-mod_dir = '/testinput/'
+data_dir = '/home/users/dnfisher/soft/orac/data'
+mod_dir = data_dir + '/testinput'
 l1name = 'MYD021KM.A2008172.0405.005.2009317014309.hdf'
 pixel_limit = "800 900 1000 1100"
-yr, doy, hr, mn = '2008', '172', '.04', '05'
+yr = '2008'
+doy = '172'
+hr = '.04'
+mn = '05'
 
-out_dir = '/testoutput/modis_testing/'
-predir = out_dir + 'pre/'
-maindir = out_dir + 'main/'
+out_dir = data_dir + '/testoutput/modis_testing'
+predir = out_dir + 'pre'
+maindir = out_dir + 'main'
 postdir = out_dir
 
 cldsaddir = '/group_workspaces/cems/cloud_ecv/orac/sad_dir'
@@ -34,7 +38,7 @@ os.system('./orac_preproc.py ' + pre_cmd)
 # Call the processing for the desired phases/types
 # Path to the preprocessed files
 msi_root = glob.glob(predir + '/*_' + yr + doy + hr + mn + '_*.msi.nc')
-msi_root = os.path.basename(msi_root=msi_root[:len(msi_root) - 7])
+#msi_root = os.path.basename(msi_root[:len(msi_root) - 7])
 print msi_root
 
 # Call main first time  TODO Set channels to the right ones
@@ -45,8 +49,7 @@ proc_cmd = '-i ' + predir \
 
 for phs in cldphs:
     print' **** Calling ORAC for type: ' + phs + ' ****'
-    os.system('./orac_main.py ' + proc_cmd + phs + ' '
-              + msi_root)
+    os.system('./orac_main.py ' + proc_cmd + phs) #+ ' ' + msi_root)
 
 # Call main for aerosol phase, does this need to be done for MODIS?  Also set channels correctly
 proc_cmd = '-i ' + predir \
@@ -57,8 +60,7 @@ proc_cmd = '-i ' + predir \
 
 for phs in aerphs:
     print' **** Calling ORAC for type: ' + phs + ' ****'
-    os.system('./orac_main.py ' + proc_cmd + phs + ' '
-              + msi_root)
+    os.system('./orac_main.py ' + proc_cmd + phs) #+ ' '+ msi_root)
 
 # Call the post-processor
 post_cmd = '-i ' + maindir + \

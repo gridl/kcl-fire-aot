@@ -673,6 +673,9 @@ settings['A77'] = ParticleType(inv=(tau, Invpar('IRe', ap=-0.0419, sx=0.15)))
 settings['A78'] = ParticleType(inv=(tau, Invpar('IRe', ap=-0.257, sx=0.15)))
 settings['A79'] = ParticleType(inv=(tau, Invpar('IRe', ap=-0.848, sx=0.15)))
 
+settings['BOR'] = ParticleType(wvl=(0.67, 0.87, 1.6, 3.7, 11, 12),
+                               inv=(tau, Invpar('IRe', ap=-0.8, sx=-0.1)),
+                               sad=defaults.sad_dir)  #TODO check whether this is the correct SAD dir
 
 #-----------------------------------------------------------------------------
 #----- PARSER ARGUMENT DEFINITIONS -------------------------------------------
