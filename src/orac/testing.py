@@ -22,8 +22,8 @@ warnings.filterwarnings('always', category=ou.OracWarning)
 
 parser = argparse.ArgumentParser(
     description='Run the full ORAC suite on a given Level 1B file.')
-parser.add_argument('-A', '--all_phases', action='store_true',
-                     help = 'Sets phases to run all possible tests.')
+#parser.add_argument('-A', '--all_phases', action='store_true',
+#                     help = 'Sets phases to run all possible tests.')
 
 ou.args_common(parser)
 ou.args_preproc(parser)
@@ -34,7 +34,7 @@ args = parser.parse_args()
 
 
 target = 'MYD021KM.A2008172.0405.005.2009317014309.hdf'
-limit = (0, 0, 0, 0)
+limit = (400, 900, 600, 1100)
 
 
 args.target = target

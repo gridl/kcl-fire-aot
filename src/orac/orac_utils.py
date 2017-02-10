@@ -1537,8 +1537,6 @@ def cc4cl(orig):
     args.out_dir += '/' + args.pre_dir
     check_args_preproc(args)
     (pre_driver, outroot) = build_preproc_driver(args)
-    print pre_driver
-    print outroot
     job_name = inst.time.strftime('{}_%Y-%m-%d-%H-%M_R{}_'.format(inst.inst,
                                                                   args.revision))
 
