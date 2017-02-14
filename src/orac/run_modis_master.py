@@ -15,7 +15,7 @@ doy = '172'
 hr = '.04'
 mn = '05'
 
-out_dir = data_dir + '/testoutput/modis_testing'
+out_dir = data_dir + '/testoutput/modis_testing/'
 predir = out_dir + 'pre'
 maindir = out_dir + 'main'
 postdir = out_dir
@@ -25,6 +25,7 @@ cldphs = ['WAT', 'ICE']
 aersaddir = '/group_workspaces/cems/nceo_aerosolfire/gethomas/luts'
 aerphs = ['AMZ', 'BOR', 'CER', 'AFR']  # Amazon, Boreal, Cerrado, Africa
 
+'''
 # Call the pre-processing
 print " **** Calling ORAC preprocessing on file: ****"
 print "   " + mod_dir + '/' + l1name
@@ -39,10 +40,8 @@ os.system('./orac_preproc.py ' + pre_cmd)
 '''
 # Call the processing for the desired phases/types
 # Path to the preprocessed files
-msi_root = glob.glob(predir + '/*_' + yr + doy + hr + mn + '_*.msi.nc')
-#msi_root = os.path.basename(msi_root[:len(msi_root) - 7])
-print msi_root
-print ''
+msi_root = glob.glob(predir + '/*.msi.nc')[0]
+msi_root = os.path.basename(msi_root)[:-7]
 
 # Call main first time  TODO Set channels to the right ones
 proc_cmd = '-i ' + predir \
@@ -51,7 +50,7 @@ proc_cmd = '-i ' + predir \
 
 for phs in cldphs:
     print' **** Calling ORAC for type: ' + phs + ' ****'
-    os.system('./orac_main.py ' + proc_cmd + phs) #+ ' ' + msi_root)
+    os.system('./orac_main.py ' + proc_cmd + phs + ' ' + msi_root)
 
 # Call main for aerosol phase, does this need to be done for MODIS?  Also set channels correctly
 proc_cmd = '-i ' + predir \
@@ -61,8 +60,9 @@ proc_cmd = '-i ' + predir \
 
 for phs in aerphs:
     print' **** Calling ORAC for type: ' + phs + ' ****'
-    os.system('./orac_main.py ' + proc_cmd + phs) #+ ' '+ msi_root)
+    os.system('./orac_main.py ' + proc_cmd + phs + ' '+ msi_root)
 
+'''
 # Call the post-processor
 post_cmd = '-i ' + maindir + \
            ' -o ' + postdir \
