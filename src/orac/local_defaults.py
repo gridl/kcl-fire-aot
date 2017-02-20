@@ -9,7 +9,7 @@ data_dir = '/home/users/dnfisher/soft/orac/data'
 ecmwf_flag  = '2'
 
 # Paths
-aer_sad_dir = '/group_workspaces/cems/nceo_aerosolfire/gethomas/luts'
+aer_sad_dir = '/group_workspaces/cems/nceo_aerosolfire/luts'
 sad_dir     = '/group_workspaces/cems/cloud_ecv/orac/sad_dir'
 atlas_dir   = '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/rttov/emis_data'
 calib_file  = '/group_workspaces/cems/aerosol_cci/aux/aatsr_calibration/AATSR_VIS_DRIFT_V03-00.DAT'

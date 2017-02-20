@@ -22,7 +22,7 @@ postdir = out_dir
 
 cldsaddir = '/group_workspaces/cems/cloud_ecv/orac/sad_dir'
 cldphs = ['WAT', 'ICE']
-aersaddir = '/group_workspaces/cems/nceo_aerosolfire/gethomas/luts'
+aersaddir = '/group_workspaces/cems/nceo_aerosolfire/luts/sad'
 aerphs = ['AMZ', 'BOR', 'CER', 'AFR']  # Amazon, Boreal, Cerrado, Africa
 
 '''
@@ -43,19 +43,23 @@ os.system('./orac_preproc.py ' + pre_cmd)
 msi_root = glob.glob(predir + '/*.msi.nc')[0]
 msi_root = os.path.basename(msi_root)[:-7]
 
+
 # Call main first time  TODO Set channels to the right ones
 proc_cmd = '-i ' + predir \
            + ' -o ' + maindir \
            + ' --phase '
 
-for phs in cldphs:
-    print' **** Calling ORAC for type: ' + phs + ' ****'
-    os.system('./orac_main.py ' + proc_cmd + phs + ' ' + msi_root)
+#for phs in cldphs:
+#    print' **** Calling ORAC for type: ' + phs + ' ****'
+#    os.system('./orac_main.py ' + proc_cmd + phs + ' ' + msi_root)
 
 # Call main for aerosol phase, does this need to be done for MODIS?  Also set channels correctly
 proc_cmd = '-i ' + predir \
            + ' -o ' + maindir \
-           + ' --phase '
+           + ' --keep_driver' \
+           + ' --sad_dir ' + aersaddir \
+	   +' --use_channel 1 1 1 0 1 1  -a AppCld1L --ret_class ClsAerOx' \
+           + ' --phase ' 
 #        +' --extra_lines /home/users/gethomas/orac_code/aerosol_scripts_py/xtra_driver_lines.txt' \
 
 for phs in aerphs:
