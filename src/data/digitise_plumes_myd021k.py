@@ -118,15 +118,17 @@ class Annotate(object):
 def digitise(img):
 
     img_copy = img.copy()
+    plume_img = img.copy()
     smoke_polygons = []
     background_rectangles = []
+    plots = []
 
     plt.figure(figsize=(30, 15))
     plt.imshow(img, interpolation="nearest")
     plt.show()
     arg = raw_input("Do you want to digitise this plume?: [y, N]")
     if arg.lower() in ['', 'no', 'n']:
-        return None, None
+        return None, None, None
 
     while True:
 
@@ -136,7 +138,8 @@ def digitise(img):
 
         # show them what they have digitised, and check if they are OK with that
         # if they are append the polygon, and modify the RGB to reflect the digitised region
-        pts = zip(annotator.x, annotator.y)
+        pts = np.array(zip(annotator.x, annotator.y))
+        pts = pts.reshape(-1, 1, 2)
         if not pts:
             print "you must select define a polygon containing smoke pixels"
             continue
@@ -146,7 +149,7 @@ def digitise(img):
 
         digitised_copy = img_copy.copy()
 
-        cv2.fillConvexPoly(digitised_copy, np.array(pts), (255, 255, 255, 125))
+        cv2.polylines(digitised_copy, [pts], True, (255, 0, 0, 255), thickness=4, lineType=8)
         cv2.rectangle(digitised_copy,
                       (annotator.x0_rect,
                        annotator.y0_rect),
@@ -159,16 +162,18 @@ def digitise(img):
 
         arg = raw_input("Are you happy with this plume digitisation? [Y,n]")
         if arg.lower() in ["", "y", "yes", 'ye']:
-            smoke_polygons.append(pts)
+            smoke_polygons.append(zip(annotator.x, annotator.y))
             background_rectangles.append((annotator.x0_rect, annotator.x1_rect, annotator.y0_rect, annotator.y1_rect))
             img_copy = digitised_copy
+
+
 
         # ask if they want to digitise some more?
         arg = raw_input("Do you want to digitise more plumes? [Y,n]")
         if arg.lower() not in ["", "y", "yes", 'ye']:
             break
 
-    return smoke_polygons, background_rectangles
+    return smoke_polygons, background_rectangles, plots
 
 
 def get_plume_pixels(img, image_pt):
@@ -291,7 +296,7 @@ def main():
         # do the digitising
         myd14_fire_mask = firemask_myd14(myd14)
         img = fcc_myd021km(myd021km, myd14_fire_mask)
-        smoke_polygons, background_rectangles = digitise(img)
+        smoke_polygons, background_rectangles, plots = digitise(img)
         if (smoke_polygons is None) | (background_rectangles is None):
             continue
 
@@ -301,12 +306,14 @@ def main():
         # process plumes and backgrounds
         plumes_list = []
         background_list = []
-        for plume, background in zip(smoke_polygons, background_rectangles):
+        for plume, background, plot in zip(smoke_polygons, background_rectangles, plots):
 
             plume_id = uuid.uuid4()
 
             extract_background_bounds(background, plume_id, background_list)
             extract_plume_bounds(plume, myd021km_fname, plume_id, plumes_list)
+
+            # save the plot with the plume_id
 
             # plume_pixels = get_plume_pixels(img, plume)
             # for y, x in zip(plume_pixels[0], plume_pixels[1]):
