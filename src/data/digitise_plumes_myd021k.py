@@ -121,7 +121,7 @@ def digitise(img):
     plume_img = img.copy()
     smoke_polygons = []
     background_rectangles = []
-    plots = []
+    plume_ids = []
 
     plt.figure(figsize=(30, 15))
     plt.imshow(img, interpolation="nearest")
@@ -159,6 +159,7 @@ def digitise(img):
         plt.figure(figsize=(30, 15))
         plt.imshow(digitised_copy)
         plt.show()
+        plt.close()
 
         arg = raw_input("Are you happy with this plume digitisation? [Y,n]")
         if arg.lower() in ["", "y", "yes", 'ye']:
@@ -166,14 +167,24 @@ def digitise(img):
             background_rectangles.append((annotator.x0_rect, annotator.x1_rect, annotator.y0_rect, annotator.y1_rect))
             img_copy = digitised_copy
 
+            # store the plume id
+            plume_id = uuid.uuid4()
+            plume_ids.append(plume_id)
 
+            # plot the plume
+            plume_img_copy = plume_img.copy()
+            cv2.polylines(plume_img_copy, [pts], True, (255, 0, 0, 255), thickness=4, lineType=8)
+            plt.figure(figsize=(30, 15))
+            plt.imshow(plume_img_copy)
+            plt.savefig(r"../../data/processed/plume_imgs/" + plume_id + '.png', bbox_inches='tight')
+            plt.close()
 
         # ask if they want to digitise some more?
         arg = raw_input("Do you want to digitise more plumes? [Y,n]")
         if arg.lower() not in ["", "y", "yes", 'ye']:
             break
 
-    return smoke_polygons, background_rectangles, plots
+    return smoke_polygons, background_rectangles, plume_ids
 
 
 def get_plume_pixels(img, image_pt):
@@ -306,9 +317,7 @@ def main():
         # process plumes and backgrounds
         plumes_list = []
         background_list = []
-        for plume, background, plot in zip(smoke_polygons, background_rectangles, plots):
-
-            plume_id = uuid.uuid4()
+        for plume, background, plume_id in zip(smoke_polygons, background_rectangles, plume_ids):
 
             extract_background_bounds(background, plume_id, background_list)
             extract_plume_bounds(plume, myd021km_fname, plume_id, plumes_list)
