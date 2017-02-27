@@ -159,7 +159,6 @@ def digitise(img):
         plt.figure(figsize=(30, 15))
         plt.imshow(digitised_copy)
         plt.show()
-        plt.close()
 
         arg = raw_input("Are you happy with this plume digitisation? [Y,n]")
         if arg.lower() in ["", "y", "yes", 'ye']:
