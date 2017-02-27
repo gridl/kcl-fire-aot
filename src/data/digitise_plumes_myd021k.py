@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Rectangle
 import cv2
 
-
 import config
 
 
@@ -34,7 +33,6 @@ def read_myd021km(local_filename):
 
 
 def fcc_myd021km(mod_data, fire_mask):
-
     mod_params_ref = mod_data.select("EV_1KM_RefSB").attributes()
     mod_params_emm = mod_data.select("EV_1KM_Emissive").attributes()
     ref = mod_data.select("EV_1KM_RefSB").get()
@@ -84,7 +82,7 @@ class Annotate(object):
         self.y = []
 
         # set up the rectangle to hold the background
-        self.rect = Rectangle((0, 0), 1, 1,  edgecolor='black', facecolor='none')
+        self.rect = Rectangle((0, 0), 1, 1, edgecolor='black', facecolor='none')
         self.ax.add_patch(self.rect)
         self.x0_rect = None
         self.y0_rect = None
@@ -116,7 +114,6 @@ class Annotate(object):
 
 
 def digitise(img):
-
     img_copy = img.copy()
     plume_img = img.copy()
     smoke_polygons = []
@@ -138,18 +135,19 @@ def digitise(img):
 
         # show them what they have digitised, and check if they are OK with that
         # if they are append the polygon, and modify the RGB to reflect the digitised region
-        pts = np.array(zip(annotator.x, annotator.y))
-        pts = pts.reshape(-1, 1, 2)
+        pts = zip(annotator.x, annotator.y)
+
         if not pts:
             print "you must select define a polygon containing smoke pixels"
             continue
         if annotator.x0_rect is None:
             print "you must define a background rectangle"
             continue
+        pts = np.array(pts).reshape(-1, 1, 2)
 
         digitised_copy = img_copy.copy()
 
-        cv2.polylines(digitised_copy, [pts], True, (255, 0, 0, 255), thickness=4, lineType=8)
+        cv2.polylines(digitised_copy, [pts], True, (255, 0, 0, 255), thickness=2)
         cv2.rectangle(digitised_copy,
                       (annotator.x0_rect,
                        annotator.y0_rect),
@@ -172,10 +170,12 @@ def digitise(img):
 
             # plot the plume
             plume_img_copy = plume_img.copy()
-            cv2.polylines(plume_img_copy, [pts], True, (255, 0, 0, 255), thickness=4, lineType=8)
-            plt.figure(figsize=(30, 15))
-            plt.imshow(plume_img_copy)
-            plt.savefig(r"../../data/processed/plume_imgs/" + plume_id + '.png', bbox_inches='tight')
+            cv2.polylines(plume_img_copy, [pts], True, (255, 0, 0, 255), thickness=2, lineType=2)
+            sub_plume_img = plume_img_copy[np.min(annotator.y) - 20:np.max(annotator.y) + 20,
+                                           np.min(annotator.x) - 20:np.max(annotator.x) + 20]
+            plt.figure(figsize=(10, 5))
+            plt.imshow(sub_plume_img)
+            plt.savefig(r"../../data/processed/plume_imgs/" + str(plume_id) + '.png', bbox_inches='tight')
             plt.close()
 
         # ask if they want to digitise some more?
@@ -235,7 +235,6 @@ def get_plume_pixels(img, image_pt):
 
 
 def extract_background_bounds(background, plume_id, background_list):
-
     row_dict = {}
     row_dict['plume_id'] = plume_id
     row_dict['bg_extent'] = background
@@ -244,7 +243,6 @@ def extract_background_bounds(background, plume_id, background_list):
 
 
 def extract_plume_bounds(plume, fname, plume_id, plumes_list):
-
     row_dict = {}
 
     row_dict['plume_id'] = plume_id
@@ -254,7 +252,6 @@ def extract_plume_bounds(plume, fname, plume_id, plumes_list):
 
     # lastly append to the data dictionary
     plumes_list.append(row_dict)
-
 
 
 def main():
@@ -292,8 +289,6 @@ def main():
         except:
             logger.info("filename column not in dataframe - if the dataframe has just been created no problem!")
 
-
-
         myd14_fname = [f for f in os.listdir(r"../../data/raw/frp") if timestamp_myd in f]
 
         if len(myd14_fname) > 1:
@@ -311,13 +306,12 @@ def main():
             continue
 
         # if we have a digitisation load in the myd021km data
-        #myd021km_data = load_myd021km(myd021km)
+        # myd021km_data = load_myd021km(myd021km)
 
         # process plumes and backgrounds
         plumes_list = []
         background_list = []
         for plume, background, plume_id in zip(smoke_polygons, background_rectangles, plume_ids):
-
             extract_background_bounds(background, plume_id, background_list)
             extract_plume_bounds(plume, myd021km_fname, plume_id, plumes_list)
 
@@ -341,7 +335,6 @@ if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     logging.basicConfig(level=logging.INFO, format=log_fmt)
     logger = logging.getLogger(__name__)
-
 
     # not used in this stub but often useful for finding various files
     project_dir = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)
