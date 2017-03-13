@@ -301,7 +301,7 @@ def main():
         # do the digitising
         myd14_fire_mask = firemask_myd14(myd14)
         img = fcc_myd021km(myd021km, myd14_fire_mask)
-        smoke_polygons, background_rectangles, plots = digitise(img)
+        smoke_polygons, background_rectangles, plume_ids = digitise(img)
         if (smoke_polygons is None) | (background_rectangles is None):
             continue
 
