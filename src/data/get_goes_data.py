@@ -63,7 +63,6 @@ def retrieve_l1(ftp_class, file_id, local_filename, filename):
     lf = open(local_filename, "wb")
     ftp_class.retrbinary("RETR " + filename, lf.write, 8 * 1024)
     lf.close()
-    ftp_class.close()
 
 
 def main():
