@@ -106,12 +106,11 @@ def main():
 
         for goes_file in file_list:
 
-            try:
+            goes_file = goes_file.split(' ')[-1]
 
-                goes_file = goes_file.split(' ')[-1]
-
-                # download the file
-                local_filename = os.path.join(r"../../data/raw/goes", goes_file)
+            # download the file
+            # local_filename = os.path.join(r"../../data/raw/goes", goes_file)
+            local_filename = os.path.join(r"/Users/danielfisher/Downloads/", goes_file)
 
             # check if goes file is being downloaded elsewhere
             downloading = check_downloading_status(goes_file)
@@ -122,7 +121,7 @@ def main():
 
                 # do the download
                 logger.info("Downloading: " + goes_file)
-                retrieve_l1(ftp_class , order_id, local_filename, goes_file)
+                retrieve_l1(ftp_class, order_id, local_filename, goes_file)
 
                 # remote temp empty file from currently downloading list
                 remove_from_download_list(goes_file)
