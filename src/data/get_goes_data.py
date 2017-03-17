@@ -84,14 +84,19 @@ def main():
 
         for goes_file in file_list:
 
-            goes_file = goes_file.split(' ')[-1]
+            try:
 
-            # download the file
-            local_filename = os.path.join(r"../../data/raw/goes", goes_file)
+                goes_file = goes_file.split(' ')[-1]
 
-            if not os.path.isfile(local_filename):  # if we dont have the file, then dl it
-                logger.info("Downloading: " + goes_file)
-                retrieve_l1(ftp_class , file_id, local_filename, goes_file)
+                # download the file
+                local_filename = os.path.join(r"../../data/raw/goes", goes_file)
+
+                if not os.path.isfile(local_filename):  # if we dont have the file, then dl it
+                    logger.info("Downloading: " + goes_file)
+                    retrieve_l1(ftp_class , file_id, local_filename, goes_file)
+            except Exception, e:
+                print 'could not open goes file:', goes_file, ' - with error:', e
+                continue
 
 
 if __name__ == "__main__":
