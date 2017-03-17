@@ -109,8 +109,7 @@ def main():
             goes_file = goes_file.split(' ')[-1]
 
             # download the file
-            # local_filename = os.path.join(r"../../data/raw/goes", goes_file)
-            local_filename = os.path.join(r"/Users/danielfisher/Downloads/", goes_file)
+            local_filename = os.path.join(r"../../data/raw/goes", goes_file)
 
             # check if goes file is being downloaded elsewhere
             downloading = check_downloading_status(goes_file)
