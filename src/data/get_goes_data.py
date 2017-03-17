@@ -67,8 +67,7 @@ def retrieve_l1(ftp_class, order_id, local_filename, filename):
 
 def check_downloading_status(goes_file):
     # a small function to check if a goes file is being downloaded
-    #files_downloading = os.listdir(r"../../data/tmp/goes/")
-    files_downloading = os.listdir(r"/Users/danielfisher/Downloads/tmp/")
+    files_downloading = os.listdir(r"../../data/tmp/goes/")
     if goes_file in files_downloading:
         return True
     else:
@@ -76,14 +75,12 @@ def check_downloading_status(goes_file):
 
 
 def append_to_download_list(goes_file):
-    #files_downloading = r"../../data/tmp/goes/"
-    files_downloading = r"/Users/danielfisher/Downloads/tmp/"
+    files_downloading = r"../../data/tmp/goes/"
     open(files_downloading+goes_file, 'a').close()
 
 
 def remove_from_download_list(goes_file):
-    #files_downloading = r"../../data/tmp/goes/"
-    files_downloading = r"/Users/danielfisher/Downloads/tmp/"
+    files_downloading = r"../../data/tmp/goes/"
     os.remove(files_downloading+goes_file)
 
 
@@ -94,8 +91,11 @@ def main():
 
     # order id's
     order_ids = ['2720282193', '2720283243', '2720283253', '2720285893',
-                '2720285903', '2720285923', '2720285913', '2720285973',
-                '2720285983', '2720286013']
+                 '2720285903', '2720285923', '2720285913', '2720285973',
+                 '2720285983', '2720286013', '2720283233', '2720283263',
+                 '2720283273', '2720284513', '2720285883', '2720285933',
+                 '2720285943', '2720285953', '2720285963', '2720285993',
+                 '2720286003', '2720284213', '2720286023']
 
     for order_id in order_ids:
 
@@ -109,8 +109,7 @@ def main():
             goes_file = goes_file.split(' ')[-1]
 
             # download the file
-            #local_filename = os.path.join(r"../../data/raw/goes", goes_file)
-            local_filename = os.path.join(r"/Users/danielfisher/Downloads/", goes_file)
+            local_filename = os.path.join(r"../../data/raw/goes", goes_file)
 
             # check if goes file is being downloaded elsewhere
             downloading = check_downloading_status(goes_file)
