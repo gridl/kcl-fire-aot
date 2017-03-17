@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 import os
 import logging
-from dotenv import find_dotenv, load_dotenv
 
 import ftplib
 import time
+import urllib
 
 
 
@@ -58,11 +58,30 @@ def get_file_lists(ftp_laads, file_id):
                 attempt += 1
 
 
-def retrieve_l1(ftp_class, file_id, local_filename, filename):
-    # try accessing ftp, if fail then reconnect
-    lf = open(local_filename, "wb")
-    ftp_class.retrbinary("RETR " + filename, lf.write, 8 * 1024)
-    lf.close()
+def retrieve_l1(ftp_class, order_id, local_filename, filename):
+    # now lets have a go using https to see if that will work for us
+    source = 'https://download.class.ncdc.noaa.gov/download/'
+    order = order_id + '/001/'
+    urllib.urlretrieve(source + order + filename, local_filename)
+
+
+def check_downloading_status(goes_file):
+    # a small function to check if a goes file is being downloaded
+    files_downloading = os.listdir(r"../../data/tmp/goes/")
+    if goes_file in files_downloading:
+        return True
+    else:
+        return False
+
+
+def append_to_download_list(goes_file):
+    files_downloading = r"../../data/tmp/goes/"
+    open(files_downloading+goes_file, 'a').close()
+
+
+def remove_from_download_list(goes_file):
+    files_downloading = r"../../data/tmp/goes/"
+    os.remove(files_downloading+goes_file)
 
 
 def main():
@@ -71,16 +90,19 @@ def main():
     ftp_class = ftp_connect_class()
 
     # order id's
-    order_id = ['2720282193', '2720283243', '2720283253', '2720285893',
-                '2720285903', '2720285923', '2720285913', '2720285973',
-                '2720285983', '2720286013']
+    order_ids = ['2720282193', '2720283243', '2720283253', '2720285893',
+                 '2720285903', '2720285923', '2720285913', '2720285973',
+                 '2720285983', '2720286013', '2720283233', '2720283263',
+                 '2720283273', '2720284513', '2720285883', '2720285933',
+                 '2720285943', '2720285953', '2720285963', '2720285993',
+                 '2720286003', '2720284213', '2720286023']
 
-    for file_id in order_id:
+    for order_id in order_ids:
 
-        logger.info("Downloading GOES files for order: " + file_id)
+        logger.info("Downloading GOES files for order: " + order_id)
 
         # get files lists from class
-        file_list = get_file_lists(ftp_class, file_id)
+        file_list = get_file_lists(ftp_class, order_id)
 
         for goes_file in file_list:
 
@@ -91,12 +113,19 @@ def main():
                 # download the file
                 local_filename = os.path.join(r"../../data/raw/goes", goes_file)
 
-                if not os.path.isfile(local_filename):  # if we dont have the file, then dl it
-                    logger.info("Downloading: " + goes_file)
-                    retrieve_l1(ftp_class , file_id, local_filename, goes_file)
-            except Exception, e:
-                print 'could not open goes file:', goes_file, ' - with error:', e
-                continue
+            # check if goes file is being downloaded elsewhere
+            downloading = check_downloading_status(goes_file)
+
+            if (not os.path.isfile(local_filename)) & (not downloading):
+                # add temp empty file to currently downloading list
+                append_to_download_list(goes_file)
+
+                # do the download
+                logger.info("Downloading: " + goes_file)
+                retrieve_l1(ftp_class , order_id, local_filename, goes_file)
+
+                # remote temp empty file from currently downloading list
+                remove_from_download_list(goes_file)
 
 
 if __name__ == "__main__":
@@ -109,6 +138,5 @@ if __name__ == "__main__":
 
     # find .env automagically by walking up directories until it's found, then
     # load up the .env entries as environment variables
-    load_dotenv(find_dotenv())
 
     main()
