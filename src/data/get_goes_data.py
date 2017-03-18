@@ -2,63 +2,26 @@
 import os
 import logging
 
-import ftplib
-import time
 import urllib
+import urllib2
+from BeautifulSoup import BeautifulSoup
+import re
 
 
 
-def ftp_connect_class():
-    try:
-        ftp_class = ftplib.FTP("ftp.class.ncdc.noaa.gov ")
-        ftp_class.login()
-        return ftp_class
-    except:
-        logger.info("Could not access class - trying again")
-        attempt = 1
-        while True:
-            try:
-                ftp_class = ftplib.FTP("ftp.class.ncdc.noaa.gov")
-                ftp_class.login()
-                logger.info("Accessed class on attempt: " + str(attempt))
-                return ftp_class
-            except:
-                logger.info("Could not access class - trying again")
-                time.sleep(5)
-                attempt += 1
 
-
-def ftp_cd(ftp_class, directory, tag):
-    ftp_class.cwd(directory + '/' + tag + '/')
-
-
-def get_files(ftp_class):
+def get_file_list(order_id):
     file_list = []
-    ftp_class.retrlines("LIST", file_list.append)
+    source = 'https://download.class.ncdc.noaa.gov/download/'
+    order = order_id + '/001/'
+    html_page = urllib2.urlopen(source+order)
+    soup = BeautifulSoup(html_page)
+    for link in soup.findAll('a', attrs={'href': re.compile("^001/goes13")}):
+        file_list.append(link.get('href')[4:])  # 4: to get rid of the 001/ at the start
     return file_list
 
 
-def get_file_lists(ftp_laads, file_id):
-    try:
-        ftp_cd(ftp_laads, file_id, '001')
-        file_list = get_files(ftp_laads)
-        return file_list
-    except:
-        logger.info('Could not access data for FID ' + file_id + " Reattempting...")
-        attempt = 1
-        while True:
-            try:
-                ftp_laads = ftp_connect_class()
-                ftp_cd(ftp_laads, file_id, '001')
-                file_list = get_files(ftp_laads)
-                return file_list
-            except:
-                logger.info('Could not access data for FID ' + file_id + " Reattempting...")
-                time.sleep(5)
-                attempt += 1
-
-
-def retrieve_l1(ftp_class, order_id, local_filename, filename):
+def retrieve_l1(order_id, local_filename, filename):
     # now lets have a go using https to see if that will work for us
     source = 'https://download.class.ncdc.noaa.gov/download/'
     order = order_id + '/001/'
@@ -86,9 +49,6 @@ def remove_from_download_list(goes_file):
 
 def main():
 
-    # first connect to ftp site
-    ftp_class = ftp_connect_class()
-
     # order id's
     order_ids = ['2720282193', '2720283243', '2720283253', '2720285893',
                  '2720285903', '2720285923', '2720285913', '2720285973',
@@ -102,11 +62,9 @@ def main():
         logger.info("Downloading GOES files for order: " + order_id)
 
         # get files lists from class
-        file_list = get_file_lists(ftp_class, order_id)
+        file_list = get_file_list(order_id)
 
         for goes_file in file_list:
-
-            goes_file = goes_file.split(' ')[-1]
 
             # download the file
             local_filename = os.path.join(r"../../data/raw/goes", goes_file)
@@ -120,7 +78,7 @@ def main():
 
                 # do the download
                 logger.info("Downloading: " + goes_file)
-                retrieve_l1(ftp_class, order_id, local_filename, goes_file)
+                retrieve_l1(order_id, local_filename, goes_file)
 
                 # remote temp empty file from currently downloading list
                 remove_from_download_list(goes_file)
