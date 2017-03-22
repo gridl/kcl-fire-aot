@@ -4,81 +4,79 @@ import os
 import re
 import glob
 
-# TODO set up iterator to loop over a list of modis files
-# Hard code in the paths and the files for now
-data_dir = '/home/users/dnfisher/soft/orac/data'
-mod_dir = data_dir + '/testinput'
-l1name = 'MYD021KM.A2008172.0405.005.2009317014309.hdf'
-pixel_limit = "800 900 1000 1100"
-yr = '2008'
-doy = '172'
-hr = '.04'
-mn = '05'
 
-out_dir = data_dir + '/testoutput/modis_testing/'
-predir = out_dir + 'pre'
-maindir = out_dir + 'main'
-postdir = out_dir
+class ProcParams(object):
+    def __init__(self):
+        self.data_dir = '/group_workspaces/cems2/nceo_generic/satellite_data/modis_c6/myd021km/2014/'
+        self.output_dir = '/group_workspaces/cems/nceo_aerosolfire/data/orac_proc/myd/'
+        self.proc_level = 'pre'  # main
 
-cldsaddir = '/group_workspaces/cems/cloud_ecv/orac/sad_dir'
-cldphs = ['WAT', 'ICE']
-aersaddir = '/group_workspaces/cems/nceo_aerosolfire/luts/sad'
-#aerphs = ['AMZ', 'BOR', 'CER', 'AFR']  # Amazon, Boreal, Cerrado, Africa
-aerphs = ['AFR']
-
-'''
-# Call the pre-processing
-print " **** Calling ORAC preprocessing on file: ****"
-print "   " + mod_dir + '/' + l1name
-pre_cmd = mod_dir + '/' + l1name \
-          + ' -o ' + predir \
-          + ' --batch ' \
-          + ' --limit ' + pixel_limit
-
-os.system('./orac_preproc.py ' + pre_cmd)
+        self.cldsaddir = '/group_workspaces/cems/cloud_ecv/orac/sad_dir'
+        self.cldphs = ['WAT', 'ICE']
+        self.aersaddir = '/group_workspaces/cems/nceo_aerosolfire/luts/sad'
+        self.aerphs = ['AFR']
 
 
-'''
-# Call the processing for the desired phases/types
-# Path to the preprocessed files
-msi_root = glob.glob(predir + '/*.msi.nc')[0]
-msi_root = os.path.basename(msi_root)[:-7]
+def run_pre(proc_params):
+    # iterate over mod files in data dir
+    for root, dirs, files in os.walk(proc_params.data_dir):
+        for f in files:
+            if f:  # check if not empty
+                input_file_path = os.path.join(root, f)
+            else:
+                continue
+
+            output_file_path = os.path.join(proc_params.output_dir, root.split('/')[-1], 'pre')
+
+            print output_file_path
+
+            #if not os.path.exists(output_file_path):
+            #    os.makedirs(output_file_path)
+
+            # call ORAC preproc
+            #pre_cmd = input_file_path \
+            #          + ' -o ' + output_file_path \
+            #          + ' --batch '
+            #os.system('./orac_preproc.py ' + pre_cmd)
 
 
-# Call main first time  TODO Set channels to the right ones
-proc_cmd = '-i ' + predir \
-           + ' -o ' + maindir \
-           + ' --keep_driver ' \
-           + ' --phase '
+def run_pro(proc_params):
+    # iterate over mod files in data dir
+    for root, dirs, files in os.walk(proc_params.output_dir):
 
-#for phs in cldphs:
-#    print' **** Calling ORAC for type: ' + phs + ' ****'
-#    os.system('./orac_main.py ' + proc_cmd + phs + ' ' + msi_root)
+        if 'pre' not in root:  # we only want the pre proc dirs
+            continue
 
-# Call main for aerosol phase, does this need to be done for MODIS?  Also set channels correctly
-proc_cmd = '-i ' + predir \
-           + ' -o ' + maindir \
-           + ' --sad_dir ' + aersaddir \
-           + ' --use_channel 1 1 1 0 1 1  -a AppCld1L --ret_class ClsAerOx' \
-           + ' --keep_driver ' \
-           + ' -V ' \
-           + ' --phase ' 
-#        + --extra_lines /home/users/gethomas/orac_code/aerosol_scripts_py/xtra_driver_lines.txt' \
+        # find preproc naming in current root dir
+        msi_root = glob.glob(root + '/*.msi.nc')[0]
+        msi_root = os.path.basename(msi_root)[:-7]
 
-for phs in aerphs:
-    print' **** Calling ORAC for type: ' + phs + ' ****'
-    os.system('./orac_main.py ' + proc_cmd + phs + ' '+ msi_root)
+        pro_dir = root.replace('pre', 'main')
+
+        # Set up and call ORAC for the defined phases
+        proc_cmd = '-i ' + root \
+                   + ' -o ' + pro_dir \
+                   + ' --sad_dir ' + proc_params.aersaddir \
+                   + ' --use_channel 1 1 1 0 1 1  -a AppCld1L --ret_class ClsAerOx' \
+                   + ' --keep_driver ' \
+                   + ' -V ' \
+                   + ' --phase ' \
+                   + ' --batch '
+
+        for phs in proc_params.aerphs:
+            os.system('./orac_main.py ' + proc_cmd + phs + ' ' + msi_root)
 
 
+def main():
+    # get proc class
+    proc_params = ProcParams()
 
-'''
-# Call the post-processor
-post_cmd = '-i ' + maindir + \
-           ' -o ' + postdir \
-           + '--verbose' \
-           + ' --compress ' + msi_root \
-           + ' --phases ' + ' '.join(aerphs) + ' ' + ' '.join(cldphs)
-os.system('./orac_postproc.py ' + post_cmd)
+    # Call the pre-processing
+    if proc_params.proc_level == 'pre':
+        run_pre(proc_params)
+    elif proc_params.proc_level == 'pro':
+        run_pro(proc_params)
 
-# Clean-up
-'''
+
+if __name__ == "__main__":
+    main()
