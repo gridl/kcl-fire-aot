@@ -64,7 +64,7 @@ warn_filt['Acceptable']      = 'ignore'
 from orac_batch import bsub as batch
 
 # Arguments that should be included in every call
-batch_values = {'email'    : email}
+batch_values = {'email'    : 'daniel.fisher@kcl.ac.uk'}
 
 # Initialisation of script file
 batch_script = """#!/bin/bash --noprofile
