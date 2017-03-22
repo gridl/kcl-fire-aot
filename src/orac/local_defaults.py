@@ -2,9 +2,6 @@
 
 from os import environ
 
-# Data path
-data_dir = '/home/users/dnfisher/soft/orac/data'
-
 # Control flags
 ecmwf_flag  = '2'
 

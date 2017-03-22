@@ -28,16 +28,14 @@ def run_pre(proc_params):
 
             output_file_path = os.path.join(proc_params.output_dir, root.split('/')[-1], 'pre')
 
-            print output_file_path
-
-            #if not os.path.exists(output_file_path):
-            #    os.makedirs(output_file_path)
+            if not os.path.exists(output_file_path):
+                os.makedirs(output_file_path)
 
             # call ORAC preproc
-            #pre_cmd = input_file_path \
-            #          + ' -o ' + output_file_path \
-            #          + ' --batch '
-            #os.system('./orac_preproc.py ' + pre_cmd)
+            pre_cmd = input_file_path \
+                      + ' -o ' + output_file_path \
+                      + ' --batch '
+            os.system('./orac_preproc.py ' + pre_cmd)
 
 
 def run_pro(proc_params):
