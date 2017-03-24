@@ -704,6 +704,8 @@ def args_common(parser, regression=False):
                      help = 'Path for input.')
     out.add_argument('-o', '--out_dir', type=str,
                      help = 'Path for output.')
+    out.add_argument('-g', '--geo_dir', type=str,
+                     help = 'Path for geographical data input (e.g. for MODIS)')
     out.add_argument('--orac_dir', type=str, nargs='?', metavar='DIR',
                      default = defaults.orac_trunk,
                      help = 'Path to ORAC community code repository.')

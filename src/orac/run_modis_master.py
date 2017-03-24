@@ -27,6 +27,7 @@ def run_pre(proc_params):
                 continue
 
             output_file_path = os.path.join(proc_params.output_dir, root.split('/')[-1], 'pre')
+            geo_file_path = os.path.join(proc_params.geo_dir, root.split('/')[-1])
 
             if not os.path.exists(output_file_path):
                 os.makedirs(output_file_path)
@@ -34,6 +35,7 @@ def run_pre(proc_params):
             # call ORAC preproc
             pre_cmd = input_file_path \
                       + ' -o ' + output_file_path \
+                      + ' -g ' + geo_file_path
                       + ' --batch '
             os.system('./orac_preproc.py ' + pre_cmd)
 
