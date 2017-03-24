@@ -31,23 +31,35 @@ def get_file(ftp_laads, doy, myd021km_file):
     try:
         ftp_cd(ftp_laads, doy, 'allData/6/MYD03/')
         file_list = get_files(ftp_laads)
+
+        # find the right file
+        file_list = [f.split(None, 8)[-1].lstrip() for f in file_list]
+        myd03_file = [f for f in file_list if myd021km_file[10:23] in f][0]
+        return myd03_file
+
     except:
-        logger.info('Could not download data for DOY: ' + doy + " Reattempting...")
+        logger.info('Could not access file list for DOY: ' + doy + " on attempt 1. Reattempting...")
         attempt = 1
         while True:
             try:
                 ftp_laads = ftp_connect_laads()
                 ftp_cd(ftp_laads, doy, 'allData/6/MYD03/')
                 file_list = get_files(ftp_laads)
-            except:
-                logger.info('Could not download data for DOY: ' + doy + " Reattempting...")
-                time.sleep(5)
-                attempt += 1
 
-    # find the right file
-    file_list = [f.split(None, 8)[-1].lstrip() for f in file_list]
-    myd03_file = [f for f in file_list if myd021km_file[10:23] in f][0]
-    return myd03_file
+                # find the right file
+                file_list = [f.split(None, 8)[-1].lstrip() for f in file_list]
+                myd03_file = [f for f in file_list if myd021km_file[10:23] in f][0]
+                return myd03_file
+            except:
+                attempt += 1
+                logger.info('Could not access file list for DOY: ' + doy + " on attempt " + str(attempt) +
+                            " Reattempting...")
+                time.sleep(5)
+                if attempt == 10:
+                    return str()
+
+
+
 
 
 def get_files(ftp_laads):
@@ -95,11 +107,13 @@ def main():
         if not f:
             continue
 
-        logger.info("Downloading MODIS 03 data for file f: " + f)
-
         # find the correct myd03 file
         doy = f[14:17]
         myd03_filename = get_file(ftp_laads, doy, f)
+
+        if not myd03_filename:
+            logger.warning('Could not download geo file for file: ' + f)
+            continue
 
         # download the file
         local_filename = os.path.join(r"../../data/raw/geo", myd03_filename)
@@ -111,7 +125,7 @@ def main():
 
 if __name__ == "__main__":
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    logging.basicConfig(level=logging.INFO, format=log_fmt)
+    logging.basicConfig(level=logging.WARNING, format=log_fmt)
     logger = logging.getLogger(__name__)
 
     main()
