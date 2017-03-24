@@ -1088,7 +1088,10 @@ def build_preproc_driver(args):
 
     inst = FileName(args.target)
     file = glob_dirs(args.in_dir, args.target, 'L1B file')
-    geo  = glob_dirs(args.in_dir, inst.geo, 'geolocation file')
+    if inst.sensor == 'MODIS':
+        geo = glob_dirs(args.geo_dir, inst.geo, 'geolocation file')
+    else:
+        geo = glob_dirs(args.in_dir, inst.geo, 'geolocation file')
 
     # Select NISE file
     if args.use_ecmwf_snow:
