@@ -8,6 +8,7 @@ import glob
 class ProcParams(object):
     def __init__(self):
         self.data_dir = '/group_workspaces/cems2/nceo_generic/satellite_data/modis_c6/myd021km/2014/'
+        self.geo_dir = '/group_workspaces/cems2/nceo_generic/satellite_data/modis_c6/myd03/2014/'
         self.output_dir = '/group_workspaces/cems/nceo_aerosolfire/data/orac_proc/myd/'
         self.proc_level = 'pre'  # main
 
@@ -35,7 +36,7 @@ def run_pre(proc_params):
             # call ORAC preproc
             pre_cmd = input_file_path \
                       + ' -o ' + output_file_path \
-                      + ' -g ' + geo_file_path
+                      + ' -g ' + geo_file_path \
                       + ' --batch '
             os.system('./orac_preproc.py ' + pre_cmd)
 
