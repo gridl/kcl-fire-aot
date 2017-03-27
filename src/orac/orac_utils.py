@@ -704,7 +704,7 @@ def args_common(parser, regression=False):
                      help = 'Path for input.')
     out.add_argument('-o', '--out_dir', type=str,
                      help = 'Path for output.')
-    out.add_argument('-g', '--geo_dir', type=str,
+    out.add_argument('-g', '--geo_dir', type=str, nargs='+',
                      help = 'Path for geographical data input (e.g. for MODIS)')
     out.add_argument('--orac_dir', type=str, nargs='?', metavar='DIR',
                      default = defaults.orac_trunk,
@@ -1055,7 +1055,7 @@ def args_cc4cl(parser):
     cccl.add_argument('--land_dir', type=str, nargs='?',
                       default = defaults.land_dir,
                       help = 'Name of subfolder for land-only aerosol output.')
-    cccl.add_argument('--log_dir', type=str, nargs='?',
+    crgs='+'ccl.add_argument('--log_dir', type=str, nargs='?',
                       default = defaults.log_dir,
                       help = 'Name of subfolder for log files from batch proc.')
     cccl.add_argument('--main_dir', type=str, nargs='?',
@@ -1091,7 +1091,7 @@ def build_preproc_driver(args):
     inst = FileName(args.target)
     file = glob_dirs(args.in_dir, args.target, 'L1B file')
     if inst.sensor == 'MODIS':
-        geo = glob_dirs(args.geo_dir, inst.geo, 'geolocation file')
+	geo = glob_dirs(args.geo_dir, inst.geo, 'geolocation file')
     else:
         geo = glob_dirs(args.in_dir, inst.geo, 'geolocation file')
 
