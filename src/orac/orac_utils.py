@@ -704,8 +704,6 @@ def args_common(parser, regression=False):
                      help = 'Path for input.')
     out.add_argument('-o', '--out_dir', type=str,
                      help = 'Path for output.')
-    out.add_argument('-g', '--geo_dir', type=str, nargs='+',
-                     help = 'Path for geographical data input (e.g. for MODIS)')
     out.add_argument('--orac_dir', type=str, nargs='?', metavar='DIR',
                      default = defaults.orac_trunk,
                      help = 'Path to ORAC community code repository.')
@@ -759,6 +757,8 @@ def args_preproc(parser):
     """Define arguments for preprocessor script."""
 
     key = parser.add_argument_group('Preprocessor keywords')
+    out.add_argument('-g', '--geo_dir', type=str, nargs='+',
+                     help = 'Path for geographical data input (e.g. for MODIS)')
     key.add_argument('-c', '--channel_ids', type=int, nargs='+', metavar='#',
                      default = None,
                      help = 'Channels to be considered by the preprocessor.')
@@ -1161,11 +1161,15 @@ def build_preproc_driver(args):
         for f in hr_ecmwf:
             if not os.path.isfile(f):
                 raise FileMissing('HR ECMWF file', f)
+    else:
+	hr_ecmwf = None
 
     if args.use_oc:
         occci = args.occci_dir + inst.time.strftime(
                 '/ESACCI-OC-L3S-IOP-MERGED-1M_MONTHLY_4km_GEO_PML_OC4v6_QAA-' + 
                 '%Y%m-fv2.0.nc')
+    else:
+	occci = None
 
     #------------------------------------------------------------------------
 
