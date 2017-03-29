@@ -757,7 +757,7 @@ def args_preproc(parser):
     """Define arguments for preprocessor script."""
 
     key = parser.add_argument_group('Preprocessor keywords')
-    out.add_argument('-g', '--geo_dir', type=str, nargs='+',
+    key.add_argument('-g', '--geo_dir', type=str, nargs='+',
                      help = 'Path for geographical data input (e.g. for MODIS)')
     key.add_argument('-c', '--channel_ids', type=int, nargs='+', metavar='#',
                      default = None,
