@@ -1162,9 +1162,10 @@ def build_preproc_driver(args):
             if not os.path.isfile(f):
                 raise FileMissing('HR ECMWF file', f)
 
-    occci = args.occci_dir + inst.time.strftime(
-            '/ESACCI-OC-L3S-IOP-MERGED-1M_MONTHLY_4km_GEO_PML_OC4v6_QAA-' + 
-            '%Y%m-fv2.0.nc')
+    if args.use_oc:
+        occci = args.occci_dir + inst.time.strftime(
+                '/ESACCI-OC-L3S-IOP-MERGED-1M_MONTHLY_4km_GEO_PML_OC4v6_QAA-' + 
+                '%Y%m-fv2.0.nc')
 
     #------------------------------------------------------------------------
 
