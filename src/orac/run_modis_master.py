@@ -37,6 +37,7 @@ def run_pre(proc_params):
             pre_cmd = input_file_path \
                       + ' -o ' + output_file_path \
                       + ' -g ' + geo_file_path \
+		      + ' --skip_ecmwf_hr ' \
 		      + ' --batch '
             os.system('./orac_preproc.py ' + pre_cmd)
 
