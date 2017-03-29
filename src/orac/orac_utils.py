@@ -1055,7 +1055,7 @@ def args_cc4cl(parser):
     cccl.add_argument('--land_dir', type=str, nargs='?',
                       default = defaults.land_dir,
                       help = 'Name of subfolder for land-only aerosol output.')
-    crgs='+'ccl.add_argument('--log_dir', type=str, nargs='?',
+    ccl.add_argument('--log_dir', type=str, nargs='?',
                       default = defaults.log_dir,
                       help = 'Name of subfolder for log files from batch proc.')
     cccl.add_argument('--main_dir', type=str, nargs='?',
@@ -1109,7 +1109,7 @@ def build_preproc_driver(args):
                                                          'NISE_SSMIF13_%Y%m%d.HDFEOS'))
                 if not os.path.isfile(nise):
                     nise = (args.nise_dir + inst.time.strftime('/%Y/'+
-                                                             'NISE_SSMIF17_%Y%m%d.HDFEOS'))
+                                                             'NISE_SSMISF17_%Y%m%d.HDFEOS'))
                     if not os.path.isfile(nise):
                         raise FileMissing('NISE', nise)
 
