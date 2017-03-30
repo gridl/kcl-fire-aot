@@ -1191,27 +1191,6 @@ def build_preproc_driver(args):
     else:
         raise BadValue('ecmwf_flag', args.ecmwf_flag)
 
-    if not args.skip_ecmwf_hr:
-        # hr_ecmwf = form_bound_filenames(bounds, args.hr_dir,
-        #                                '/ERA_Interim_an_%Y%m%d_%H+00_HR.grb')
-        # These files don't zero-pad the hour for some reason
-        hr_ecmwf = [args.hr_dir + time.strftime('/ERA_Interim_an_%Y%m%d_') +
-                    '{:d}+00_HR.grb'.format(time.hour * 100) for time in bounds]
-        if not os.path.isfile(hr_ecmwf[0]):
-            hr_ecmwf = [args.hr_dir + time.strftime('/%Y/%m/%d/ERA_Interim_an_%Y%m%d_') +
-                        '{:d}+00_HR.grb'.format(time.hour * 100) for time in bounds]
-        for f in hr_ecmwf:
-            if not os.path.isfile(f):
-                raise FileMissing('HR ECMWF file', f)
-    else:
-        hr_ecmwf = ''
-
-    if args.use_oc:
-        occci = args.occci_dir + inst.time.strftime(
-            '/ESACCI-OC-L3S-IOP-MERGED-1M_MONTHLY_4km_GEO_PML_OC4v6_QAA-' +
-            '%Y%m-fv2.0.nc')
-    else:
-        occci = ''
 
     # ------------------------------------------------------------------------
 
@@ -1301,7 +1280,6 @@ def build_preproc_driver(args):
          'dellat': args.dellat,
          'dellon': args.dellon,
          'ecmwf_flag': args.ecmwf_flag,
-         'ecmwf_hr': hr_ecmwf,
          'ecmwf_int_method': args.single_ecmwf,
          'ecmwf_nise': args.use_ecmwf_snow,
          'ecmwf_nlevels': args.ecmwf_nlevels,
@@ -1323,7 +1301,6 @@ def build_preproc_driver(args):
          'modis_emis': args.use_modis_emis,
          'ncdf_version': ncdf_version,
          'nise': nise,
-         'occci_file': occci,
          'out_dir': args.out_dir,
          'usgs': args.usgs_file,
          'production_time': production_time,
@@ -1396,14 +1373,11 @@ ECMWF_PATH_2={ggam[1]}
 ECMWF_PATH2_2={ggas[1]}
 ECMWF_PATH3_2={spam[1]}
 USE_HR_ECMWF={use_ecmwf_hr}
-ECMWF_PATH_HR={ecmwf_hr[0]}
-ECMWF_PATH_HR_2={ecmwf_hr[1]}
 USE_ECMWF_SNOW_AND_ICE={ecmwf_nise}
 USE_MODIS_EMIS_IN_RTTOV={modis_emis}
 ECMWF_NLEVELS={ecmwf_nlevels}
 USE_L1_LAND_MASK={l1_land_mask}
-USE_OCCCI={use_occci}
-OCCCI_PATH={occci_file}""".format(
+USE_OCCCI={use_occci}""".format(
         alb=alb,
         assume_full_paths=True,  # Above file searching returns paths nor dirs
         atlas=args.atlas_dir,
@@ -1419,7 +1393,6 @@ OCCCI_PATH={occci_file}""".format(
         dellat=args.dellat,
         dellon=args.dellon,
         ecmwf_flag=args.ecmwf_flag,
-        ecmwf_hr=hr_ecmwf,
         ecmwf_int_method=args.single_ecmwf,
         ecmwf_nise=args.use_ecmwf_snow,
         ecmwf_nlevels=args.ecmwf_nlevels,
@@ -1441,7 +1414,6 @@ OCCCI_PATH={occci_file}""".format(
         modis_emis=args.use_modis_emis,
         ncdf_version=ncdf_version,
         nise=nise,
-        occci_file=occci,
         out_dir=args.out_dir,
         usgs=args.usgs_file,
         production_time=production_time,
@@ -1453,8 +1425,8 @@ OCCCI_PATH={occci_file}""".format(
         summary=args.summary,
         svn_version=svn_version,
         uuid=uid,
-        use_ecmwf_hr=not args.skip_ecmwf_hr,
-        use_occci=args.use_oc,
+        use_ecmwf_hr=False,
+        use_occci=False,
         verbose=args.verbose,
     )
 
