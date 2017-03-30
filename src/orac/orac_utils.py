@@ -1265,61 +1265,6 @@ def build_preproc_driver(args):
 
     # ------------------------------------------------------------------------
 
-    d = {'alb': alb,
-         'assume_full_paths': True,  # Above file searching returns paths nor dirs
-         'atlas': args.atlas_dir,
-         'atsr_calib': args.calib_file,
-         'brdf': brdf,
-         'chunk_flag': False,  # File chunking no longer required
-         'coef': args.coef_dir,
-         'comment': args.comments,
-         'conventions': args.cfconvention,
-         'creator_email': args.email,
-         'creator_url': args.url,
-         'day_flag': args.day_flag,  # 0=1=Day, 2=Night
-         'dellat': args.dellat,
-         'dellon': args.dellon,
-         'ecmwf_flag': args.ecmwf_flag,
-         'ecmwf_int_method': args.single_ecmwf,
-         'ecmwf_nise': args.use_ecmwf_snow,
-         'ecmwf_nlevels': args.ecmwf_nlevels,
-         'ecmwf_version': ecmwf_version,
-         'emis': emis,
-         'file_version': file_version,
-         'geo': geo,
-         'ggam': ggam,
-         'ggas': ggas,
-         'history': args.history,
-         'include_full_brdf': not args.lambertian,
-         'institution': args.institute,
-         'keywords': args.keywords,
-         'l1_land_mask': args.l1_land_mask,
-         'l1b': file,
-         'l2_processor': args.processor,
-         'license': args.license,
-         'limit': args.limit,
-         'modis_emis': args.use_modis_emis,
-         'ncdf_version': ncdf_version,
-         'nise': nise,
-         'out_dir': args.out_dir,
-         'usgs': args.usgs_file,
-         'production_time': production_time,
-         'project': args.project,
-         'references': args.references,
-         'rttov_version': rttov_version,
-         'sensor': inst.sensor,
-         'spam': spam,
-         'summary': args.summary,
-         'svn_version': svn_version,
-         'uuid': uid,
-         'use_ecmwf_hr': not args.skip_ecmwf_hr,
-         'use_occci': args.use_oc,
-         'verbose': args.verbose}
-
-    for i in d:
-        print i, d[i]
-        print 
-
     # Write driver file
     driver = """{sensor}
 {l1b}
