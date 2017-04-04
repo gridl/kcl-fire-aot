@@ -37,7 +37,7 @@ def run_pre(proc_params):
             pre_cmd = input_file_path \
                       + ' -o ' + output_file_path \
                       + ' -g ' + geo_file_path \
-		      + ' -c 1 2 7 26 31 32 ' \
+		      + ' -c 1 2 7 20 31 32 ' \
 		      + ' --skip_ecmwf_hr ' \
 		      + ' --batch ' 
             os.system('./orac_preproc.py ' + pre_cmd)
@@ -65,10 +65,10 @@ def run_pro(proc_params):
             proc_cmd = '-i ' + root \
                      + ' -o ' + pro_dir \
                      + ' --sad_dir ' + proc_params.aersaddir \
-                     + ' -a AppCld1L --ret_class ClsAerOx' \
+                     + ' --use_channel 1 1 1 0 1 1  -a AppCld1L --ret_class ClsAerOx' \
                      + ' --keep_driver ' \
-                     + ' -V ' \
-                     + ' --phase '
+                     + ' --batch ' \
+		     + ' --phase '
         
 	    for phs in proc_params.aerphs:
                 os.system('./orac_main.py ' + proc_cmd + phs + ' ' + msi_root)

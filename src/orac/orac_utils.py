@@ -205,6 +205,7 @@ def call_exe(args,  # Arguments of scripts
                 os.remove(driver_file)
 
     else:
+
         # Write temporary script to call executable
         (gd, script_file) = tempfile.mkstemp('.sh', os.path.basename(exe) + '.',
                                              args.out_dir, True)
@@ -214,8 +215,12 @@ def call_exe(args,  # Arguments of scripts
         # Define processing environment
         libs = read_orac_libraries(args.orac_lib)
         g.write("export LD_LIBRARY_PATH=" + build_orac_library_path(libs) + "\n")
-        g.write("export PPDIR=" + args.emos_dir + "\n")
-
+        
+	try:
+	    g.write("export PPDIR=" + args.emos_dir + "\n")
+	except AttributeError:
+	    pass
+	    
         # Call executable and give the script permission to execute
         g.write(exe + ' ' + driver_file + "\n")
         if not args.keep_driver:
