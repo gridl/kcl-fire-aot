@@ -67,8 +67,8 @@ def run_pro(proc_params):
                      + ' --sad_dir ' + proc_params.aersaddir \
                      + ' --use_channel 1 1 1 1 1 1  -a AppCld1L --ret_class ClsAerOx' \
                      + ' --keep_driver ' \
-                     #+ ' --batch ' \
 		     + ' --phase '
+		     # ' --batch ' \  MOVE THIS TO THE LINE ABOVE WHEN REINSTATING
         
 	    for phs in proc_params.aerphs:
                 os.system('./orac_main.py ' + proc_cmd + phs + ' ' + msi_root)
