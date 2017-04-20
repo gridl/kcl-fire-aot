@@ -711,7 +711,7 @@ settings['A79'] = ParticleType(inv=(tau, Invpar('IRe', ap=-0.848, sx=0.15)))
 
 # TODO check whether thess use the correct SAD dirs and that the wavelenght are appropriate
 # TODO and get updated ap and sx values from gareth
-wvl=(0.67, 0.87, 1.6, 3.7, 11, 12)  # this needs to change depending on the channels that I am using in the retrieval?  
+wvl=(0.858, 0.469, 0.555, 2.13, 11, 12)  # this needs to change depending on the channels that I am using in the retrieval?  
 settings['BOR'] = ParticleType(wvl=wvl,
                                inv=(tau, Invpar('IRe', ap=0.8, sx=0.2)))
 settings['CER'] = ParticleType(wvl=wvl,
