@@ -711,13 +711,14 @@ settings['A79'] = ParticleType(inv=(tau, Invpar('IRe', ap=-0.848, sx=0.15)))
 
 # TODO check whether thess use the correct SAD dirs and that the wavelenght are appropriate
 # TODO and get updated ap and sx values from gareth
-settings['BOR'] = ParticleType(wvl=(0.67, 0.87, 1.6, 3.7, 11, 12),
+wvl=(0.67, 0.87, 1.6, 3.7, 11, 12)  # this needs to change depending on the channels that I am using in the retrieval?  
+settings['BOR'] = ParticleType(wvl=wvl,
                                inv=(tau, Invpar('IRe', ap=0.8, sx=0.2)))
-settings['CER'] = ParticleType(wvl=(0.67, 0.87, 1.6, 3.7, 11, 12),
+settings['CER'] = ParticleType(wvl=wvl,
                                inv=(tau, Invpar('IRe', ap=0.8, sx=0.2)))
-settings['AMZ'] = ParticleType(wvl=(0.67, 0.87, 1.6, 3.7, 11, 12),
+settings['AMZ'] = ParticleType(wvl=wvl,
                                inv=(tau, Invpar('IRe', ap=0.8, sx=0.2)))
-settings['AFR'] = ParticleType(wvl=(0.67, 0.87, 1.6, 3.7, 11, 12),
+settings['AFR'] = ParticleType(wvl=wvl,
                                inv=(tau, Invpar('IRe', ap=0.8, sx=0.2)))
 
 
