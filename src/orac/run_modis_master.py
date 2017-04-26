@@ -7,10 +7,10 @@ import glob
 
 class ProcParams(object):
     def __init__(self):
-        self.data_dir = '/group_workspaces/cems2/nceo_generic/satellite_data/modis_c6/myd021km/2014/124/'
-        self.geo_dir = '/group_workspaces/cems2/nceo_generic/satellite_data/modis_c6/myd03/2014/124/'
-        self.output_dir = '/group_workspaces/cems/nceo_aerosolfire/data/orac_proc/myd/2014/124/'
-        self.proc_level = 'pro'
+        self.data_dir = '/group_workspaces/cems2/nceo_generic/satellite_data/modis_c6/myd021km/2014/'
+        self.geo_dir = '/group_workspaces/cems2/nceo_generic/satellite_data/modis_c6/myd03/2014/'
+        self.output_dir = '/group_workspaces/cems/nceo_aerosolfire/data/orac_proc/myd/2014/'
+        self.proc_level = 'pre'
 
         self.cldsaddir = '/group_workspaces/cems/cloud_ecv/orac/sad_dir'
         self.cldphs = ['WAT', 'ICE']
@@ -38,8 +38,8 @@ def run_pre(proc_params):
                       + ' -o ' + output_file_path \
                       + ' -g ' + geo_file_path \
 		      + ' -c 1 2 3 4 7 20 31 32 ' \
-		      + ' --skip_ecmwf_hr ' #\
-		      #+ ' --batch ' 
+		      + ' --skip_ecmwf_hr ' \
+		      + ' --batch ' 
             os.system('./orac_preproc.py ' + pre_cmd)
 
 
@@ -67,8 +67,8 @@ def run_pro(proc_params):
                      + ' --sad_dir ' + proc_params.aersaddir \
                      + ' --use_channel 1 1 1 1 1 0 1 1  -a AppCld1L --ret_class ClsAerOx' \
                      + ' --keep_driver ' \
+                     + ' --batch' \
 		     + ' --phase '
-		     # ' --batch ' \  MOVE THIS TO THE LINE ABOVE WHEN REINSTATING
         
 	    for phs in proc_params.aerphs:
                 os.system('./orac_main.py ' + proc_cmd + phs + ' ' + msi_root)
