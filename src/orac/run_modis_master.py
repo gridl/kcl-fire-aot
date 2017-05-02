@@ -10,7 +10,7 @@ class ProcParams(object):
         self.data_dir = '/group_workspaces/cems2/nceo_generic/satellite_data/modis_c6/myd021km/2014/'
         self.geo_dir = '/group_workspaces/cems2/nceo_generic/satellite_data/modis_c6/myd03/2014/'
         self.output_dir = '/group_workspaces/cems/nceo_aerosolfire/data/orac_proc/myd/2014/'
-        self.proc_level = 'pre'
+        self.proc_level = 'pro'
 
         self.cldsaddir = '/group_workspaces/cems/cloud_ecv/orac/sad_dir'
         self.cldphs = ['WAT', 'ICE']
