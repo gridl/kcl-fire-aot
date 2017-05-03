@@ -10,11 +10,11 @@ import glob
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy.ndimage as ndimage
 
 from matplotlib.path import Path
 from netCDF4 import Dataset
 from datetime import datetime
-
 
 def get_sub_df(primary_file, mask_df):
     tt = datetime.strptime(primary_file.split('_')[-2], '%Y%m%d%H%M').timetuple()
@@ -58,7 +58,17 @@ def make_mask(primary_data, primary_file, mask_df):
     return mask
 
 
+def label_plumes(mask):
+    plume_positions = []
+    labelled_mask, n_plumes = ndimage.label(mask)
+    plumes = ndimage.find_objects(labelled_mask)
+    for pl in plumes:
+        plume_positions.append([int(pl[0].start)-5, int(pl[0].stop)+5, int(pl[1].start)-5, int(pl[1].stop)+5])
+    return plume_positions
 
+
+def make_plot(primary_data, plume_mask):
+    pass
 
 
 def main():
@@ -81,8 +91,11 @@ def main():
         # make the smoke plume mask
         plume_mask = make_mask(primary_data, primary_file, mask_df)
 
+        # get the individual plumes
+        plume_positions = label_plumes(plume_mask)
+
         # visualise
-        make_plot(primary_data, plume_mask)
+        make_plot(primary_data, plume_positions)
 
 
 
