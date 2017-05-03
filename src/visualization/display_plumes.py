@@ -84,21 +84,32 @@ def label_plumes(mask):
     return plume_positions
 
 
-def make_plot(visrad, primary_data, plume_positions):
+def make_plot(fname, visrad, primary_data, plume_positions):
 
     # iterate over the plumes
-    for pp in plume_positions:
+    for i, pp in enumerate(plume_positions):
 
-        fig, axes = plt.subplots(2, 3)
+        fig, axes = plt.subplots(2, 3, figsize=(15,12))
 
         for ax, k in zip(axes.flatten(), ['' , 'cer', 'cot', 'ctp', 'ctt', 'costjm']):
+
+            ax.get_xaxis().set_visible(False)
+            ax.get_yaxis().set_visible(False)
+
+
             if not k:
-                ax.imshow(visrad[pp[0]:pp[1], pp[2]:pp[3]], cmap='gray', interpolation='None')
+                p = ax.imshow(visrad[pp[0]:pp[1], pp[2]:pp[3]], cmap='gray', interpolation='None')
+                cbar = plt.colorbar(p, ax=ax)
+                cbar.ax.get_yaxis().labelpad = 15
+                cbar.ax.set_ylabel('dn', rotation=270, fontsize=14)
+
             else:
                 data = primary_data.variables[k][pp[0]:pp[1], pp[2]:pp[3]]
                 p = ax.imshow(data)
-                #cbar = plt.colorbar(p, ax=ax)
-        plt.show()
+                cbar = plt.colorbar(p, ax=ax)
+                cbar.ax.get_yaxis().labelpad = 15
+                cbar.ax.set_ylabel(k, rotation=270, fontsize=14)
+        plt.savefig(fname + '_p' + str(i) + '.png', bbox_inches='tight')
 
 
 def main():
@@ -108,7 +119,7 @@ def main():
     l1b_path = '../../data/raw/l1b/'
     orac_data_path = '../../data/processed/orac_test_scene/'
     mask_path = '../../data/interim/myd021km_plumes_df.pickle'
-    output = ''
+    output = '../../data/interim/'
 
     # read in the masks
     mask_df = pd.read_pickle(mask_path)
@@ -118,6 +129,7 @@ def main():
 
         # first get the primary file time
         primary_time = get_primary_time(primary_file)
+        fname = output + primary_file.split('/')[-1][:-3] + '_quicklook'
 
         # find and read the vis channel of the associated l1b file
         l1b_file = glob.glob(l1b_path + '*' + primary_time + '*')[0]
@@ -133,7 +145,7 @@ def main():
         plume_positions = label_plumes(plume_mask)
 
         # visualise
-        make_plot(visrad, primary_data, plume_positions)
+        make_plot(fname, visrad, primary_data, plume_positions)
 
 
 
