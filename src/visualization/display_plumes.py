@@ -30,6 +30,37 @@ def open_primary(primary_file):
     return Dataset(primary_file)
 
 
+def make_mask(primary_data, primary_file, mask_df):
+    primary_shape = primary_data.variables['cer'].shape
+
+    # get teh sub dataframe associated with the mask
+    sub_df = get_sub_df(primary_file, mask_df)
+
+    # create grid to hold the plume mask
+    nx = primary_shape[1]
+    ny = primary_shape[0]
+    mask = np.zeros((ny, nx))
+
+    # generate the mask for each of the plumes
+    for i, plume in sub_df.iterrows():
+        x, y = np.meshgrid(np.arange(nx), np.arange(ny))
+        x, y = x.flatten(), y.flatten()
+        points = np.vstack((x, y)).T
+
+        poly_verts = plume['plume_extent']
+
+        # apply mask
+        path = Path(poly_verts)
+        grid = path.contains_points(points)
+        grid = grid.reshape((ny, nx))
+
+        mask += grid
+    return mask
+
+
+
+
+
 def main():
 
 
@@ -46,35 +77,12 @@ def main():
 
         # open up the ORAC primary file
         primary_data = open_primary(primary_file)
-        primary_shape = primary_data.variables['cer'].shape
 
-        # get teh sub dataframe associated with the mask
-        sub_df = get_sub_df(primary_file, mask_df)
+        # make the smoke plume mask
+        plume_mask = make_mask(primary_data, primary_file, mask_df)
 
-        # create grid to hold the plume mask
-        nx = primary_shape[1]
-        ny = primary_shape[0]
-        mask = np.zeros((ny, nx))
-
-        # generate the mask for each of the plumes
-        for i, plume in sub_df.iterrows():
-
-            x, y = np.meshgrid(np.arange(nx), np.arange(ny))
-            x, y = x.flatten(), y.flatten()
-            points = np.vstack((x, y)).T
-
-            poly_verts = plume['plume_extent']
-
-            # apply mask
-            path = Path(poly_verts)
-            grid = path.contains_points(points)
-            grid = grid.reshape((ny, nx))
-
-            mask += grid
-
-        # visualise and save output
-        plt.imshow(mask, cmap='gray')
-        plt.show()
+        # visualise
+        make_plot(primary_data, plume_mask)
 
 
 
