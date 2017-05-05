@@ -9,6 +9,8 @@ import glob
 
 import pandas as pd
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import scipy.ndimage as ndimage
 
@@ -116,10 +118,10 @@ def main():
 
 
     # set up paths
-    l1b_path = '../../data/raw/l1b/'
-    orac_data_path = '../../data/processed/orac_test_scene/'
-    mask_path = '../../data/interim/myd021km_plumes_df.pickle'
-    output = '../../data/interim/'
+    l1b_path = '/group_workspaces/cems2/nceo_generic/satellite_data/modis_c6/myd021km/2014/'
+    orac_data_path = '/home/users/dnfisher/nceo_aerosolfire/data/orac_proc/myd/2014/'
+    mask_path = '/home/users/dnfisher/nceo_aerosolfire/data/plume_masks/myd021km_plumes_df.pickle'
+    output = '/home/users/dnfisher/nceo_aerosolfire/data/quicklooks/plume_retrievals/'
 
     # read in the masks
     mask_df = pd.read_pickle(mask_path)
@@ -132,7 +134,7 @@ def main():
         fname = output + primary_file.split('/')[-1][:-3] + '_quicklook'
 
         # find and read the vis channel of the associated l1b file
-        l1b_file = glob.glob(l1b_path + '*' + primary_time + '*')[0]
+        l1b_file = glob.glob(l1b_path + '/*/*' + primary_time + '*')[0]
         visrad = read_vis(l1b_file)
 
         # open up the ORAC primary file

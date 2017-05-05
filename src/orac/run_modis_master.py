@@ -70,7 +70,7 @@ def run_pro(proc_params):
                      + ' --batch' \
 		     + ' --phase '
         
-	    for phs in proc_params.aerphs:
+	    for phs in proc_params.cldphs:
                 os.system('./orac_main.py ' + proc_cmd + phs + ' ' + msi_root)
 
 
