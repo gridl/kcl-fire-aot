@@ -65,7 +65,7 @@ def run_pro(proc_params):
             proc_cmd = '-i ' + root \
                      + ' -o ' + pro_dir \
                      + ' --sad_dir ' + proc_params.cldsaddir \
-                     + ' --use_channel 1 1 0 0 0 1 1 1 -a AppCld1L --ret_class ClsAerOx' \
+                     + ' --use_channel 1 1 0 1 1 1 1 1 -a AppCld1L --ret_class ClsAerOx' \
                      + ' --keep_driver ' \
 		     + ' --phase '
         
