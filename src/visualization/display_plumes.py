@@ -107,7 +107,7 @@ def make_plot(fname, visrad, primary_data, plume_positions):
 
             else:
                 data = primary_data.variables[k][pp[0]:pp[1], pp[2]:pp[3]]
-                p = ax.imshow(data)
+                p = ax.imshow(data, interpolation='none')
                 cbar = plt.colorbar(p, ax=ax)
                 cbar.ax.get_yaxis().labelpad = 15
                 cbar.ax.set_ylabel(k, rotation=270, fontsize=14)
