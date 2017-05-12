@@ -67,6 +67,7 @@ def run_pro(proc_params):
                      + ' --sad_dir ' + proc_params.cldsaddir \
                      + ' --use_channel 1 1 0 1 1 0 0 0 -a AppCld1L --ret_class ClsAerOx' \
                      + ' --keep_driver ' \
+		     + ' --batch ' \
 		     + ' --phase '
         
 	    for phs in proc_params.cldphs:
