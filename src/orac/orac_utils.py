@@ -698,18 +698,7 @@ settings['ICE'] = ParticleType(wvl=(0.67, 0.87, 1.6, 3.7, 11, 12),
                                sad=defaults.sad_dir, ls=False)
 
 #tau = Invpar('ITau', ap=-1.0, sx=0.3)
-tau = Invpar('ITau', ap=0, sx=0.3)
-settings['A70'] = ParticleType(inv=(tau, Invpar('IRe', ap=0.0856, sx=0.15)))
-settings['A71'] = ParticleType(inv=(tau, Invpar('IRe', ap=-0.257, sx=0.15)))
-settings['A72'] = ParticleType(inv=(tau, Invpar('IRe', ap=-0.257, sx=0.15)))
-settings['A73'] = ParticleType(inv=(tau, Invpar('IRe', ap=-0.257, sx=0.15)))
-settings['A74'] = ParticleType(inv=(tau, Invpar('IRe', ap=-0.257, sx=0.15)))
-settings['A75'] = ParticleType(inv=(tau, Invpar('IRe', ap=-0.0419, sx=0.15)))
-settings['A76'] = ParticleType(inv=(tau, Invpar('IRe', ap=0.0856, sx=0.15)))
-settings['A77'] = ParticleType(inv=(tau, Invpar('IRe', ap=-0.0419, sx=0.15)))
-settings['A78'] = ParticleType(inv=(tau, Invpar('IRe', ap=-0.257, sx=0.15)))
-settings['A79'] = ParticleType(inv=(tau, Invpar('IRe', ap=-0.848, sx=0.15)))
-
+tau = Invpar('ITau', ap=0.04, sx=0.3)
 # TODO check whether thess use the correct SAD dirs and that the wavelenght are appropriate
 # TODO and get updated ap and sx values from gareth
 wvl=(0.858, 0.469, 0.555, 2.13, 11, 12)  # this needs to change depending on the channels that I am using in the retrieval?  
