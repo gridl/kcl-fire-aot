@@ -691,8 +691,9 @@ class ParticleType():
         self.sad = sad
         self.ls = ls
 
-
+tau = Invpar('ITau', ap=-1, sx=0.3)
 settings['WAT'] = ParticleType(wvl=(0.67, 0.87, 1.6, 3.7, 11, 12),
+			       inv=(tau, Invpar('IRe', ap=0.8, sx=0.2),
                                sad=defaults.sad_dir, ls=False)
 settings['ICE'] = ParticleType(wvl=(0.67, 0.87, 1.6, 3.7, 11, 12),
                                sad=defaults.sad_dir, ls=False)
