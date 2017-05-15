@@ -697,7 +697,8 @@ settings['WAT'] = ParticleType(wvl=(0.67, 0.87, 1.6, 3.7, 11, 12),
 settings['ICE'] = ParticleType(wvl=(0.67, 0.87, 1.6, 3.7, 11, 12),
                                sad=defaults.sad_dir, ls=False)
 
-tau = Invpar('ITau', ap=-1.0, sx=0.3)
+#tau = Invpar('ITau', ap=-1.0, sx=0.3)
+tau = Invpar('ITau', ap=0, sx=0.3)
 settings['A70'] = ParticleType(inv=(tau, Invpar('IRe', ap=0.0856, sx=0.15)))
 settings['A71'] = ParticleType(inv=(tau, Invpar('IRe', ap=-0.257, sx=0.15)))
 settings['A72'] = ParticleType(inv=(tau, Invpar('IRe', ap=-0.257, sx=0.15)))
