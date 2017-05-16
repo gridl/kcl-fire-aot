@@ -112,7 +112,7 @@ def make_plot(fname, visrad, primary_data, plume_positions):
                 cbar.ax.get_yaxis().labelpad = 15
                 cbar.ax.set_ylabel(k, rotation=270, fontsize=14)
         plt.savefig(fname + '_p' + str(i) + '.png', bbox_inches='tight')
-	plt.close()	
+	plt.close()
 
 
 def main():
