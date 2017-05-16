@@ -129,31 +129,32 @@ def main():
     # read in the masks
     mask_df = pd.read_pickle(mask_path)
 
-    # iterate over modis files
-    for primary_file in glob.glob(orac_data_path + '*/*/*primary*'):
+    with open(output_txt + "plume_extents.txt", "w") as text_file:
 
-        # first get the primary file time
-        primary_time = get_primary_time(primary_file)
-        fname = output + primary_file.split('/')[-1][:-3] + '_quicklook'
+        # iterate over modis files
+        for primary_file in glob.glob(orac_data_path + '*/*/*primary*'):
 
-        # find and read the vis channel of the associated l1b file
-        l1b_file = glob.glob(l1b_path + '/*/*' + primary_time + '*')[0]
-        visrad = read_vis(l1b_file)
+            # first get the primary file time
+            primary_time = get_primary_time(primary_file)
+            fname = output + primary_file.split('/')[-1][:-3] + '_quicklook'
 
-        # open up the ORAC primary file
-        primary_data = open_primary(primary_file)
+            # find and read the vis channel of the associated l1b file
+            l1b_file = glob.glob(l1b_path + '/*/*' + primary_time + '*')[0]
+            visrad = read_vis(l1b_file)
 
-        # make the smoke plume mask
-        plume_mask = make_mask(primary_data, primary_time, mask_df)
+            # open up the ORAC primary file
+            primary_data = open_primary(primary_file)
 
-        # get the individual plumes
-        plume_positions = label_plumes(plume_mask)
+            # make the smoke plume mask
+            plume_mask = make_mask(primary_data, primary_time, mask_df)
 
-        # visualise
-        make_plot(fname, visrad, primary_data, plume_positions)
+            # get the individual plumes
+            plume_positions = label_plumes(plume_mask)
 
-        # let dump coords of plume to text file for Caroline
-        with open(output_txt + "plume_extents.txt", "w") as text_file:
+            # visualise
+            make_plot(fname, visrad, primary_data, plume_positions)
+
+            # let dump coords of plume to text file for Caroline
             for pp in plume_positions:
                 text_file.write(primary_file.split('/')[-1] + " " + 
                                 str(pp[0]) + " " +
