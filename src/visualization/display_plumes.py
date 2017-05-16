@@ -155,12 +155,11 @@ def main():
         # let dump coords of plume to text file for Caroline
         with open(output_txt + "plume_extents.txt", "w") as text_file:
             for pp in plume_positions:
-                text_file.write(primary_file,
-                                str(pp[0]),
-                                str(pp[1]),
-                                str(pp[2]),
-                                str(pp[3]),
-                                )
+                text_file.write(primary_file.split('/')[-1] + " " + 
+                                str(pp[0]) + " " +
+                                str(pp[1]) + " " +
+                                str(pp[2]) + " " + 
+                                str(pp[3]))
 
 if __name__ == '__main__':
     main()
