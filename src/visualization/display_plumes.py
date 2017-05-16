@@ -50,6 +50,7 @@ def open_primary(primary_file):
 
 
 def make_mask(primary_data, primary_time, mask_df):
+
     primary_shape = primary_data.variables['cer'].shape
 
     # get teh sub dataframe associated with the mask
@@ -117,12 +118,13 @@ def make_plot(fname, visrad, primary_data, plume_positions):
 
 def main():
 
-
     # set up paths
     l1b_path = '/group_workspaces/cems2/nceo_generic/satellite_data/modis_c6/myd021km/2014/'
     orac_data_path = '/home/users/dnfisher/nceo_aerosolfire/data/orac_proc/myd/2014/'
     mask_path = '/home/users/dnfisher/nceo_aerosolfire/data/plume_masks/myd021km_plumes_df.pickle'
     output = '/home/users/dnfisher/nceo_aerosolfire/data/quicklooks/plume_retrievals/'
+    output_txt = '/home/users/dnfisher/nceo_aerosolfire/data/plume_masks/'
+
 
     # read in the masks
     mask_df = pd.read_pickle(mask_path)
@@ -150,7 +152,15 @@ def main():
         # visualise
         make_plot(fname, visrad, primary_data, plume_positions)
 
-
+        # let dump coords of plume to text file for Caroline
+        with open(output_txt + "plume_extents.txt", "w") as text_file:
+            for pp in plume_positions:
+                text_file.write(primary_file,
+                                str(pp[0]),
+                                str(pp[1]),
+                                str(pp[2]),
+                                str(pp[3]),
+                                )
 
 if __name__ == '__main__':
     main()
