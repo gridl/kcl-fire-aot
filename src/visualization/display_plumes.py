@@ -125,7 +125,6 @@ def main():
     output = '/home/users/dnfisher/nceo_aerosolfire/data/quicklooks/plume_retrievals/'
     output_txt = '/home/users/dnfisher/nceo_aerosolfire/data/plume_masks/'
 
-
     # read in the masks
     mask_df = pd.read_pickle(mask_path)
 
@@ -160,7 +159,7 @@ def main():
                                 str(pp[0]) + " " +
                                 str(pp[1]) + " " +
                                 str(pp[2]) + " " + 
-                                str(pp[3]))
+                                str(pp[3]) + "\n")
 
 if __name__ == '__main__':
     main()
