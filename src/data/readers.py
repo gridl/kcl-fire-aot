@@ -49,8 +49,8 @@ def read_lc(lc_file_path):
     lon_start = -2  #  run from W to E
     lon_stop = 2
 
-    lat_start = 2  # runs from N to S
-    lat_stop = -2
+    lat_start = 52  # runs from N to S
+    lat_stop = 50
 
     x_start = (lon_start - gt[0]) / gt[1]
     x_stop = (lon_stop - gt[0]) / gt[1]
@@ -64,9 +64,13 @@ def read_lc(lc_file_path):
     y = np.arange(0, y_range, 1)
     grids = np.meshgrid(x, y)
 
-
     lons = lon_start + grids[0] * gt[1]
     lats = lat_start + grids[1] * gt[5]
+
+    lc_data = ds.GetRasterBand(1).ReadAsArray(int(round(x_stop)),
+                                              int(round(y_stop)),
+                                              x_range,
+                                              y_range)
 
     return ds
 
