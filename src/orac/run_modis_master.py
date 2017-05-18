@@ -15,7 +15,7 @@ class ProcParams(object):
         self.cldsaddir = '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/sad_dir/modis_WAT'
         self.cldphs = ['WAT']
         self.aersaddir = '/group_workspaces/cems/nceo_aerosolfire/luts/sad'
-        self.aerphs = ['AMZ']
+        self.aerphs = ['AMZ', 'CER', 'BOR']
 
 
 def run_pre(proc_params):
@@ -64,13 +64,13 @@ def run_pro(proc_params):
 	    # Set up and call ORAC for the defined phases 
             proc_cmd = '-i ' + root \
                      + ' -o ' + pro_dir \
-                     + ' --sad_dir ' + proc_params.cldsaddir \
+                     + ' --sad_dir ' + proc_params.aersaddir \
                      + ' --use_channel 1 1 0 1 1 0 0 0 -a AppCld1L --ret_class ClsAerOx' \
                      + ' --keep_driver ' \
 		     + ' --batch ' \
 		     + ' --phase '
         
-	    for phs in proc_params.cldphs:
+	    for phs in proc_params.aerphs:
                 os.system('./orac_main.py ' + proc_cmd + phs + ' ' + msi_root)
 
 
