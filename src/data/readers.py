@@ -11,7 +11,6 @@ def read_orac(orac_file_path):
     :param orac_file_path: path to orac nc file
     :return: opened orac nc file
     '''
-    #TODO Do we want to extract the ORAC data into a dict in here?
     return Dataset(orac_file_path)
 
 
@@ -31,6 +30,15 @@ def read_plume_masks(plume_mask_file_path):
     :return: plume mask locations
     '''
     return pd.read_pickle(plume_mask_file_path)
+
+
+def read_bg_masks(plume_bg_file_path):
+    '''
+
+    :param plume_mask_file_path: path to digited plume mask
+    :return: plume mask locations
+    '''
+    return pd.read_pickle(plume_bg_file_path)
 
 
 def read_lc(lc_file_path):
@@ -73,6 +81,7 @@ def read_lc(lc_file_path):
                                               y_range)
 
     return ds
+
 
 def main():
 
