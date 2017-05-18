@@ -1,3 +1,7 @@
+import pandas as pd
+
+from netCDF4 import Dataset
+from osgeo import gdal
 
 
 def read_orac(orac_file_path):
@@ -6,7 +10,8 @@ def read_orac(orac_file_path):
     :param orac_file_path: path to orac nc file
     :return: opened orac nc file
     '''
-    pass
+    #TODO Do we want to extract the ORAC data into a dict in here?
+    return Dataset(orac_file_path)
 
 
 def read_goes_frp(goes_frp_file_path):
@@ -15,7 +20,7 @@ def read_goes_frp(goes_frp_file_path):
     :param goes_frp_file_path: path to goes frp data
     :return: opened goes FRP data set as a dataframe
     '''
-    pass
+    return pd.read_csv(goes_frp_file_path)
 
 
 def read_plume_masks(plume_mask_file_path):
@@ -24,7 +29,7 @@ def read_plume_masks(plume_mask_file_path):
     :param plume_mask_file_path: path to digited plume mask
     :return: plume mask locations
     '''
-    pass
+    return pd.read_pickle(plume_mask_file_path)
 
 def read_lc(lc_file_path):
     '''
@@ -32,7 +37,7 @@ def read_lc(lc_file_path):
     :param lc_file_path: path to landcover file
     :return: opened landcover file
     '''
-    pass
+    return gdal.Open(lc_file_path)
 
 
 def main():
