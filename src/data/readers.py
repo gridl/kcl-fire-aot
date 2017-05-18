@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 
 from netCDF4 import Dataset
 from osgeo import gdal
@@ -31,14 +32,43 @@ def read_plume_masks(plume_mask_file_path):
     '''
     return pd.read_pickle(plume_mask_file_path)
 
+
 def read_lc(lc_file_path):
     '''
 
     :param lc_file_path: path to landcover file
     :return: opened landcover file
     '''
-    return gdal.Open(lc_file_path)
 
+    ds = gdal.Open(lc_file_path)
+
+    gt = ds.GetGeoTransform()
+
+    #TODO move this outside of this function, just open file in here.
+    # we dont want to load the whole image, just the part of interest
+    lon_start = -2  #  run from W to E
+    lon_stop = 2
+
+    lat_start = 2  # runs from N to S
+    lat_stop = -2
+
+    x_start = (lon_start - gt[0]) / gt[1]
+    x_stop = (lon_stop - gt[0]) / gt[1]
+    x_range = int(x_stop - x_start)
+
+    y_start = (lat_start - gt[3]) / gt[5]
+    y_stop = (lat_stop - gt[3]) / gt[5]
+    y_range = int(y_stop - y_start)
+
+    x = np.arange(0, x_range, 1)
+    y = np.arange(0, y_range, 1)
+    grids = np.meshgrid(x, y)
+
+
+    lons = lon_start + grids[0] * gt[1]
+    lats = lat_start + grids[1] * gt[5]
+
+    return ds
 
 def main():
 
@@ -49,10 +79,11 @@ def main():
     plume_mask_file_path = root + 'processed/plume_masks/myd021km_plumes_df.pickle'
     lc_file_path = root + 'external/land_cover/GLOBCOVER_L4_200901_200912_V2.3.tif'
 
+    res = read_lc(lc_file_path)
     res = read_orac(orac_file_path)
     res = read_goes_frp(goes_frp_file_path)
     res = read_plume_masks(plume_mask_file_path)
-    res = read_lc(lc_file_path)
+
 
 if __name__ == "__main__":
     main()
