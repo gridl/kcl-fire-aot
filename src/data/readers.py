@@ -37,12 +37,12 @@ def read_lc(lc_file_path):
 
 def main():
 
-    root = ''
+    root = '/Users/dnf/git/kcl-fire-aot/data/'
 
-    orac_file_path = root +
-    goes_frp_file_path = root +
-    plume_mask_file_path = root +
-    lc_file_path = root +
+    orac_file_path = root + 'processed/orac_proc/2014/092/main/KCL-NCEO-L2-CLOUD-CLD-MODIS_ORAC_AQUA_201404021845_R4591WAT.primary.nc'
+    goes_frp_file_path = root + 'processed/goes_frp/goes13_2014_fire_frp_atm.csv'
+    plume_mask_file_path = root + 'processed/plume_masks/myd021km_plumes_df.pickle'
+    lc_file_path = root + 'external/land_cover/GLOBCOVER_L4_200901_200912_V2.3.tif'
 
     res = read_orac(orac_file_path)
     res = read_goes_frp(goes_frp_file_path)
