@@ -5,6 +5,8 @@ from pyhdf.SD import SD, SDC
 from datetime import datetime
 import glob
 
+import scipy.ndimage as ndimage
+
 
 def get_primary_time(primary_file):
     tt = datetime.strptime(primary_file.split('_')[-2], '%Y%m%d%H%M').timetuple()
@@ -28,7 +30,8 @@ def read_aod_mod(aod_file):
     ds = SD(aod_file, SDC.READ)
     lat = ds.select("Latitude").get()
     lon = ds.select("Longitude").get()
-    aod = ds.select("Deep_Blue_Aerosol_Optical_Depth_550_Land").get()
+    aod = ds.select("Deep_Blue_Aerosol_Optical_Depth_550_Land")
+    aod = aod.get() * aod.attributes()['scale_factor']
     return aod, lat, lon
 
 
@@ -71,12 +74,12 @@ def main():
         mod_aod, mod_lat, mod_lon = read_aod_mod(aod_file)
 
         # get ORAC plume extent
-        orac_aod_sub = orac_aod[pc[0]:pc[1], pc[2]:pc[3]]
-        orac_lat_sub = orac_lat[pc[0]:pc[1], pc[2]:pc[3]]
-        orac_lon_sub = orac_lon[pc[0]:pc[1], pc[2]:pc[3]]
+        e = 20
+        orac_aod_sub = orac_aod[pc[0]-e:pc[1]+e, pc[2]-e:pc[3]+e]
+        orac_lat_sub = orac_lat[pc[0]-e:pc[1]+e, pc[2]-e:pc[3]+e]
+        orac_lon_sub = orac_lon[pc[0]-e:pc[1]+e, pc[2]-e:pc[3]+e]
 
-        plt.imshow(orac_aod_sub)
-        plt.show()
+
 
         # resample modis AOD to ORAC grid
         grid_def = pr.geometry.GridDefinition(lons=orac_lon_sub, lats=(orac_lat_sub))
@@ -85,10 +88,25 @@ def main():
         resampled_mod_aod = pr.kd_tree.resample_nearest(aod_swath_def,
                                                         mod_aod,
                                                         grid_def,
-                                                        radius_of_influence=50000)
+                                                        radius_of_influence=100000)
 
         # display
-        plt.imshow(resampled_mod_aod)
+        mod_mask = mod_aod < 0
+        mod_aod[mod_mask] = 0
+
+        zoomed_orac_aod = ndimage.zoom(orac_aod, 0.1)
+        zoomed_orac_aod[mod_mask] = 0
+
+        zoomed_orac_aod[zoomed_orac_aod > 1] = 1
+        zoomed_orac_aod[zoomed_orac_aod < 0] = 0
+
+
+        plt.imshow(mod_aod)
+        cbar = plt.colorbar()
+        plt.show()
+
+        plt.imshow(zoomed_orac_aod)
+        cbar = plt.colorbar()
         plt.show()
 
 
