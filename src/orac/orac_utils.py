@@ -711,7 +711,8 @@ settings['AMZ'] = ParticleType(wvl=wvl,
                                inv=(tau, Invpar('IRe', ap=0.8, sx=0.2)))
 settings['AFR'] = ParticleType(wvl=wvl,
                                inv=(tau, Invpar('IRe', ap=0.8, sx=0.2)))
-
+settings['CEW'] = ParticleType(wvl=wvl,
+                               inv=(tau, Invpar('IRe', ap=0.36, sx=0.2)))
 
 # -----------------------------------------------------------------------------
 # ----- PARSER ARGUMENT DEFINITIONS -------------------------------------------
