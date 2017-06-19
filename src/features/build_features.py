@@ -57,13 +57,17 @@ def main():
     frp_data = readers.read_goes_frp(config.goes_frp_file_path)
     lc_data = readers.read_lc(config.lc_file_path)
 
+    # read in plume specific files
+    plume_masks = readers.read_plume_data(config.plume_mask_file_path)
+    plume_backgrounds = readers.read_plume_data(config.plume_background_file_path)
+
     # iterate over each plume in the plume mask dataframe
     modis_filename = ''
-    plumes_masks = readers.read_plume_masks(config.plume_mask_file_path)
-    for index, plume in plumes_masks.iterrows():
+    for index, plume in plume_masks.iterrows():
 
-        # if the plumes is from a different modis file, then
-        # load in the correct ORAC processed file
+        # load in orac file.  If the plumes is from
+        # a different modis file, then load in the
+        # correct ORAC processed file
         if plume.filename != modis_filename:
             modis_filename = plume.filename
             try:
@@ -73,8 +77,8 @@ def main():
                 print e
                 continue
 
-        # open up plume specific data
-        bg_masks = readers.read_bg_masks()
+        # extract background data for plume
+        background = plume_backgrounds[plume_backgrounds.plume_id == plume.plume_id]
 
         # set up plumes mask (in line sample and geo coords)
 
