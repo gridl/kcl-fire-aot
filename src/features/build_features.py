@@ -1,3 +1,6 @@
+import glob
+import os
+
 import pandas as pd
 import numpy as np
 
@@ -37,25 +40,47 @@ def lc_subset():
                                               y_range)
 
 
-# set up filepaths and similar
+def get_orac_fname(orac_file_path, plume):
+    y = plume.filename[10:14]
+    doy = plume.filename[14:17]
+    time = plume.filename[18:22]
+    return glob.glob(os.path.join(orac_file_path, y, doy, 'main', '*' + time + '*.primary.nc'))[0]
+
+
 
 def main():
+
+
+    # set up filepaths and similar
+    root = '/Users/dnf/projects/kcl-fire-aot/data/'
+
+    orac_file_path = root + 'processed/orac_proc/'
+    goes_frp_file_path = root + 'processed/goes_frp/goes13_2014_fire_frp_atm.csv'
+    plume_mask_file_path = root + 'processed/plume_masks/myd021km_plumes_df.pickle'
+    lc_file_path = root + 'external/land_cover/GLOBCOVER_L4_200901_200912_V2.3.tif'
 
     # create df to hold the outputs
     output_df = pd.DataFrame()
 
     # read in non-plume specific files
-    frp_data = readers.read_goes_frp()
-    lc_data = readers.read_lc()
+    frp_data = readers.read_goes_frp(goes_frp_file_path)
+    lc_data = readers.read_lc(lc_file_path)
 
     # iterate over each plume in the plume mask dataframe
-    orac_filename = ''
-    plumes_masks = readers.read_plume_masks()
-    for plume in plumes:
+    modis_filename = ''
+    plumes_masks = readers.read_plume_masks(plume_mask_file_path)
+    for index, plume in plumes_masks.iterrows():
 
-        if plumes.filename != orac_filename:
-            orac_data = readers.read_orac()
-            orac_filename = plumes.filename
+        # if the plumes is from a different modis file, then
+        # load in the correct ORAC processed file
+        if plume.filename != modis_filename:
+            try:
+                orac_filename = get_orac_fname(orac_file_path, plume)
+                orac_data = readers.read_orac(orac_filename)
+                modis_filename = plume.filename
+            except Exception, e:
+                print e
+                continue
 
         # open up plume specific data
         bg_masks = readers.read_bg_masks()
@@ -73,3 +98,5 @@ def main():
         # insert data into dataframe
 
 
+if __name__ == "__main__":
+    main()
