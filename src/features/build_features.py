@@ -6,6 +6,7 @@ import numpy as np
 
 import src.data.readers as readers
 import config
+import resampling
 
 
 def lc_subset():
@@ -80,17 +81,16 @@ def main():
         # extract background data for plume
         background = plume_backgrounds[plume_backgrounds.plume_id == plume.plume_id]
 
-        # set up plumes mask (in line sample and geo coords)
+        # resample plume AOD to specified grid resolution
+        resampled_plume = resampling.resampler(orac_data, plume)
 
-        # get plumes AOD (using line sample, check plume manually and continue if unsuitable? Bow-tie effect, need to resample?)
-
-        # get background AOD (using line sample, check background manually and continue if unsuitable?, Bow-tie effect, need to resample?)
+        # resample background AOD to specified grid resolution
 
         # get fires contained within plume (using geo coords and date time, if none then continue)
 
-        # for fires get landsurface type
+        # get fire landsurface type
 
-        # insert data into dataframe
+        # insert into dataframe
 
 
 if __name__ == "__main__":
