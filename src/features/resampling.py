@@ -94,6 +94,7 @@ def resampler(orac_data, roi):
     def_a = pr.geometry.SwathDefinition(lons=lon, lats=lat)
     def_b = pr.geometry.SwathDefinition(lons=lon_r, lats=lat_r)
 
+    # TODO perhaps change resampling from nearest to bilinear
     # perform resampling
     resampled_aod = pr.kd_tree.resample_nearest(def_a,
                                                 aod,
