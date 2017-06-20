@@ -114,6 +114,6 @@ def resampler(orac_data, roi):
 
     # return resampled data0
     if type(roi['extent']) is list:
-        return resampled_aod, resampled_mask
+        return resampled_aod * resampled_mask, lon_r, lat_r
     else:
-        return resampled_aod, None
+        return resampled_aod, lon_r, lat_r

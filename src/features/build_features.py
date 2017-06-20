@@ -84,10 +84,10 @@ def main():
                 background = plume_backgrounds[plume_backgrounds.plume_id == plume.plume_id]
 
                 # resample plume AOD to specified grid resolution
-                resampled_plume = resampling.resampler(orac_data, plume)
+                resampled_plume, lats, lons = resampling.resampler(orac_data, plume)
 
                 # resample background AOD to specified grid resolution
-                resampled_background = resampling.resampler(orac_data, background)
+                resampled_background, lats, lons = resampling.resampler(orac_data, background)
 
                 # get fires contained within plume (using geo coords and date time, if none then continue)
 
