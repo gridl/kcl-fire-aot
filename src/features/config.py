@@ -1,3 +1,5 @@
+import numpy as np
+
 # set up filepaths and similar
 root = '/Users/dnf/projects/kcl-fire-aot/data/'
 orac_file_path = root + 'processed/orac_proc/'
@@ -8,5 +10,8 @@ lc_file_path = root + 'external/land_cover/GLOBCOVER_L4_200901_200912_V2.3.tif'
 
 
 # resampling parameters
+padding = 10  # number of pixels around plume to additionally extract
 res = 0.01  # grid resolution in degrees
+radius_of_influence = 9000
+fill_value = np.nan
 

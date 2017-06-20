@@ -3,31 +3,44 @@ Resamples satellite data from one geographic
 projection to another.
 '''
 
+import config
+
 import pyresample as pr
 from matplotlib.path import Path
 import numpy as np
+import types
 
 import matplotlib.pyplot as plt
 
 
 def get_roi_bounds(roi):
-    min_x = 99999
-    max_x = 0
-    min_y = 99999
-    max_y = 0
-    for x, y in roi.extent:
-        if x > max_x:
-            max_x = x
-        if x < min_x:
-            min_x = x
-        if y > max_y:
-            max_y = y
-        if y < min_y:
-            min_y = y
-    return {'max_x': max_x,
-            'min_x': min_x,
-            'max_y': max_y,
-            'min_y': min_y}
+
+    if type(roi['extent']) is list:
+
+        min_x = 99999
+        max_x = 0
+        min_y = 99999
+        max_y = 0
+        for x, y in roi.extent:
+            if x > max_x:
+                max_x = x
+            if x < min_x:
+                min_x = x
+            if y > max_y:
+                max_y = y
+            if y < min_y:
+                min_y = y
+        return {'max_x': max_x + config.padding,
+                'min_x': min_x - config.padding,
+                'max_y': max_y + config.padding,
+                'min_y': min_y - config.padding}
+
+    else:
+        extent = roi['extent'].values[0]
+        return {'max_x': extent[1] + config.padding,
+                'min_x': extent[0] - config.padding,
+                'max_y': extent[3] + config.padding,
+                'min_y': extent[2] - config.padding}
 
 
 def get_mask(roi, rb):
@@ -67,11 +80,12 @@ def resampler(orac_data, roi):
                                      rb['min_x']:rb['max_x']]
     aod = orac_data.variables['cot'][rb['min_y']:rb['max_y'],
                                      rb['min_x']:rb['max_x']]
-    mask = get_mask(roi, rb)
+    if type(roi['extent']) is list:
+        mask = get_mask(roi, rb)
 
     # get lats and lons for resampling grid
-    lat_r = np.arange(np.min(lat), np.max(lat), 0.01)
-    lon_r = np.arange(np.min(lon), np.max(lon), 0.01)
+    lat_r = np.arange(np.min(lat), np.max(lat), config.res)
+    lon_r = np.arange(np.min(lon), np.max(lon), config.res)
     lon_r, lat_r = np.meshgrid(lon_r, lat_r)
     lon_r = np.fliplr(lon_r)
 
@@ -84,18 +98,17 @@ def resampler(orac_data, roi):
     resampled_aod = pr.kd_tree.resample_nearest(def_a,
                                                 aod,
                                                 def_b,
-                                                radius_of_influence=9000,
-                                                fill_value=0)
-    resampled_mask = pr.kd_tree.resample_nearest(def_a,
-                                                mask,
-                                                def_b,
-                                                radius_of_influence=9000,
-                                                fill_value=0)
+                                                radius_of_influence=config.radius_of_influence,
+                                                fill_value=config.fill_value)
+    if type(roi['extent']) is list:
+        resampled_mask = pr.kd_tree.resample_nearest(def_a,
+                                                    mask,
+                                                    def_b,
+                                                    radius_of_influence=config.radius_of_influence,
+                                                    fill_value=config.fill_value)
 
     # return resampled data
-    plt.imshow(resampled_aod, interpolation='none')
-    plt.show()
-
-    plt.imshow(resampled_mask, interpolation='none', cmap='gray')
-    plt.show()
-
+    if type(roi['extent']) is list:
+        return resampled_aod, resampled_mask
+    else:
+        return resampled_aod, None
