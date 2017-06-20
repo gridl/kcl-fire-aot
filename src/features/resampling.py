@@ -44,10 +44,10 @@ def get_mask(roi, rb):
 
     # apply mask
     path = Path(poly_verts)
-    grid = path.contains_points(points)
-    grid = grid.reshape((ny, nx))
+    mask = path.contains_points(points)
+    mask = mask.reshape((ny, nx))
 
-    return grid
+    return mask
 
 
 def resampler(orac_data, roi):
@@ -69,9 +69,33 @@ def resampler(orac_data, roi):
                                      rb['min_x']:rb['max_x']]
     mask = get_mask(roi, rb)
 
-    # build resampling grid
+    # get lats and lons for resampling grid
+    lat_r = np.arange(np.min(lat), np.max(lat), 0.01)
+    lon_r = np.arange(np.min(lon), np.max(lon), 0.01)
+    lon_r, lat_r = np.meshgrid(lon_r, lat_r)
+    lon_r = np.fliplr(lon_r)
+
+
+    # build resampling swatch definitions
+    def_a = pr.geometry.SwathDefinition(lons=lon, lats=lat)
+    def_b = pr.geometry.SwathDefinition(lons=lon_r, lats=lat_r)
 
     # perform resampling
+    resampled_aod = pr.kd_tree.resample_nearest(def_a,
+                                                aod,
+                                                def_b,
+                                                radius_of_influence=9000,
+                                                fill_value=0)
+    resampled_mask = pr.kd_tree.resample_nearest(def_a,
+                                                mask,
+                                                def_b,
+                                                radius_of_influence=9000,
+                                                fill_value=0)
 
     # return resampled data
+    plt.imshow(resampled_aod, interpolation='none')
+    plt.show()
+
+    plt.imshow(resampled_mask, interpolation='none', cmap='gray')
+    plt.show()
 
