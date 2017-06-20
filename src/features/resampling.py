@@ -37,10 +37,10 @@ def get_roi_bounds(roi):
 
     else:
         extent = roi['extent'].values[0]
-        return {'max_x': extent[1] + config.padding,
-                'min_x': extent[0] - config.padding,
-                'max_y': extent[3] + config.padding,
-                'min_y': extent[2] - config.padding}
+        return {'max_x': extent[1],
+                'min_x': extent[0],
+                'max_y': extent[3],
+                'min_y': extent[2]}
 
 
 def get_mask(roi, rb):
@@ -107,7 +107,12 @@ def resampler(orac_data, roi):
                                                     radius_of_influence=config.radius_of_influence,
                                                     fill_value=config.fill_value)
 
-    # return resampled data
+
+    plt.imshow(resampled_aod, interpolation='none')
+    cbar=plt.colorbar()
+    plt.show()
+
+    # return resampled data0
     if type(roi['extent']) is list:
         return resampled_aod, resampled_mask
     else:
