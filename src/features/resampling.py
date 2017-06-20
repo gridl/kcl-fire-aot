@@ -47,9 +47,6 @@ def get_mask(roi, rb):
     grid = path.contains_points(points)
     grid = grid.reshape((ny, nx))
 
-    plt.imshow(grid, cmap='gray', interpolation='none')
-    plt.show()
-
     return grid
 
 
@@ -71,11 +68,6 @@ def resampler(orac_data, roi):
     aod = orac_data.variables['cot'][rb['min_y']:rb['max_y'],
                                      rb['min_x']:rb['max_x']]
     mask = get_mask(roi, rb)
-
-    plt.imshow(aod * mask)
-    cbar = plt.colorbar()
-    plt.show()
-
 
     # build resampling grid
 
