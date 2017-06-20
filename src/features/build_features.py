@@ -58,9 +58,13 @@ def main():
     frp_data = readers.read_goes_frp(config.goes_frp_file_path)
     lc_data = readers.read_lc(config.lc_file_path)
 
-    # read in plume specific files
+    # read in plume dataframes
     plume_masks = readers.read_plume_data(config.plume_mask_file_path)
     plume_backgrounds = readers.read_plume_data(config.plume_background_file_path)
+
+    # rename the extents for easier processing
+    plume_masks.rename(columns={'plume_extent': 'extent'}, inplace=True)
+    plume_backgrounds.rename(columns={'bg_extent': 'extent'}, inplace=True)
 
     # iterate over each plume in the plume mask dataframe
     modis_filename = ''
@@ -72,25 +76,30 @@ def main():
         if plume.filename != modis_filename:
             modis_filename = plume.filename
             try:
+
                 orac_filename = get_orac_fname(config.orac_file_path, plume)
                 orac_data = readers.read_orac(orac_filename)
+
+                # extract background data for plume
+                background = plume_backgrounds[plume_backgrounds.plume_id == plume.plume_id]
+
+                # resample plume AOD to specified grid resolution
+                resampled_plume = resampling.resampler(orac_data, plume)
+
+                # resample background AOD to specified grid resolution
+                resampled_background = resampling.resampler(orac_data, background)
+
+                # get fires contained within plume (using geo coords and date time, if none then continue)
+
+                # get fire landsurface type
+
+                # insert into dataframe
+
             except Exception, e:
                 print e
                 continue
 
-        # extract background data for plume
-        background = plume_backgrounds[plume_backgrounds.plume_id == plume.plume_id]
 
-        # resample plume AOD to specified grid resolution
-        resampled_plume = resampling.resampler(orac_data, plume)
-
-        # resample background AOD to specified grid resolution
-
-        # get fires contained within plume (using geo coords and date time, if none then continue)
-
-        # get fire landsurface type
-
-        # insert into dataframe
 
 
 if __name__ == "__main__":

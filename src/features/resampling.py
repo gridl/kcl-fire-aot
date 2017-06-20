@@ -7,6 +7,8 @@ import pyresample as pr
 from matplotlib.path import Path
 import numpy as np
 
+import matplotlib.pyplot as plt
+
 
 def get_roi_bounds(roi):
     min_x = 99999
@@ -29,7 +31,7 @@ def get_roi_bounds(roi):
 
 
 def get_mask(roi, rb):
-    extent = [[y - rb['min_y'], x - rb['min_x']] for y, x in roi.extent]
+    extent = [[x - rb['min_x'], y - rb['min_y']] for x, y in roi.extent]
 
     nx = rb['max_x'] - rb['min_x']
     ny = rb['max_y'] - rb['min_y']
@@ -50,11 +52,6 @@ def get_mask(roi, rb):
 
 def resampler(orac_data, roi):
 
-    # first rename column names so that they are standardised
-    if 'plume_extent' in roi:
-        roi = roi.rename(columns={'plume_extent': 'extent'})
-    elif 'bg_extent' in roi:
-        roi = roi.rename(columns={'bg_extent': 'extent'})
 
     # extract roi and geographic grids.  So the algorithm to do this
     # is as follows: find the bounding coordinates of the roi, extract
@@ -64,13 +61,17 @@ def resampler(orac_data, roi):
     # in the bounding box using these normalised coordinates.  So with this, we
     # will have extracted the data for the subset and drawn a mask around it.
     rb = get_roi_bounds(roi)
-    lat = orac_data['lat'][rb['min_y']:rb['max_y'],
-                           rb['min_x']:rb['max_x']]
-    lon = orac_data['lon'][rb['min_y']:rb['max_y'],
-                           rb['min_x']:rb['max_x']]
-    aod = orac_data['aod'][rb['min_y']:rb['max_y'],
-                           rb['min_x']:rb['max_x']]
-    mask = get_mask(roi, rb)
+    lat = orac_data.variables['lat'][rb['min_y']:rb['max_y'],
+                                     rb['min_x']:rb['max_x']]
+    lon = orac_data.variables['lon'][rb['min_y']:rb['max_y'],
+                                     rb['min_x']:rb['max_x']]
+    aod = orac_data.variables['cot'][rb['min_y']:rb['max_y'],
+                                     rb['min_x']:rb['max_x']]
+    #mask = get_mask(roi, rb)
+
+    plt.imshow(aod)
+    cbar = plt.colorbar()
+    plt.show()
 
 
     # build resampling grid
