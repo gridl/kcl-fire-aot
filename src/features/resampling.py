@@ -107,11 +107,6 @@ def resampler(orac_data, roi):
                                                     radius_of_influence=config.radius_of_influence,
                                                     fill_value=config.fill_value)
 
-
-    plt.imshow(resampled_aod, interpolation='none')
-    cbar=plt.colorbar()
-    plt.show()
-
     # return resampled data0
     if type(roi['extent']) is list:
         return resampled_aod * resampled_mask, lon_r, lat_r
