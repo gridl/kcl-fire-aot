@@ -49,6 +49,17 @@ def get_orac_fname(orac_file_path, plume):
     return glob.glob(os.path.join(orac_file_path, y, doy, 'main', '*' + time + '*.primary.nc'))[0]
 
 
+def collocate_fires(lats, lons, orac_filename, frp_data):
+    fname = orac_filename.split('/')[-1]
+    y = fname[38:42]
+    m = fname[42:44]
+    d = fname[44:46]
+    frp_data_subset = frp_data[(frp_data.year == int(y)) &
+                               (frp_data.month == int(m)) &
+                               (frp_data.day == int(d))]
+    hold=1
+
+
 def main():
 
     # create df to hold the outputs
@@ -90,6 +101,8 @@ def main():
                 resampled_background, _, _ = resampling.resampler(orac_data, background)
 
                 # get fires contained within plume (using geo coords and date time, if none then continue)
+                fires_in_plume = collocate_fires(lats, lons, orac_filename, frp_data)
+
 
                 # get fire landsurface type
 
