@@ -107,6 +107,9 @@ def main():
                 orac_filename = get_orac_fname(config.orac_file_path, plume)
                 orac_data = readers.read_orac(orac_filename)
 
+                if orac_filename not in config.plume_subset:
+                    continue
+
                 # extract background data for plume
                 background = plume_backgrounds[plume_backgrounds.plume_id == plume.plume_id]
 

@@ -8,6 +8,8 @@ plume_mask_file_path = root + 'processed/plume_masks/myd021km_plumes_df.pickle'
 plume_background_file_path = root + 'processed/plume_masks/myd021km_bg_df.pickle'
 lc_file_path = root + 'external/land_cover/GLOBCOVER_L4_200901_200912_V2.3.tif'
 
+plume_subset = []  # list of plumes that we are going to use to test the algorithm
+
 
 # resampling parameters
 padding = 10  # number of pixels around plume to additionally extract
