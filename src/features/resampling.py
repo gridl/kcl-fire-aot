@@ -40,12 +40,15 @@ def get_mask(roi, rb):
     x, y = x.flatten(), y.flatten()
     points = np.vstack((x, y)).T
 
-    poly_verts = roi['extent']
+    poly_verts = extent
 
     # apply mask
     path = Path(poly_verts)
     grid = path.contains_points(points)
     grid = grid.reshape((ny, nx))
+
+    plt.imshow(grid, cmap='gray', interpolation='none')
+    plt.show()
 
     return grid
 
@@ -67,9 +70,9 @@ def resampler(orac_data, roi):
                                      rb['min_x']:rb['max_x']]
     aod = orac_data.variables['cot'][rb['min_y']:rb['max_y'],
                                      rb['min_x']:rb['max_x']]
-    #mask = get_mask(roi, rb)
+    mask = get_mask(roi, rb)
 
-    plt.imshow(aod)
+    plt.imshow(aod * mask)
     cbar = plt.colorbar()
     plt.show()
 
