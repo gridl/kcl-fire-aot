@@ -8,8 +8,6 @@ import src.data.readers as readers
 import config
 import resampling
 
-import pyresample as pr
-
 
 def lc_subset():
 
@@ -60,29 +58,12 @@ def collocate_fires(lats, lons, orac_filename, frp_data):
                                (frp_data.month == int(m)) &
                                (frp_data.day == int(d))]
 
-    frp_data_subset = frp_data_subset[frp_data_subset['latitude'] > (np.min(lats)-45)]
-    frp_data_subset = frp_data_subset[frp_data_subset['latitude'] < (np.max(lats)+45)]
-    frp_data_subset = frp_data_subset[frp_data_subset['lontitude'] > (np.min(lons)-45)]
-    frp_data_subset = frp_data_subset[frp_data_subset['lontitude'] > (np.max(lons)+45)]
+    frp_data_subset = frp_data_subset[(frp_data_subset['latitude'] > np.min(lats)) &
+                                      (frp_data_subset['latitude'] < np.max(lats)) &
+                                      (frp_data_subset['lontitude'] > np.min(lons)) &
+                                      (frp_data_subset['lontitude'] > np.max(lons))]
 
-    print frp_data_subset
-
-    return None
-
-    # create pyresample geometry to check if point is in the plume
-    swath_def = pr.geometry.SwathDefinition(lons=lons, lats=lats)
-
-    # check all the points
-    mask = np.zeros(frp_data_subset.shape[0])
-    for index, row in frp_data_subset.iterrows():
-        if (row.lontitude, row.latitude) in swath_def:
-            mask[index] = 1
-
-    if np.max(mask) == 0:
-        return None
-    else:
-        frp_data_subset['mask'] = mask
-        return frp_data_subset[frp_data_subset['mask'] == True]
+    return frp_data_subset
 
 
 def main():
