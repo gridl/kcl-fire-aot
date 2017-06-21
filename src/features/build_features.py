@@ -8,6 +8,8 @@ import src.data.readers as readers
 import config
 import resampling
 
+import matplotlib.pyplot as plt
+
 
 def lc_subset():
 
@@ -49,7 +51,7 @@ def get_orac_fname(orac_file_path, plume):
     return glob.glob(os.path.join(orac_file_path, y, doy, 'main', '*' + time + '*.primary.nc'))[0]
 
 
-def collocate_fires(lats, lons, orac_filename, frp_data):
+def collocate_fires(lats, lons, resampled_plume, orac_filename, frp_data):
     fname = orac_filename.split('/')[-1]
     y = fname[38:42]
     m = fname[42:44]
@@ -62,8 +64,12 @@ def collocate_fires(lats, lons, orac_filename, frp_data):
                                       (frp_data_subset['latitude'] < np.max(lats)) &
                                       (frp_data_subset['lontitude'] > np.min(lons)) &
                                       (frp_data_subset['lontitude'] > np.max(lons))]
-
     return frp_data_subset
+
+
+def compute_fre(plume_causing_fires):
+    # we approximate FRE on sin function?
+    pass
 
 
 def main():
@@ -97,9 +103,6 @@ def main():
                 orac_filename = get_orac_fname(config.orac_file_path, plume)
                 orac_data = readers.read_orac(orac_filename)
 
-                #if orac_filename not in config.plume_subset:
-                #    continue
-
                 # extract background data for plume
                 background = plume_backgrounds[plume_backgrounds.plume_id == plume.plume_id]
 
@@ -110,12 +113,23 @@ def main():
                 resampled_background, _, _ = resampling.resampler(orac_data, background)
 
                 # get fires contained within plume (using geo coords and date time, if none then continue)
-                fires_in_plume = collocate_fires(lats, lons, orac_filename, frp_data)
+                plume_causing_fires = collocate_fires(lats, lons, resampled_plume, orac_filename, frp_data)
+
+                if plume_causing_fires.empty:
+                    continue
+
+
+                # for the fires in the plume attempt to compute the FRE
+                plume_fre = compute_fre(plume_causing_fires)
+
+
+                # compute tpm for the plume
 
 
                 # get fire landsurface type
 
-                # insert into dataframe
+
+                # insert all data into dataframe
 
             except Exception, e:
                 print e
