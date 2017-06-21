@@ -60,13 +60,22 @@ def collocate_fires(lats, lons, orac_filename, frp_data):
                                (frp_data.month == int(m)) &
                                (frp_data.day == int(d))]
 
+    frp_data_subset = frp_data_subset[frp_data_subset['latitude'] > (np.min(lats)-45)]
+    frp_data_subset = frp_data_subset[frp_data_subset['latitude'] < (np.max(lats)+45)]
+    frp_data_subset = frp_data_subset[frp_data_subset['lontitude'] > (np.min(lons)-45)]
+    frp_data_subset = frp_data_subset[frp_data_subset['lontitude'] > (np.max(lons)+45)]
+
+    print frp_data_subset
+
+    return None
+
     # create pyresample geometry to check if point is in the plume
     swath_def = pr.geometry.SwathDefinition(lons=lons, lats=lats)
 
     # check all the points
     mask = np.zeros(frp_data_subset.shape[0])
     for index, row in frp_data_subset.iterrows():
-        if (row.longitude, row.latitude) in swath_def:
+        if (row.lontitude, row.latitude) in swath_def:
             mask[index] = 1
 
     if np.max(mask) == 0:
@@ -107,14 +116,14 @@ def main():
                 orac_filename = get_orac_fname(config.orac_file_path, plume)
                 orac_data = readers.read_orac(orac_filename)
 
-                if orac_filename not in config.plume_subset:
-                    continue
+                #if orac_filename not in config.plume_subset:
+                #    continue
 
                 # extract background data for plume
                 background = plume_backgrounds[plume_backgrounds.plume_id == plume.plume_id]
 
                 # resample plume AOD to specified grid resolution
-                resampled_plume, lats, lons = resampling.resampler(orac_data, plume)
+                resampled_plume, lons, lats = resampling.resampler(orac_data, plume)
 
                 # resample background AOD to specified grid resolution
                 resampled_background, _, _ = resampling.resampler(orac_data, background)
