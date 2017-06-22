@@ -9,6 +9,7 @@ import config
 import resampling
 
 import matplotlib.pyplot as plt
+from mpl_toolkits.basemap import Basemap
 
 
 def lc_subset():
@@ -72,6 +73,23 @@ def compute_fre(plume_causing_fires):
     pass
 
 
+def plot_plume(resampled_plume, lons, lats):
+
+    masked_plume = np.ma.masked_array(resampled_plume, resampled_plume <=0)
+    m = Basemap(llcrnrlon=np.min(lons), llcrnrlat=np.min(lats),
+                urcrnrlon=np.max(lons), urcrnrlat=np.max(lats))
+    m.pcolormesh(lons, lats, masked_plume)
+
+    m.drawparallels(np.arange(-90., 120., 0.05))
+    m.drawmeridians(np.arange(0., 420., 0.05))
+
+    plt.show()
+
+
+def plot_fires():
+    pass
+
+
 def main():
 
     # create df to hold the outputs
@@ -107,20 +125,25 @@ def main():
                 background = plume_backgrounds[plume_backgrounds.plume_id == plume.plume_id]
 
                 # resample plume AOD to specified grid resolution
-                resampled_plume, lons, lats = resampling.resampler(orac_data, plume)
+                resampled_plume, r_lons, r_lats, aod, lats, lons = resampling.resampler(orac_data, plume)
 
                 # resample background AOD to specified grid resolution
-                resampled_background, _, _ = resampling.resampler(orac_data, background)
+                resampled_background, _, _, _, _, _ = resampling.resampler(orac_data, background)
 
                 # get fires contained within plume (using geo coords and date time, if none then continue)
-                plume_causing_fires = collocate_fires(lats, lons, resampled_plume, orac_filename, frp_data)
+                plume_causing_fires = collocate_fires(r_lats, r_lons, resampled_plume, orac_filename, frp_data)
 
                 if plume_causing_fires.empty:
                     continue
 
+                # plot the plume
+                plot_plume(aod, lons, lats)
 
                 # for the fires in the plume attempt to compute the FRE
                 plume_fre = compute_fre(plume_causing_fires)
+
+
+
 
 
                 # compute tpm for the plume

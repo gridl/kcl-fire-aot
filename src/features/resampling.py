@@ -87,7 +87,9 @@ def resampler(orac_data, roi):
     lat_r = np.arange(np.min(lat), np.max(lat), config.res)
     lon_r = np.arange(np.min(lon), np.max(lon), config.res)
     lon_r, lat_r = np.meshgrid(lon_r, lat_r)
-    lon_r = np.fliplr(lon_r)
+
+    # TODO check why we are doing this
+    # lon_r = np.fliplr(lon_r)
 
 
     # build resampling swatch definitions
@@ -110,6 +112,6 @@ def resampler(orac_data, roi):
 
     # return resampled data0
     if type(roi['extent']) is list:
-        return resampled_aod * resampled_mask, lon_r, lat_r
+        return resampled_aod * resampled_mask, lon_r, lat_r, aod*mask, lat, lon
     else:
-        return resampled_aod, lon_r, lat_r
+        return resampled_aod, lon_r, lat_r, aod, lat, lon
