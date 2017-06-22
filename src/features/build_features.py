@@ -94,6 +94,10 @@ def plot_fires(fire_df):
                         (fire_df['lontitude'] < 180)]
 
 
+    # TODO
+    # count fires on a 0.5 degree grid or similar, the plot the bin counts
+
+
     m = Basemap(projection='geos', lon_0=-75, resolution='i')
     m.drawcoastlines()
     # draw parallels and meridians.
