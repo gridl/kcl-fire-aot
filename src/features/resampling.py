@@ -88,10 +88,6 @@ def resampler(orac_data, roi):
     lon_r = np.arange(np.min(lon), np.max(lon), config.res)
     lon_r, lat_r = np.meshgrid(lon_r, lat_r)
 
-    # TODO check why we are doing this
-    # lon_r = np.fliplr(lon_r)
-
-
     # build resampling swatch definitions
     def_a = pr.geometry.SwathDefinition(lons=lon, lats=lat)
     def_b = pr.geometry.SwathDefinition(lons=lon_r, lats=lat_r)
