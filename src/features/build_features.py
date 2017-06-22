@@ -86,8 +86,22 @@ def plot_plume(resampled_plume, lons, lats):
     plt.show()
 
 
-def plot_fires():
-    pass
+def plot_fires(fire_df):
+
+    df_subset = fire_df[(fire_df['latitude'] > -90) &
+                        (fire_df['latitude'] < 90) &
+                        (fire_df['lontitude'] > -180) &
+                        (fire_df['lontitude'] < 180)]
+
+
+    m = Basemap(projection='geos', lon_0=-75, resolution='i')
+    m.drawcoastlines()
+    # draw parallels and meridians.
+    m.drawparallels(np.arange(-90., 120., 30.))
+    m.drawmeridians(np.arange(0., 420., 30.))
+    m.plot(df_subset['lontitude'].values, df_subset['latitude'].values, 'rx', latlon=True)
+
+    plt.show()
 
 
 def main():
@@ -98,6 +112,10 @@ def main():
     # read in non-plume specific files
     frp_data = readers.read_goes_frp(config.goes_frp_file_path)
     lc_data = readers.read_lc(config.lc_file_path)
+
+    # plot fires
+    plot_fires(frp_data)
+
 
     # read in plume dataframes
     plume_masks = readers.read_plume_data(config.plume_mask_file_path)
