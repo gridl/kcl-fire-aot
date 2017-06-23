@@ -120,6 +120,8 @@ def plot_fires(fire_df):
     m.pcolormesh(lons, lats, fires,
                  norm=colors.LogNorm(),
                  latlon=True)
+    cbar = plt.colorbar()
+    cbar.set_label('No. Fire Obs.')
 
 
     plt.show()
