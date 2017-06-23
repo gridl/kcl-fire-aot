@@ -208,7 +208,7 @@ def main():
     # plot fires
     #plot_fires_spatial(frp_data)
     #plot_fires_mean_frp(frp_data)
-    plot_fires_temporal(frp_data)
+    #plot_fires_temporal(frp_data)
 
 
     # read in plume dataframes
@@ -218,6 +218,15 @@ def main():
     # rename the extents for easier processing
     plume_masks.rename(columns={'plume_extent': 'extent'}, inplace=True)
     plume_backgrounds.rename(columns={'bg_extent': 'extent'}, inplace=True)
+
+
+    # set up plot for fires coincident with plumes
+    glons = np.arange(-180, 180, 0.5)
+    glats = np.arange(-90, 90, 0.5) * -1
+    glons, glats = np.meshgrid(glons, glats)
+    cleaned_fires = np.zeros(glons.shape)
+
+    plt.show()
 
     # iterate over each plume in the plume mask dataframe
     modis_filename = ''
@@ -248,15 +257,19 @@ def main():
                 if plume_causing_fires.empty:
                     continue
 
+                for i, row in plume_causing_fires.iterrows():
+                    try:
+                        iy = int((row['latitude'] - 90) * -2)
+                        ix = int((row['lontitude'] + 180) * 2)
+                        cleaned_fires[iy, ix] += 1
+                    except Exception, e:
+                        print e, row['latitude'], row['lontitude']
+                        continue
+
                 # plot the plume
-                plot_plume(aod, lons, lats)
+                #plot_plume(aod, lons, lats)
 
                 # for the fires in the plume attempt to compute the FRE
-                plume_fre = compute_fre(plume_causing_fires)
-
-
-
-
 
                 # compute tpm for the plume
 
@@ -270,7 +283,19 @@ def main():
                 print e
                 continue
 
-
+    # now plot the fires after collocated with digitised plumes
+    cleaned_fires = np.ma.masked_array(cleaned_fires, cleaned_fires == 0)
+    m = Basemap(projection='geos', lon_0=-75, resolution='i')
+    m.drawcoastlines()
+    # draw parallels and meridians.
+    m.drawparallels(np.arange(-90., 120., 30.))
+    m.drawmeridians(np.arange(0., 420., 30.))
+    m.pcolormesh(glons, glats, cleaned_fires,
+                 norm=colors.LogNorm(),
+                 latlon=True)
+    cbar = plt.colorbar()
+    cbar.set_label('No. Colloc. Fire Obs.')
+    plt.show()
 
 
 if __name__ == "__main__":
