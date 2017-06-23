@@ -6,6 +6,9 @@ from datetime import datetime
 import glob
 
 import scipy.ndimage as ndimage
+import src.data.readers as readers
+import numpy as np
+import config
 
 
 def get_primary_time(primary_file):
@@ -48,9 +51,16 @@ def main():
     path_to_mod04 = '/Users/dnf/Projects/kcl-fire-aot/data/external/mod_aod'
     path_to_extent = '/Users/dnf/Projects/kcl-fire-aot/data/processed/plume_masks/plume_extents.txt'
 
-    # open plume extent text file
-    with open(path_to_extent, 'r') as f:
-        file_extents = f.readlines()
+
+    # read in plume dataframes
+    plume_masks = readers.read_plume_data(config.plume_mask_file_path)
+
+    # iterate over each plume in the plume mask dataframe
+    modis_filename = ''
+    for index, plume in plume_masks.iterrows():
+
+
+
 
     # iterate over files to visualise
     for f, ind in zip(f_names, plume_extent_number):

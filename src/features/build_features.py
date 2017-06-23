@@ -238,54 +238,57 @@ def main():
         # correct ORAC processed file
         if plume.filename != modis_filename:
             modis_filename = plume.filename
-            try:
+        try:
 
-                orac_filename = get_orac_fname(config.orac_file_path, plume)
-                orac_data = readers.read_orac(orac_filename)
+            orac_filename = get_orac_fname(config.orac_file_path, plume)
+            orac_data = readers.read_orac(orac_filename)
 
-                # extract background data for plume
-                background = plume_backgrounds[plume_backgrounds.plume_id == plume.plume_id]
+            # extract background data for plume
+            background = plume_backgrounds[plume_backgrounds.plume_id == plume.plume_id]
 
-                # resample plume AOD to specified grid resolution
-                resampled_plume, r_lons, r_lats, aod, lats, lons = resampling.resampler(orac_data, plume)
+            # resample plume AOD to specified grid resolution
+            resampled_plume, r_lons, r_lats, aod, lats, lons = resampling.resampler(orac_data, plume)
 
-                # resample background AOD to specified grid resolution
-                resampled_background, _, _, _, _, _ = resampling.resampler(orac_data, background)
+            # resample background AOD to specified grid resolution
+            resampled_background, _, _, _, _, _ = resampling.resampler(orac_data, background)
 
-                # get fires contained within plume (using geo coords and date time, if none then continue)
-                plume_causing_fires = collocate_fires(r_lats, r_lons, resampled_plume, orac_filename, frp_data)
+            # get fires contained within plume (using geo coords and date time, if none then continue)
+            plume_causing_fires = collocate_fires(r_lats, r_lons, resampled_plume, orac_filename, frp_data)
 
-                if plume_causing_fires.empty:
+            if plume_causing_fires.empty:
+                continue
+
+            print plume_causing_fires
+
+            for i, row in plume_causing_fires.iterrows():
+                try:
+                    iy = int((row['latitude'] - 90) * -2)
+                    ix = int((row['lontitude'] + 180) * 2)
+                    cleaned_fires[iy, ix] += 1
+
+                    fire_times.append(int(row['hhmm']))
+
+                except Exception, e:
+                    #print e, row['latitude'], row['lontitude']
                     continue
 
-                for i, row in plume_causing_fires.iterrows():
-                    try:
-                        iy = int((row['latitude'] - 90) * -2)
-                        ix = int((row['lontitude'] + 180) * 2)
-                        cleaned_fires[iy, ix] += 1
+            # plot the plume
+            #plot_plume(aod, lons, lats)
+            print plume.filename
 
-                        fire_times.append(int(row['hhmm']))
+            # for the fires in the plume attempt to compute the FRE
 
-                    except Exception, e:
-                        print e, row['latitude'], row['lontitude']
-                        continue
-
-                # plot the plume
-                #plot_plume(aod, lons, lats)
-
-                # for the fires in the plume attempt to compute the FRE
-
-                # compute tpm for the plume
+            # compute tpm for the plume
 
 
-                # get fire landsurface type
+            # get fire landsurface type
 
 
-                # insert all data into dataframe
+            # insert all data into dataframe
 
-            except Exception, e:
-                print e
-                continue
+        except Exception, e:
+            print e
+            continue
 
     # now plot the fires after collocated with digitised plumes
     cleaned_fires = np.ma.masked_array(cleaned_fires, cleaned_fires == 0)
