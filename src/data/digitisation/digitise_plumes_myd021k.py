@@ -17,8 +17,6 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Rectangle
 import cv2
 
-import config
-
 
 def read_myd14(myd14_file):
     return SD(myd14_file, SDC.READ)
