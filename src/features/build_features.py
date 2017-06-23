@@ -12,6 +12,8 @@ import matplotlib.colors as colors
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 
+import collections
+
 
 def lc_subset():
 
@@ -181,8 +183,17 @@ def plot_fires_mean_frp(fire_df):
     plt.show()
 
 
-def plot_fires_temporal():
-    pass
+def plot_fires_temporal(fire_df):
+    fig, ax = plt.subplots()
+    hhmm = fire_df['hhmm'].values.astype('int')
+    hhmm_counts = collections.Counter(hhmm)
+    hhmm_counts = collections.OrderedDict(sorted(hhmm_counts.items()))
+    df = pd.DataFrame.from_dict(hhmm_counts, orient='index')
+    df.plot(kind='bar', legend=False, grid='off')
+    plt.xlabel('Obs. Time')
+    plt.ylabel('Sample Count')
+    plt.show()
+
 
 
 def main():
@@ -196,7 +207,7 @@ def main():
 
     # plot fires
     #plot_fires_spatial(frp_data)
-    plot_fires_mean_frp(frp_data)
+    #plot_fires_mean_frp(frp_data)
     plot_fires_temporal(frp_data)
 
 
