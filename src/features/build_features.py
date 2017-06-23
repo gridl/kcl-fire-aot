@@ -87,7 +87,7 @@ def plot_plume(resampled_plume, lons, lats):
     plt.show()
 
 
-def plot_fires(fire_df):
+def plot_fires_spatial(fire_df):
 
     df_subset = fire_df[(fire_df['latitude'] > -90) &
                         (fire_df['latitude'] < 90) &
@@ -127,6 +127,64 @@ def plot_fires(fire_df):
     plt.show()
 
 
+def plot_fires_mean_frp(fire_df):
+
+    df_subset = fire_df[(fire_df['latitude'] > -90) &
+                        (fire_df['latitude'] < 90) &
+                        (fire_df['lontitude'] > -180) &
+                        (fire_df['lontitude'] < 180)]
+
+
+    # count fires on a 0.5 degree grid or similar, the plot the bin counts
+    lons = np.arange(-180,180,0.5)
+    lats = np.arange(-90,90,0.5)*-1
+    lons, lats = np.meshgrid(lons, lats)
+
+    frp = np.zeros(lons.shape)
+    count = np.zeros(lons.shape)
+    for i, row in fire_df.iterrows():
+
+        try:
+            iy = int((row['latitude'] - 90) * -2)
+            ix = int((row['lontitude'] + 180) * 2)
+            count[iy, ix] += 1
+            if row['FRP'] > 100000000:
+                print 'false frp', row['FRP']
+            else:
+                frp[iy, ix] += row['FRP']
+        except Exception, e:
+            print e, row['latitude'], row['lontitude']
+            continue
+
+
+    count_zero = count == 0
+    count[count_zero] += 1
+    frp /= count
+    count[count_zero] -= 1
+
+    frp = np.ma.masked_array(frp, count == 0)
+    frp = np.ma.masked_array(frp, frp < 1)
+    frp[frp > 1000] = 1000
+
+    m = Basemap(projection='geos', lon_0=-75, resolution='i')
+    m.drawcoastlines()
+    # draw parallels and meridians.
+    m.drawparallels(np.arange(-90., 120., 30.))
+    m.drawmeridians(np.arange(0., 420., 30.))
+    m.pcolormesh(lons, lats, frp,
+                 norm=colors.LogNorm(),
+                 latlon=True)
+    cbar = plt.colorbar()
+    cbar.set_label('Mean FRP (MW)')
+
+
+    plt.show()
+
+
+def plot_fires_temporal():
+    pass
+
+
 def main():
 
     # create df to hold the outputs
@@ -137,7 +195,9 @@ def main():
     lc_data = readers.read_lc(config.lc_file_path)
 
     # plot fires
-    plot_fires(frp_data)
+    #plot_fires_spatial(frp_data)
+    plot_fires_mean_frp(frp_data)
+    plot_fires_temporal(frp_data)
 
 
     # read in plume dataframes
