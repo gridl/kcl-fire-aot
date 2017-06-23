@@ -4,11 +4,8 @@ from netCDF4 import Dataset
 from pyhdf.SD import SD, SDC
 from datetime import datetime
 import glob
-
-import scipy.ndimage as ndimage
-import src.data.readers as readers
 import numpy as np
-import config
+from mpl_toolkits.basemap import Basemap
 
 
 def image_histogram_equalization(image, number_bins=256):
@@ -131,18 +128,14 @@ def main():
 
         # get ORAC plume extent
         e = 20
-
-        plt.imshow(rgb[pc[0] - e:pc[1] + e, pc[2] - e:pc[3] + e, :])
-        plt.show()
-
+        rgb_sub = rgb[pc[0]-e:pc[1]+e, pc[2]-e:pc[3]+e, :]
         orac_aod_sub = orac_aod[pc[0]-e:pc[1]+e, pc[2]-e:pc[3]+e]
         orac_lat_sub = orac_lat[pc[0]-e:pc[1]+e, pc[2]-e:pc[3]+e]
         orac_lon_sub = orac_lon[pc[0]-e:pc[1]+e, pc[2]-e:pc[3]+e]
 
 
-
         # resample modis AOD to ORAC grid
-        orac_aod_def = pr.geometry.SwathDefinition(lons=orac_lon_sub, lats=(orac_lat_sub))
+        orac_aod_def = pr.geometry.SwathDefinition(lons=orac_lon_sub, lats=orac_lat_sub)
         mod_aod_def = pr.geometry.SwathDefinition(lons=mod_lon, lats=mod_lat)
 
         resampled_mod_aod = pr.kd_tree.resample_nearest(mod_aod_def,
@@ -150,24 +143,20 @@ def main():
                                                         orac_aod_def,
                                                         radius_of_influence=100000)
 
-        # display
-        mod_mask = mod_aod < 0
-        mod_aod[mod_mask] = 0
+        # lets plot in on a map fiurst set up axes
+        fig, axes = plt.subplots(1, 3)
 
-        zoomed_orac_aod = ndimage.zoom(orac_aod, 0.1)
-        zoomed_orac_aod[mod_mask] = 0
+        # now set up map
+        m = Basemap(projection='merc', llcrnrlon=np.min(orac_lon_sub), urcrnrlon=np.max(orac_lon_sub),
+                    llcrnrlat=np.min(orac_lat_sub), urcrnrlat=np.max(orac_lat_sub), resolution='c')
 
-        zoomed_orac_aod[zoomed_orac_aod > 1] = 1
-        zoomed_orac_aod[zoomed_orac_aod < 0] = 0
-
-
-        plt.imshow(orac_aod_sub)
-        cbar = plt.colorbar()
+        img = rgb_sub[:,:,0]
+        m.pcolormesh(orac_lon_sub, orac_lat_sub, img, ax=axes[0], latlon=True, cmap='gray')
+        m.pcolormesh(orac_lon_sub, orac_lat_sub, orac_aod_sub, ax=axes[1], latlon=True)
+        m.pcolormesh(orac_lon_sub, orac_lat_sub, resampled_mod_aod, ax=axes[2], latlon=True)
         plt.show()
 
-        plt.imshow(resampled_mod_aod)
-        cbar = plt.colorbar()
-        plt.show()
+
 
 
 if __name__ == "__main__":
