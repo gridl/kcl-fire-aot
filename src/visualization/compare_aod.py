@@ -7,6 +7,10 @@ import glob
 import numpy as np
 from mpl_toolkits.basemap import Basemap
 
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from matplotlib.colors import LogNorm
+from matplotlib.ticker import MultipleLocator
+
 
 def image_histogram_equalization(image, number_bins=256):
     # from http://www.janeriksolem.net/2009/06/histogram-equalization-with-python-and.html
@@ -95,6 +99,7 @@ def main():
     path_to_mod04 = '/Users/dnf/Projects/kcl-fire-aot/data/external/mod_aod'
     path_to_extent = '/Users/dnf/Projects/kcl-fire-aot/data/processed/plume_masks/plume_extents.txt'
     path_to_l1b = '/Users/dnf/Projects/kcl-fire-aot/data/raw/l1b'
+    path_to_output = '/Users/dnf/Projects/kcl-fire-aot/data/processed/mod_comp/'
 
     # open plume extent text file
     with open(path_to_extent, 'r') as f:
@@ -143,18 +148,71 @@ def main():
                                                         orac_aod_def,
                                                         radius_of_influence=100000)
 
+        resampled_mod_aod = np.ma.masked_array(resampled_mod_aod, resampled_mod_aod < 0)
+
         # lets plot in on a map fiurst set up axes
-        fig, axes = plt.subplots(1, 3)
+        fig, axes = plt.subplots(1, 3, figsize=(12,4))
+
+
 
         # now set up map
         m = Basemap(projection='merc', llcrnrlon=np.min(orac_lon_sub), urcrnrlon=np.max(orac_lon_sub),
                     llcrnrlat=np.min(orac_lat_sub), urcrnrlat=np.max(orac_lat_sub), resolution='c')
 
-        img = rgb_sub[:,:,0]
-        m.pcolormesh(orac_lon_sub, orac_lat_sub, img, ax=axes[0], latlon=True, cmap='gray')
-        m.pcolormesh(orac_lon_sub, orac_lat_sub, orac_aod_sub, ax=axes[1], latlon=True)
-        m.pcolormesh(orac_lon_sub, orac_lat_sub, resampled_mod_aod, ax=axes[2], latlon=True)
-        plt.show()
+        parallels = np.arange(-90., 90., 0.5)
+        meridians = np.arange(-130., 45., 0.5)
+        m.drawparallels(parallels, labels=[True, False, True, False], ax=axes[0])
+        mer = m.drawmeridians(meridians, labels=[False, True, False, True], ax=axes[0])
+
+        for me in mer:
+            try:
+                mer[me][1][0].set_rotation(45)
+            except:
+                pass
+
+        m.drawparallels(parallels, ax=axes[1])
+        mer = m.drawmeridians(meridians, labels=[False, True, False, True], ax=axes[1])
+
+        for me in mer:
+            try:
+                mer[me][1][0].set_rotation(45)
+            except:
+                pass
+
+        m.drawparallels(parallels, ax=axes[2])
+        mer = m.drawmeridians(meridians, labels=[False, True, False, True], ax=axes[2])
+
+        for me in mer:
+            try:
+                mer[me][1][0].set_rotation(45)
+            except:
+                pass
+
+        img = rgb_sub[:,:,2]
+        im0 = m.pcolormesh(orac_lon_sub, orac_lat_sub, img, ax=axes[0], latlon=True, cmap='gray')
+        im1 = m.pcolormesh(orac_lon_sub, orac_lat_sub, orac_aod_sub, ax=axes[1], latlon=True)
+        im2 = m.pcolormesh(orac_lon_sub, orac_lat_sub, resampled_mod_aod, ax=axes[2], latlon=True)
+
+
+        divider0 = make_axes_locatable(axes[0])
+        cax0 = divider0.append_axes("right", size="5%", pad=0.05)
+        cbar0 = plt.colorbar(im0, cax=cax0)
+
+        divider1 = make_axes_locatable(axes[1])
+        cax1 = divider1.append_axes("right", size="5%", pad=0.05)
+        cbar1 = plt.colorbar(im1, cax=cax1)
+
+
+        divider2 = make_axes_locatable(axes[2])
+        cax2 = divider2.append_axes("right", size="5%", pad=0.05)
+        cbar2 = plt.colorbar(im2, cax=cax2)
+
+        for ax, title in zip(axes, ['MYD DNs', 'ORAC AOD', 'DB AOD']):
+            ax.set_title(title)
+
+
+        plt.savefig(path_to_output + f.split('.')[0] + 'comp.png', bbox_inches='tight')
+        plt.close()
 
 
 
