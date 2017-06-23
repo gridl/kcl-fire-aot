@@ -219,14 +219,15 @@ def main():
     plume_masks.rename(columns={'plume_extent': 'extent'}, inplace=True)
     plume_backgrounds.rename(columns={'bg_extent': 'extent'}, inplace=True)
 
-
     # set up plot for fires coincident with plumes
     glons = np.arange(-180, 180, 0.5)
     glats = np.arange(-90, 90, 0.5) * -1
     glons, glats = np.meshgrid(glons, glats)
     cleaned_fires = np.zeros(glons.shape)
 
-    plt.show()
+    # set up list to hold times of fires
+    fire_times = []
+
 
     # iterate over each plume in the plume mask dataframe
     modis_filename = ''
@@ -262,6 +263,9 @@ def main():
                         iy = int((row['latitude'] - 90) * -2)
                         ix = int((row['lontitude'] + 180) * 2)
                         cleaned_fires[iy, ix] += 1
+
+                        fire_times.append(int(row['hhmm']))
+
                     except Exception, e:
                         print e, row['latitude'], row['lontitude']
                         continue
@@ -296,6 +300,15 @@ def main():
     cbar = plt.colorbar()
     cbar.set_label('No. Colloc. Fire Obs.')
     plt.show()
+
+    hhmm_counts = collections.Counter(fire_times)
+    hhmm_counts = collections.OrderedDict(sorted(hhmm_counts.items()))
+    df = pd.DataFrame.from_dict(hhmm_counts, orient='index')
+    df.plot(kind='bar', legend=False, grid='off')
+    plt.xlabel('Obs. Time')
+    plt.ylabel('Sample Count')
+    plt.show()
+
 
 
 if __name__ == "__main__":
