@@ -9,12 +9,13 @@ import numpy as np
 from dotenv import find_dotenv, load_dotenv
 from pyhdf.SD import SD, SDC
 
-import config
+import src.config.data as data_settings
+import src.config.filepaths as filepaths
 
 
 def ftp_connect_laads():
     try:
-        ftp_laads = ftplib.FTP()
+        ftp_laads = ftplib.FTP(filepaths.path_to_ladsweb_ftp)
         ftp_laads.login()
         return ftp_laads
     except:
@@ -22,7 +23,7 @@ def ftp_connect_laads():
         attempt = 1
         while True:
             try:
-                ftp_laads = ftplib.FTP("ladsweb.nascom.nasa.gov")
+                ftp_laads = ftplib.FTP(filepaths.path_to_ladsweb_ftp)
                 ftp_laads.login()
                 logger.info("Accessed laadsweb on attempt: " + str(attempt))
                 return ftp_laads
@@ -34,15 +35,15 @@ def ftp_connect_laads():
 
 def ftp_cd(ftp_laads, doy, directory):
     ftp_laads.cwd("/")
-    ftp_laads.cwd(directory + config.myd['year'] + '/')
+    ftp_laads.cwd(directory + data_settings.myd_year + '/')
     ftp_laads.cwd(doy)
 
 
 def get_file_lists(ftp_laads, doy):
     try:
-        ftp_cd(ftp_laads, doy, 'allData/6/MYD021KM/')
+        ftp_cd(ftp_laads, doy, filepaths.path_to_myd021km)
         l1_file_list = get_files(ftp_laads)
-        ftp_cd(ftp_laads, doy, 'allData/6/MYD14/')
+        ftp_cd(ftp_laads, doy, filepaths.path_to_myd14)
         frp_file_list = get_files(ftp_laads)
         return l1_file_list, frp_file_list
     except:
@@ -51,9 +52,9 @@ def get_file_lists(ftp_laads, doy):
         while True:
             try:
                 ftp_laads = ftp_connect_laads()
-                ftp_cd(ftp_laads, doy, 'allData/6/MYD021KM/')
+                ftp_cd(ftp_laads, doy, filepaths.path_to_myd021km)
                 l1_file_list = get_files(ftp_laads)
-                ftp_cd(ftp_laads, doy, 'allData/6/MYD14/')
+                ftp_cd(ftp_laads, doy, filepaths.path_to_myd14)
                 frp_file_list = get_files(ftp_laads)
                 return l1_file_list, frp_file_list
             except:
@@ -92,24 +93,24 @@ def assess_fires_present(ftp_laads, doy, local_filename, filename_frp):
 
         # try accessing ftp, if fail then reconnect
         try:
-            ftp_cd(ftp_laads, doy, 'allData/6/MYD14/')
+            ftp_cd(ftp_laads, doy, filepaths.path_to_myd14)
         except:
             ftp_laads = ftp_connect_laads()
-            ftp_cd(ftp_laads, doy, 'allData/6/MYD14/')
+            ftp_cd(ftp_laads, doy, filepaths.path_to_myd14)
 
 
         lf = open(local_filename, "wb")
         ftp_laads.retrbinary("RETR " + filename_frp, lf.write, 8 * 1024)
         lf.close()
 
-    # determine whether to process the scene or not
+    # determine whether to download the scene or not
     try:
         frp_data = SD(local_filename, SDC.READ)
     except:
-        process_flag = False
-        return process_flag
+        download_flag = False
+        return download_flag
     if frp_data.select('FP_power').checkempty():
-        process_flag = False
+        download_flag = False
     else:
         szn = frp_data.select('FP_SolZenAng').get()
         power = frp_data.select('FP_power').get()
@@ -117,25 +118,25 @@ def assess_fires_present(ftp_laads, doy, local_filename, filename_frp):
         total_power = np.sum(power)
 
         if np.mean(szn) > 85:
-            process_flag = False
+            download_flag = False
         elif total_fires > config.myd['min_fires'] and total_power > config.myd['min_power']:
             logger.info('Suitable scene: ' + filename_frp)
             logger.info('Total fires: ' + str(total_fires)
                         + " | Total Power: " + str(total_power))
-            process_flag = True
+            download_flag = True
         else:
-            process_flag = False
+            download_flag = False
 
-    return process_flag
+    return download_flag
 
 
 def retrieve_l1(ftp_laads, doy, local_filename, filename_l1):
     # try accessing ftp, if fail then reconnect
     try:
-        ftp_cd(ftp_laads, doy, 'allData/6/MYD021KM/')
+        ftp_cd(ftp_laads, doy, filepaths.path_to_myd021km)
     except:
         ftp_laads = ftp_connect_laads()
-        ftp_cd(ftp_laads, doy, 'allData/6/MYD021KM/')
+        ftp_cd(ftp_laads, doy, filepaths.path_to_myd021km)
 
 
     lf = open(local_filename, "wb")
@@ -149,7 +150,7 @@ def main():
     # first connect to ftp site
     ftp_laads = ftp_connect_laads()
 
-    for doy in config.myd['doy_range']:
+    for doy in data_settings.myd_doy_range:
 
         doy = str(doy).zfill(3)
 
@@ -167,19 +168,26 @@ def main():
         for l1_filename, frp_filename in zip(l1_filenames, frp_filenames):
 
             time_stamp = re.search("[.][0-9]{4}[.]", l1_filename).group()
-            if (int(time_stamp[1:-1]) < config.myd['min_time']) | \
-               (int(time_stamp[1:-1]) > config.myd['max_time']):
+
+
+            # rather than using time, as below to see if we are in the right location
+            # to download the modis data, we should instead use the extent of the geostationary
+            # imaging system.  We can then check if each file has some bounds inside the footprint.
+
+
+            if (int(time_stamp[1:-1]) < data_settings.myd_min_time) | \
+               (int(time_stamp[1:-1]) > data_settings.myd_max_time):
                 continue
 
-            # asses is fire pixels in scene
-            local_filename = os.path.join(r"../../data/raw/frp/", frp_filename)
+            # assess if fire pixels in scene
+            local_filename = os.path.join(filepaths.path_to_modis_frp, frp_filename)
             fires_present = assess_fires_present(ftp_laads, doy, local_filename, frp_filename)
 
             if not fires_present:
                 continue
 
             # download the file
-            local_filename = os.path.join(r"../../data/raw/l1b", l1_filename)
+            local_filename = os.path.join(filepaths.path_to_modis_l1b, l1_filename)
 
             if not os.path.isfile(local_filename):  # if we dont have the file, then dl it
                 logger.info("Downloading: " + l1_filename)

@@ -24,7 +24,10 @@ else:
     path_to_transfer_file = root_path + 'raw/rsync_file_list/files_to_transfer.txt'
     path_to_modis_l1b = root_path + 'raw/l1b/'
     path_to_modis_geo = root_path + 'raw/geo'
+    path_to_modis_frp = root_path + 'raw/frp/'
 
     # FTP paths
     path_to_ladsweb_ftp = "ladsweb.nascom.nasa.gov"
     path_to_myd03 = 'allData/6/MYD03/'
+    path_to_myd021km = 'allData/6/MYD021KM/'
+    path_to_myd14 = 'allData/6/MYD14/'

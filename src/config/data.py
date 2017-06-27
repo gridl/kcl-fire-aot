@@ -16,3 +16,11 @@ myd_max_time = 2200
 myd_min_fires = 10  # minimum number of fires in the scene
 myd_max_fires = 1000 # minimum power of the fires in the scene
 
+# Geostationary sensor flag
+geo_sensor = 'GOES'   # 'Himawari
+
+if geo_sensor == 'GOES':
+    pass
+elif
+    geo_sensor == 'Himawari':
+    pass
