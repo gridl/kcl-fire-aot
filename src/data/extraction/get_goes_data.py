@@ -16,6 +16,9 @@ import urllib2
 from BeautifulSoup import BeautifulSoup
 import re
 
+import src.config.filepaths as filepaths
+import src.config.data as data_settings
+
 
 def get_file_list(order_id):
     '''
@@ -25,7 +28,7 @@ def get_file_list(order_id):
     :return: list of goes files on the https site
     '''
     file_list = []
-    source = 'https://download.class.ncdc.noaa.gov/download/'
+    source = filepaths.path_to_class_https
     order = order_id + '/001/'
     html_page = urllib2.urlopen(source+order)
     soup = BeautifulSoup(html_page)
@@ -43,7 +46,7 @@ def retrieve_l1(order_id, local_filename, filename):
     :param filename: the name of the file to be downloaded
     :return: nothing
     '''
-    source = 'https://download.class.ncdc.noaa.gov/download/'
+    source = filepaths.path_to_class_https
     order = order_id + '/001/'
     urllib.urlretrieve(source + order + filename, local_filename)
 
@@ -84,19 +87,11 @@ def remove_from_download_list(temp_path, goes_file):
 
 def main():
 
-    # order id's
-    order_ids = ['2720282193', '2720283243', '2720283253', '2720285893',
-                 '2720285903', '2720285923', '2720285913', '2720285973',
-                 '2720285983', '2720286013', '2720283233', '2720283263',
-                 '2720283273', '2720284513', '2720285883', '2720285933',
-                 '2720285943', '2720285953', '2720285963', '2720285993',
-                 '2720286003', '2720284213', '2720286023']
-
     # path to write to
-    data_store_path = r"../../data/raw/goes"  # data gets stored in here
-    temp_path = r"../../data/tmp/goes/"  # nothings gets stored here, just keeps track of what file is being dwnldrd
+    data_store_path = filepaths.path_to_goes_l1b
+    temp_path = filepaths.path_to_goes_tmp  # nothings gets stored here, just keeps track of what file is being dwnldrd
 
-    for order_id in order_ids:
+    for order_id in data_settings.class_order_ids:
 
         logger.info("Downloading GOES files for order: " + order_id)
 
