@@ -3,14 +3,11 @@ Resamples satellite data from one geographic
 projection to another.
 '''
 
-import config
-
+import numpy as np
 import pyresample as pr
 from matplotlib.path import Path
-import numpy as np
-import types
 
-import matplotlib.pyplot as plt
+from src import config
 
 
 def get_roi_bounds(roi):
@@ -101,10 +98,10 @@ def resampler(orac_data, roi):
                                                 fill_value=config.fill_value)
     if type(roi['extent']) is list:
         resampled_mask = pr.kd_tree.resample_nearest(def_a,
-                                                    mask,
-                                                    def_b,
-                                                    radius_of_influence=config.radius_of_influence,
-                                                    fill_value=config.fill_value)
+                                                     mask,
+                                                     def_b,
+                                                     radius_of_influence=config.radius_of_influence,
+                                                     fill_value=config.fill_value)
 
     # return resampled data0
     if type(roi['extent']) is list:

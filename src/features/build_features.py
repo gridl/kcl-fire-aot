@@ -1,18 +1,16 @@
+import collections
 import glob
 import os
 
-import pandas as pd
-import numpy as np
-
-import src.data.readers as readers
-import config
-import resampling
-
 import matplotlib.colors as colors
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 from mpl_toolkits.basemap import Basemap
 
-import collections
+import resampling
+import src.data.readers as readers
+from src import config
 
 
 def lc_subset():
