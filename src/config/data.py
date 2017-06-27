@@ -21,7 +21,7 @@ myd_max_fires = 1000 # minimum power of the fires in the scene
 geo_sensor = 'GOES'   # 'Himawari
 
 if geo_sensor == 'GOES':
-    lon_0 =
+    lon_0 = '-75.0'  # GOES E lon_0
 
 elif geo_sensor == 'Himawari':
     lon_0 = '140.7'
