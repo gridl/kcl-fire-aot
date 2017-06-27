@@ -7,9 +7,10 @@ import scipy.ndimage as ndimage
 
 from matplotlib.path import Path
 from netCDF4 import Dataset
-from pyhdf.SD import SD, SDC
 from datetime import datetime
 from mpl_toolkits.basemap import Basemap
+
+from src import config
 
 
 def get_primary_time(primary_file):
@@ -26,15 +27,6 @@ def get_sub_df(primary_time, mask_df):
     return mask_df[mask_df['filename'].str.contains(primary_time)]
 
 
-def read_vis(l1b_file):
-    ds = SD(l1b_file, SDC.READ)
-    mod_params_ref = ds.select("EV_1KM_RefSB").attributes()
-    ref = ds.select("EV_1KM_RefSB").get()
-    ref_chan = 0
-    vis = (ref[ref_chan, :, :] - mod_params_ref['radiance_offsets'][ref_chan]) * mod_params_ref['radiance_scales'][
-        ref_chan]
-    vis = np.round((vis * (255 / np.max(vis))) * 1).astype('uint8')
-    return vis
 
 
 def open_primary(primary_file):
@@ -84,14 +76,15 @@ def make_plume_location_plot(plume_positions, primary_data, m):
     for i, pp in enumerate(plume_positions):
         mean_lat = np.mean(primary_data.variables['lat'][pp[0]:pp[1], pp[2]:pp[3]])
         mean_lon = np.mean(primary_data.variables['lon'][pp[0]:pp[1], pp[2]:pp[3]])
-        m.plot(mean_lon, mean_lat, 'r.', latlon=True)
+        m.plot(mean_lon, mean_lat, 'r.',
+               markeredgecolor='k',
+               latlon=True)
 
 
 def main():
     # set up paths
-    root = '/Users/dnf/Projects/kcl-fire-aot/data/processed'
-    orac_data_path = root + '/orac_proc/2014/'
-    mask_path = root + '/plume_masks/myd021km_plumes_df.pickle'
+    orac_data_path = config.orac_file_path
+    mask_path = config.plume_mask_file_path
 
     # read in the masks
     mask_df = pd.read_pickle(mask_path)
@@ -100,7 +93,7 @@ def main():
     m = Basemap(projection='geos', lon_0=-75, resolution='i')
 
     # iterate over modis files
-    for primary_file in glob.glob(orac_data_path + '*/*/*primary*'):
+    for primary_file in glob.glob(orac_data_path + '*/*/*/*primary*'):
 
         # first get the primary file time
         primary_time = get_primary_time(primary_file)
@@ -122,7 +115,7 @@ def main():
     m.drawparallels(np.arange(-90., 120., 30.))
     m.drawmeridians(np.arange(0., 420., 30.))
 
-    plt.savefig(root+'plume_locations.png', bbox_inches='tight')
+    plt.savefig(config.root+'plume_locations.png', bbox_inches='tight')
 
 
 if __name__ == '__main__':

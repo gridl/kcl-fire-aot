@@ -177,10 +177,10 @@ def main():
 
             # let dump coords of plume to text file for Caroline
             for pp in plume_positions:
-                text_file.write(primary_file.split('/')[-1] + " " + 
+                text_file.write(primary_file.split('/')[-1] + " " +
                                 str(pp[0]) + " " +
                                 str(pp[1]) + " " +
-                                str(pp[2]) + " " + 
+                                str(pp[2]) + " " +
                                 str(pp[3]) + "\n")
 
 if __name__ == '__main__':

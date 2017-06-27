@@ -122,9 +122,8 @@ def plot_fires_spatial(fire_df):
                  latlon=True)
     cbar = plt.colorbar()
     cbar.set_label('No. Fire Obs.')
-
-
-    plt.show()
+    plt.savefig(config.root + 'fires_spatial.png', bbox_inches='tight')
+    plt.close()
 
 
 def plot_fires_mean_frp(fire_df):
@@ -172,13 +171,12 @@ def plot_fires_mean_frp(fire_df):
     m.drawparallels(np.arange(-90., 120., 30.))
     m.drawmeridians(np.arange(0., 420., 30.))
     m.pcolormesh(lons, lats, frp,
-                 norm=colors.LogNorm(),
+                 norm=colors.LogNorm(), cmap='hot',
                  latlon=True)
     cbar = plt.colorbar()
     cbar.set_label('Mean FRP (MW)')
-
-
-    plt.show()
+    plt.savefig(config.root + 'mean_frp.png', bbox_inches='tight')
+    plt.close()
 
 
 def plot_fires_temporal(fire_df):
@@ -190,7 +188,8 @@ def plot_fires_temporal(fire_df):
     df.plot(kind='bar', legend=False, grid='off')
     plt.xlabel('Obs. Time')
     plt.ylabel('Sample Count')
-    plt.show()
+    plt.savefig(config.root + 'temporal_sample_all.png', bbox_inches='tight')
+    plt.close()
 
 
 
@@ -205,7 +204,7 @@ def main():
 
     # plot fires
     #plot_fires_spatial(frp_data)
-    #plot_fires_mean_frp(frp_data)
+    plot_fires_mean_frp(frp_data)
     #plot_fires_temporal(frp_data)
 
 
@@ -228,6 +227,7 @@ def main():
 
 
     # iterate over each plume in the plume mask dataframe
+    plume_count = 0
     modis_filename = ''
     for index, plume in plume_masks.iterrows():
 
@@ -272,7 +272,6 @@ def main():
 
             # plot the plume
             #plot_plume(aod, lons, lats)
-            print plume.filename
 
             # for the fires in the plume attempt to compute the FRE
 
@@ -284,9 +283,13 @@ def main():
 
             # insert all data into dataframe
 
+            plume_count += 1
+
         except Exception, e:
             print e
             continue
+
+    print 'number of collocated plumes:', plume_count
 
     # now plot the fires after collocated with digitised plumes
     cleaned_fires = np.ma.masked_array(cleaned_fires, cleaned_fires == 0)
@@ -300,7 +303,8 @@ def main():
                  latlon=True)
     cbar = plt.colorbar()
     cbar.set_label('No. Colloc. Fire Obs.')
-    plt.show()
+    plt.savefig(config.root + 'colloc_fires.png', bbox_inches='tight')
+    plt.close()
 
     hhmm_counts = collections.Counter(fire_times)
     hhmm_counts = collections.OrderedDict(sorted(hhmm_counts.items()))
@@ -308,7 +312,8 @@ def main():
     df.plot(kind='bar', legend=False, grid='off')
     plt.xlabel('Obs. Time')
     plt.ylabel('Sample Count')
-    plt.show()
+    plt.savefig(config.root + 'colloc_temporal.png', bbox_inches='tight')
+    plt.close()
 
 
 
