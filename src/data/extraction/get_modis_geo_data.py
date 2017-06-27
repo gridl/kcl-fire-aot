@@ -6,10 +6,13 @@ from dotenv import find_dotenv, load_dotenv
 import ftplib
 import time
 
+import src.config.filepaths as filepaths
+import src.config.data as data_settings
+
 
 def ftp_connect_laads():
     try:
-        ftp_laads = ftplib.FTP("ladsweb.nascom.nasa.gov")
+        ftp_laads = ftplib.FTP(filepaths.path_to_ladsweb_ftp)
         ftp_laads.login()
         return ftp_laads
     except:
@@ -17,7 +20,7 @@ def ftp_connect_laads():
         attempt = 1
         while True:
             try:
-                ftp_laads = ftplib.FTP("ladsweb.nascom.nasa.gov")
+                ftp_laads = ftplib.FTP(filepaths.path_to_ladsweb_ftp)
                 ftp_laads.login()
                 logger.info("Accessed laadsweb on attempt: " + str(attempt))
                 return ftp_laads
@@ -29,7 +32,7 @@ def ftp_connect_laads():
 
 def get_file(ftp_laads, doy, myd021km_file):
     try:
-        ftp_cd(ftp_laads, doy, 'allData/6/MYD03/')
+        ftp_cd(ftp_laads, doy, filepaths.path_to_myd03)
         file_list = get_files(ftp_laads)
 
         # find the right file
@@ -43,7 +46,7 @@ def get_file(ftp_laads, doy, myd021km_file):
         while True:
             try:
                 ftp_laads = ftp_connect_laads()
-                ftp_cd(ftp_laads, doy, 'allData/6/MYD03/')
+                ftp_cd(ftp_laads, doy, filepaths.path_to_myd03)
                 file_list = get_files(ftp_laads)
 
                 # find the right file
@@ -71,10 +74,10 @@ def get_files(ftp_laads):
 def retrieve_l1(ftp_laads, doy, local_filename, filename_l1):
     # try accessing ftp, if fail then reconnect
     try:
-        ftp_cd(ftp_laads, doy, 'allData/6/MYD03/')
+        ftp_cd(ftp_laads, doy, filepaths.path_to_myd03)
     except:
         ftp_laads = ftp_connect_laads()
-        ftp_cd(ftp_laads, doy, 'allData/6/MYD03/')
+        ftp_cd(ftp_laads, doy, filepaths.path_to_myd03)
 
 
     lf = open(local_filename, "wb")
@@ -85,7 +88,7 @@ def retrieve_l1(ftp_laads, doy, local_filename, filename_l1):
 
 def ftp_cd(ftp_laads, doy, directory):
     ftp_laads.cwd("/")
-    ftp_laads.cwd(directory + '2014' + '/')
+    ftp_laads.cwd(directory + data_settings.myd_year + '/')
     ftp_laads.cwd(doy)
 
 
@@ -95,13 +98,13 @@ def main():
     ftp_laads = ftp_connect_laads()
 
     # get the files to download
-    file_list = '/Users/dnf/git/kcl-fire-aot/data/raw/rsync_file_list/files_to_transfer.txt'
-    with open(file_list, 'r') as f:
+    with open(filepaths.path_to_transfer_file, 'r') as f:
         files_to_get = f.read()
 
     files_to_get = files_to_get.split('\n')
     files_to_get = [f.split('/')[-1] for f in files_to_get]
     files_to_get = list(set(files_to_get))
+
     for f in files_to_get:
 
         if not f:
@@ -116,7 +119,7 @@ def main():
             continue
 
         # download the file
-        local_filename = os.path.join(r"../../data/raw/geo", myd03_filename)
+        local_filename = os.path.join(filepaths.path_to_modis_geo, myd03_filename)
 
         if not os.path.isfile(local_filename):  # if we dont have the file, then dl it
             logger.info("Downloading: " + myd03_filename)

@@ -14,7 +14,7 @@ import config
 
 def ftp_connect_laads():
     try:
-        ftp_laads = ftplib.FTP("ladsweb.nascom.nasa.gov")
+        ftp_laads = ftplib.FTP()
         ftp_laads.login()
         return ftp_laads
     except:

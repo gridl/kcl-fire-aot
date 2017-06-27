@@ -2,13 +2,29 @@
 Contains the various file paths for the Python scripts
 '''
 
-# set up filepaths and similar
-root = '/Users/dnf/projects/kcl-fire-aot/data/'
-#root = '/Volumes/INTENSO/'
+cems = False
 
+if cems:
+    pass
+else:
 
-orac_file_path = root + 'processed/orac_proc/'
-goes_frp_file_path = root + 'processed/goes_frp/goes13_2014_fire_frp_atm.csv'
-plume_mask_file_path = root + 'processed/plume_masks/myd021km_plumes_df.pickle'
-plume_background_file_path = root + 'processed/plume_masks/myd021km_bg_df.pickle'
-lc_file_path = root + 'external/land_cover/GLOBCOVER_L4_200901_200912_V2.3.tif'
+    # root path to data folder
+
+    root_path = r"../../data/"
+    #root = '/Volumes/INTENSO/'
+
+    # processed data paths
+    path_to_processed_orac = root_path + 'processed/orac_proc/'
+    path_to_goes_frp = root_path + 'processed/goes_frp/goes13_2014_fire_frp_atm.csv'
+    path_to_smoke_plume_masks = root_path + 'processed/plume_masks/myd021km_plumes_df.pickle'
+    path_to_background_masks = root_path + 'processed/plume_masks/myd021km_bg_df.pickle'
+    path_to_landcover = root_path + 'external/land_cover/GLOBCOVER_L4_200901_200912_V2.3.tif'
+
+    # raw data and data transfer paths
+    path_to_transfer_file = root_path + 'raw/rsync_file_list/files_to_transfer.txt'
+    path_to_modis_l1b = root_path + 'raw/l1b/'
+    path_to_modis_geo = root_path + 'raw/geo'
+
+    # FTP paths
+    path_to_ladsweb_ftp = "ladsweb.nascom.nasa.gov"
+    path_to_myd03 = 'allData/6/MYD03/'
