@@ -10,12 +10,13 @@ import pyresample as pr
 # ----------------------------------------------------------------------------------
 
 # MYD data download settings
-myd_year = 2016
+myd_year = '2016'  # needs to be a string as used to acces the FTP server
 myd_doy_range = np.arange(92, 153, 1)  # 267-300
 myd_min_time = 1600
 myd_max_time = 2200
 myd_min_fires = 10  # minimum number of fires in the scene
-myd_max_fires = 1000 # minimum power of the fires in the scene
+myd_min_power = 1000 # minimum power of the fires in the scene
+myd_min_szn = 85  # minimum solar zenith angle to ensure daylight obs
 
 # Geostationary sensor flag
 geo_sensor = 'GOES'   # 'Himawari
@@ -30,14 +31,14 @@ elif geo_sensor == 'Himawari':
 # just use the SEVIRI proj as the basis, and change the lon_0 depending on the sensor.  We can do
 # this as accuracy is not critical here, just want a rough idea if the data is within a typical
 # geostationary footprint.
-msg_area = pr.geometry.AreaDefinition('Typ. Geos.', 'MSG based geo. footprint with changing lon_0',
-                                      'Typ. Geos',
-                                      {'a': '6378169.0', 'b': '6356584.0',
-                                       'h': '35785831.0', 'lon_0': lon_0,
-                                       'proj': 'geos'},
-                                       3712, 3712,
-                                       [-5568742.4, -5568742.4,
-                                         5568742.4, 5568742.4])
+geo_area_def = pr.geometry.AreaDefinition('msg_full', 'Full globe MSG image 0 degrees',
+                                          'msg_full',
+                                          {'a': '6378169.0', 'b': '6356584.0',
+                                           'h': '35785831.0', 'lon_0': '0',
+                                            'proj': 'geos'},
+                                            3712, 3712,
+                                            [-5568742.4, -5568742.4,
+                                              5568742.4, 5568742.4])
 
 
 # GOES order id's from CLASS; update each time running a new order

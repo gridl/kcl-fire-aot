@@ -10,7 +10,7 @@ else:
 
     # root path to data folder
 
-    root_path = r"../../data/"
+    root_path = '/Users/dnf/Projects/kcl-fire-aot/data/'
     #root = '/Volumes/INTENSO/'
 
     # processed data paths
