@@ -186,10 +186,11 @@ def main():
         frp_filenames = [f.split(None, 8)[-1].lstrip() for f in frp_file_list]
 
         # ensure file lists are matching
+
         l1_filenames, frp_filenames = matchup_files(l1_filenames, frp_filenames)
 
+
         for l1_filename, frp_filename in zip(l1_filenames, frp_filenames):
-            print l1_filename
 
             # assess if fire pixels in scene
             local_filename = os.path.join(filepaths.path_to_modis_frp, frp_filename)
