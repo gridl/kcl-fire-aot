@@ -20,14 +20,18 @@ myd_min_szn = 85  # minimum solar zenith angle to ensure daylight obs
 # Geostationary sensor flag
 geo_sensor = 'GOES'   # 'Himawari
 
+# lon0 for check if MODIS data intersects with geostationary footprint
 if geo_sensor == 'GOES':
-    lon_0 = '-75.0'  # GOES E lon_0
+    lon_0 = -75.0  # GOES E lon_0
 
 elif geo_sensor == 'Himawari':
-    lon_0 = '140.7'
+    lon_0 = 140.7
 
+# assumed geostationary sensor footprint size
+footprint_radius = 5500000  # metres
 
-
+# earth radius for distance calculations
+earth_rad = 6371000  # in metres
 
 # GOES order id's from CLASS; update each time running a new order
 class_order_ids = ['2720282193', '2720283243', '2720283253', '2720285893',

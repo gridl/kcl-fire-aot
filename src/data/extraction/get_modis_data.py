@@ -86,6 +86,21 @@ def matchup_files(l1_filenames, frp_filenames):
 
     return l1_matching, frp_matching
 
+
+def in_geo_footprint(lon, lat):
+
+    # use law of cosines to check if point inside geostationary footprint radius
+    dist_to_nadir = np.arccos(np.sin(np.deg2rad(0)) * np.sin(np.deg2rad(lat)) +
+                              np.cos(np.deg2rad(0)) * np.cos(np.deg2rad(lat)) *
+                              np.cos(np.deg2rad(lon) - np.deg2rad(data_settings.lon_0))) * data_settings.earth_rad
+
+
+    if dist_to_nadir < data_settings.footprint_radius:
+        return True
+    else:
+        return False
+
+
 def assess_fires_present_inbounds(ftp_laads, doy, local_filename, filename_frp):
 
     # see if data exists in frp dir, if not then dl it
@@ -107,36 +122,35 @@ def assess_fires_present_inbounds(ftp_laads, doy, local_filename, filename_frp):
     try:
         frp_data = SD(local_filename, SDC.READ)
     except:
-        download_flag = False
-        return download_flag
+        return False
 
+    # check we have some FRP data
     if frp_data.select('FP_power').checkempty():
-        download_flag = False
+        return False
+
+    # check we have daylight data
+    szn = frp_data.select('FP_SolZenAng').get()
+    if np.mean(szn) > data_settings.myd_min_szn:
+        return False
+
+    # check the data are in bounds
+    lat = np.mean(frp_data.select('FP_latitude').get())
+    lon = np.mean(frp_data.select('FP_longitude').get())
+    if not in_geo_footprint(lon, lat):
+        return False
+
+    # check we have enough fires and power
+    power = frp_data.select('FP_power').get()
+    total_fires = len(power)
+    total_power = np.sum(power)
+
+    if total_fires > data_settings.myd_min_fires and total_power > data_settings.myd_min_power:
+        logger.info('Suitable scene: ' + filename_frp)
+        logger.info('Total fires: ' + str(total_fires)
+                    + " | Total Power: " + str(total_power))
+        return True
     else:
-
-        lat = np.mean(frp_data.select('FP_latitude').get())
-        lon = np.mean(frp_data.select('FP_longitude').get())
-
-        if (lon, lat) in data_settings.geo_area_def:
-
-            szn = frp_data.select('FP_SolZenAng').get()
-            power = frp_data.select('FP_power').get()
-            total_fires = len(power)
-            total_power = np.sum(power)
-
-            if np.mean(szn) > data_settings.myd_min_szn:
-                download_flag = False
-            elif total_fires > data_settings.myd_min_fires and total_power > data_settings.myd_min_power:
-                logger.info('Suitable scene: ' + filename_frp)
-                logger.info('Total fires: ' + str(total_fires)
-                            + " | Total Power: " + str(total_power))
-                download_flag = True
-            else:
-                download_flag = False
-        else:
-            download_flag = False
-
-    return download_flag
+        return False
 
 
 def retrieve_l1(ftp_laads, doy, local_filename, filename_l1):
@@ -175,6 +189,7 @@ def main():
         l1_filenames, frp_filenames = matchup_files(l1_filenames, frp_filenames)
 
         for l1_filename, frp_filename in zip(l1_filenames, frp_filenames):
+            print l1_filename
 
             # assess if fire pixels in scene
             local_filename = os.path.join(filepaths.path_to_modis_frp, frp_filename)
