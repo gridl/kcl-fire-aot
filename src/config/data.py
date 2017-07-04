@@ -3,7 +3,6 @@ Contains the various parameters for the data extraction
 '''
 
 import numpy as np
-import pyresample as pr
 
 # ----------------------------------------------------------------------------------
 # Data
@@ -27,18 +26,7 @@ if geo_sensor == 'GOES':
 elif geo_sensor == 'Himawari':
     lon_0 = '140.7'
 
-# set up a area def using pyresample for checking if modis data is within geostationary footprint
-# just use the SEVIRI proj as the basis, and change the lon_0 depending on the sensor.  We can do
-# this as accuracy is not critical here, just want a rough idea if the data is within a typical
-# geostationary footprint.
-geo_area_def = pr.geometry.AreaDefinition('msg_full', 'Full globe MSG image 0 degrees',
-                                          'msg_full',
-                                          {'a': '6378169.0', 'b': '6356584.0',
-                                           'h': '35785831.0', 'lon_0': '0',
-                                            'proj': 'geos'},
-                                            3712, 3712,
-                                            [-5568742.4, -5568742.4,
-                                              5568742.4, 5568742.4])
+
 
 
 # GOES order id's from CLASS; update each time running a new order
