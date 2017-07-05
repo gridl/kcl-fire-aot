@@ -193,8 +193,11 @@ def main():
         for l1_filename, frp_filename in zip(l1_filenames, frp_filenames):
 
             # assess if fire pixels in scene
-            local_filename = os.path.join(filepaths.path_to_modis_frp, frp_filename)
-            fires_present = assess_fires_present_inbounds(ftp_laads, doy, local_filename, frp_filename)
+            try:
+                local_filename = os.path.join(filepaths.path_to_modis_frp, frp_filename)
+                fires_present = assess_fires_present_inbounds(ftp_laads, doy, local_filename, frp_filename)
+            except Exception, e:
+                logger.warning("Could not acces file: " + l1_filename + ".  Failed with error" + str(e))
 
             if not fires_present:
                 continue
