@@ -22,9 +22,9 @@ else:
 
     # raw data and data transfer paths
     path_to_transfer_file = root_path + 'raw/rsync_file_list/files_to_transfer.txt'
-    path_to_modis_l1b = root_path + 'raw/l1b/'
-    path_to_modis_geo = root_path + 'raw/geo'
-    path_to_modis_frp = root_path + 'raw/frp/'
+    path_to_modis_l1b = root_path + 'raw/modis/l1b/'
+    path_to_modis_geo = root_path + 'raw/modis/geo'
+    path_to_modis_frp = root_path + 'raw/modis/frp/'
     path_to_goes_l1b = root_path + 'raw/goes'
 
     # FTP paths (MODIS / Ladsweb)

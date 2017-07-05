@@ -7,18 +7,17 @@ import numpy as np
 import pyresample as pr
 from matplotlib.path import Path
 
-from src import config
-
+import src.config.features as feature_settings
 
 def get_roi_bounds(roi):
 
-    if type(roi['extent']) is list:
+    if type(roi['plume_extent']) is list:
 
         min_x = 99999
         max_x = 0
         min_y = 99999
         max_y = 0
-        for x, y in roi.extent:
+        for x, y in roi.plume_extent:
             if x > max_x:
                 max_x = x
             if x < min_x:
@@ -27,21 +26,21 @@ def get_roi_bounds(roi):
                 max_y = y
             if y < min_y:
                 min_y = y
-        return {'max_x': max_x + config.padding,
-                'min_x': min_x - config.padding,
-                'max_y': max_y + config.padding,
-                'min_y': min_y - config.padding}
+        return {'max_x': max_x + feature_settings.padding,
+                'min_x': min_x - feature_settings.padding,
+                'max_y': max_y + feature_settings.padding,
+                'min_y': min_y - feature_settings.padding}
 
     else:
-        extent = roi['extent'].values[0]
+        extent = roi['plume_extent'].values[0]
         return {'max_x': extent[1],
                 'min_x': extent[0],
                 'max_y': extent[3],
                 'min_y': extent[2]}
 
 
-def get_mask(roi, rb):
-    extent = [[x - rb['min_x'], y - rb['min_y']] for x, y in roi.extent]
+def get_plume_mask(roi, rb):
+    extent = [[x - rb['min_x'], y - rb['min_y']] for x, y in roi.plume_extent]
 
     nx = rb['max_x'] - rb['min_x']
     ny = rb['max_y'] - rb['min_y']
@@ -60,7 +59,7 @@ def get_mask(roi, rb):
     return mask
 
 
-def resampler(orac_data, roi):
+def resample_aod(orac_data, roi):
 
 
     # extract roi and geographic grids.  So the algorithm to do this
@@ -78,11 +77,11 @@ def resampler(orac_data, roi):
     aod = orac_data.variables['cot'][rb['min_y']:rb['max_y'],
                                      rb['min_x']:rb['max_x']]
     if type(roi['extent']) is list:
-        mask = get_mask(roi, rb)
+        mask = get_plume_mask(roi, rb)
 
     # get lats and lons for resampling grid
-    lat_r = np.arange(np.min(lat), np.max(lat), config.res)
-    lon_r = np.arange(np.min(lon), np.max(lon), config.res)
+    lat_r = np.arange(np.min(lat), np.max(lat), feature_settings.res)
+    lon_r = np.arange(np.min(lon), np.max(lon), feature_settings.res)
     lon_r, lat_r = np.meshgrid(lon_r, lat_r)
 
     # build resampling swatch definitions
@@ -94,14 +93,14 @@ def resampler(orac_data, roi):
     resampled_aod = pr.kd_tree.resample_nearest(def_a,
                                                 aod,
                                                 def_b,
-                                                radius_of_influence=config.radius_of_influence,
-                                                fill_value=config.fill_value)
+                                                radius_of_influence=feature_settings.radius_of_influence,
+                                                fill_value=feature_settings.fill_value)
     if type(roi['extent']) is list:
         resampled_mask = pr.kd_tree.resample_nearest(def_a,
                                                      mask,
                                                      def_b,
-                                                     radius_of_influence=config.radius_of_influence,
-                                                     fill_value=config.fill_value)
+                                                     radius_of_influence=feature_settings.radius_of_influence,
+                                                     fill_value=feature_settings.fill_value)
 
     # return resampled data0
     if type(roi['extent']) is list:
