@@ -41,9 +41,9 @@ def get_reduced_mask(data, mask):
     return data > pc
 
 
-def fill_dict(fill_dict, modis_fname, roi, mask, smoke_flag=1):
+def fill_dict(fill_dict, fp, modis_fname, smoke_flag=0, roi=None, mask=None):
 
-    path_to_data = os.path.join(filepaths.path_to_modis_l1b, modis_fname)
+    path_to_data = os.path.join(fp, modis_fname)
     modis_data = read_myd021km(path_to_data)
 
     for chan_band_name, chan_data_name in zip(['Band_1KM_RefSB', 'Band_1KM_Emissive'],
@@ -52,14 +52,22 @@ def fill_dict(fill_dict, modis_fname, roi, mask, smoke_flag=1):
         mod_chan_data = modis_data.select(chan_data_name).get()
         for i, band in enumerate(mod_chan_band):
 
-            masked_channel = mod_chan_data[i, roi['min_y']:roi['max_y'], roi['min_x']:roi['max_x']][mask]
+            # check to see if we are working with a plume subset or an entire image
+            if roi is not None:
+                data_for_band = mod_chan_data[i, roi['min_y']:roi['max_y'], roi['min_x']:roi['max_x']][mask]
+            else:
+                data_for_band = mod_chan_data[i,:,:].flatten()
 
             if band in fill_dict:
-                fill_dict[band].extend(list(masked_channel))
+                fill_dict[band].extend(list(data_for_band))
             else:
-                fill_dict[band] = list(masked_channel)
+                fill_dict[band] = list(data_for_band)
 
-    n_pixels = np.sum(mask)
+    if mask is not None:
+        n_pixels = np.sum(mask)
+    else:
+        n_pixels = mod_chan_data[i,:,:].size
+
     if 'fname' in fill_dict:
         fill_dict['fname'].extend([path_to_data.split('/')[-1]] * n_pixels)
         fill_dict['smoke_flag'].extend([smoke_flag] * n_pixels)
@@ -68,10 +76,7 @@ def fill_dict(fill_dict, modis_fname, roi, mask, smoke_flag=1):
         fill_dict['smoke_flag'] = [smoke_flag] *n_pixels
 
 
-def extract_plume_data(plume_masks, features_df):
-
-    # we fill this up withe the data and then place it in the dataframe.  Better way?
-    holding_dict = {}
+def extract_plume_data(plume_masks, holding_dict):
 
     current_modis_filename = ''
     for index, plume in plume_masks.iterrows():
@@ -83,28 +88,33 @@ def extract_plume_data(plume_masks, features_df):
         mask = resampling.get_plume_mask(plume, roi)
 
         # get modis plume data into dataframe
-        fill_dict(holding_dict, current_modis_filename, roi, mask)
+        fill_dict(holding_dict, filepaths.path_to_modis_l1b, current_modis_filename,
+                  smoke_flag=1, roi=roi, mask=mask)
 
 
-
-
+def extract_non_plume_data(holding_dict):
+    for mod_file in os.listdir(filepaths.path_to_modis_l1b_no_smoke):
+        fill_dict(holding_dict, filepaths.path_to_modis_l1b_no_smoke, mod_file)
+        hold=1
 
 
 def main():
 
-    # create df to hold the outputs
-    features_df = pd.DataFrame()
+    # create dict to hold the outputs
+    holding_dict = {}
 
     # read in plume dataframe
     plume_masks = readers.read_plume_data(filepaths.path_to_smoke_plume_masks)
 
     # extract modis plume data
-    extract_plume_data(plume_masks, features_df)
+    extract_plume_data(plume_masks, holding_dict)
 
     # extract modis non-plume data
+    extract_non_plume_data(holding_dict)
 
     # save the dataframe
-
+    df = pd.DataFrame.from_dict(holding_dict)
+    df.to_csv(filepaths.path_to_plume_classification_features + 'classification_features.csv')
 
 
 
