@@ -16,8 +16,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from pyhdf.SD import SD, SDC
-
-
+import logging
 
 import resampling
 import src.config.filepaths as filepaths
@@ -46,34 +45,42 @@ def fill_dict(fill_dict, fp, modis_fname, smoke_flag=0, roi=None, mask=None):
     path_to_data = os.path.join(fp, modis_fname)
     modis_data = read_myd021km(path_to_data)
 
-    for chan_band_name, chan_data_name in zip(['Band_1KM_RefSB', 'Band_1KM_Emissive'],
-                                              ['EV_1KM_RefSB', 'EV_1KM_Emissive']):
-        mod_chan_band = modis_data.select(chan_band_name).get()
-        mod_chan_data = modis_data.select(chan_data_name).get()
-        for i, band in enumerate(mod_chan_band):
+    try:
+        for chan_band_name, chan_data_name in zip(['Band_1KM_RefSB', 'Band_1KM_Emissive'],
+                                                  ['EV_1KM_RefSB', 'EV_1KM_Emissive']):
 
-            # check to see if we are working with a plume subset or an entire image
-            if roi is not None:
-                data_for_band = mod_chan_data[i, roi['min_y']:roi['max_y'], roi['min_x']:roi['max_x']][mask]
-            else:
-                data_for_band = mod_chan_data[i,:,:].flatten()
 
-            if band in fill_dict:
-                fill_dict[band].extend(list(data_for_band))
-            else:
-                fill_dict[band] = list(data_for_band)
 
-    if mask is not None:
-        n_pixels = np.sum(mask)
-    else:
-        n_pixels = mod_chan_data[i,:,:].size
+            mod_chan_band = modis_data.select(chan_band_name).get()
+            mod_chan_data = modis_data.select(chan_data_name).get()
+            for i, band in enumerate(mod_chan_band):
 
-    if 'fname' in fill_dict:
-        fill_dict['fname'].extend([path_to_data.split('/')[-1]] * n_pixels)
-        fill_dict['smoke_flag'].extend([smoke_flag] * n_pixels)
-    else:
-        fill_dict['fname'] = [path_to_data.split('/')[-1]] * n_pixels
-        fill_dict['smoke_flag'] = [smoke_flag] *n_pixels
+                # check to see if we are working with a plume subset or an entire image
+                if roi is not None:
+                    data_for_band = mod_chan_data[i, roi['min_y']:roi['max_y'], roi['min_x']:roi['max_x']][mask]
+                else:
+                    data_for_band = mod_chan_data[i,:,:].flatten()
+
+                if band in fill_dict:
+                    fill_dict[band].extend(list(data_for_band))
+                else:
+                    fill_dict[band] = list(data_for_band)
+
+        if mask is not None:
+            n_pixels = np.sum(mask)
+        else:
+            n_pixels = mod_chan_data[i,:,:].size
+
+        if 'fname' in fill_dict:
+            fill_dict['fname'].extend([path_to_data.split('/')[-1]] * n_pixels)
+            fill_dict['smoke_flag'].extend([smoke_flag] * n_pixels)
+        else:
+            fill_dict['fname'] = [path_to_data.split('/')[-1]] * n_pixels
+            fill_dict['smoke_flag'] = [smoke_flag] * n_pixels
+
+    except Exception, e:
+        logger.warning("Failed to process modis granule: " + modis_fname + ' with error: ' + str(e))
+
 
 
 def extract_plume_data(plume_masks, holding_dict):
@@ -119,4 +126,8 @@ def main():
 
 
 if __name__ == '__main__':
+    log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    logging.basicConfig(level=logging.INFO, format=log_fmt)
+    logger = logging.getLogger(__name__)
+
     main()
