@@ -9,6 +9,9 @@ import uuid
 import numpy as np
 import pandas as pd
 
+import matplotlib
+matplotlib.use('TKAgg')
+
 import scipy.ndimage as ndimage
 from datetime import datetime
 from pyhdf.SD import SD, SDC
@@ -16,6 +19,9 @@ from skimage import exposure
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Rectangle
 import cv2
+
+
+import src.config.filepaths as filepaths
 
 
 def read_myd14(myd14_file):
@@ -259,14 +265,14 @@ def main():
     """
 
     try:
-        myd021km_plume_df = pd.read_pickle(r"../../data/interim/myd021km_plumes_df.pickle")
-        myd021km_bg_df = pd.read_pickle(r"../../data/interim/myd021km_bg_df.pickle")
+        myd021km_plume_df = pd.read_pickle(filepaths.path_to_smoke_plume_masks)
+        myd021km_bg_df = pd.read_pickle(filepaths.path_to_background_masks)
     except:
         logger.info("myd021km dataframe does not exist, creating now")
         myd021km_plume_df = pd.DataFrame()
         myd021km_bg_df = pd.DataFrame()
 
-    for myd021km_fname in os.listdir(r"../../data/raw/l1b"):
+    for myd021km_fname in os.listdir(filepaths.path_to_modis_l1b):
 
         logger.info("Processing modis granule: " + myd021km_fname)
 
@@ -287,14 +293,14 @@ def main():
         except:
             logger.info("filename column not in dataframe - if the dataframe has just been created no problem!")
 
-        myd14_fname = [f for f in os.listdir(r"../../data/raw/frp") if timestamp_myd in f]
+        myd14_fname = [f for f in os.listdir(filepaths.path_to_modis_frp) if timestamp_myd in f]
 
         if len(myd14_fname) > 1:
             logger.warning("More that one frp granule matched " + myd021km_fname + "selecting 0th option")
         myd14_fname = myd14_fname[0]
 
-        myd14 = read_myd14(os.path.join(r"../../data/raw/frp/", myd14_fname))
-        myd021km = read_myd021km(os.path.join(r"../../data/raw/l1b", myd021km_fname))
+        myd14 = read_myd14(os.path.join(filepaths.path_to_modis_frp, myd14_fname))
+        myd021km = read_myd021km(os.path.join(filepaths.path_to_modis_l1b, myd021km_fname))
 
         # do the digitising
         myd14_fire_mask = firemask_myd14(myd14)
@@ -325,8 +331,8 @@ def main():
         myd021km_plume_df = pd.concat([myd021km_plume_df, temp_plume_df])
         myd021km_bg_df = pd.concat([myd021km_bg_df, temp_bg_df])
 
-        myd021km_plume_df.to_pickle(r"../../data/interim/myd021km_plumes_df.pickle")
-        myd021km_bg_df.to_pickle(r"../../data/interim/myd021km_bg_df.pickle")
+        myd021km_plume_df.to_pickle(filepaths.path_to_smoke_plume_masks)
+        myd021km_bg_df.to_pickle(filepaths.path_to_background_masks)
 
 
 if __name__ == '__main__':
