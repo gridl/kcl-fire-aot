@@ -190,12 +190,13 @@ def main():
 
     for myd021km_fname in os.listdir(filepaths.path_to_modis_l1b):
 
-        try:
-            if ml_df['filename'].str.contains(myd021km_fname).any():
-                continue
-        except:
-            logger.info("filename column not in dataframe - if the dataframe has just been created no problem!")
+        logger.info("Processing modis granule: " + myd021km_fname)
 
+        try:
+            timestamp_myd = re.search("[0-9]{7}[.][0-9]{4}[.]", myd021km_fname).group()
+        except Exception, e:
+            logger.warning("Could not extract time stamp from: ", str(myd021km_fname), "moving on to next file")
+            continue
 
         try:
             if datetime.strptime(timestamp_myd, '%Y%j.%H%M.') < \
@@ -207,13 +208,6 @@ def main():
                 continue
         except:
             logger.info("filename column not in dataframe - if the dataframe has just been created no problem!")
-
-
-        try:
-            timestamp_myd = re.search("[0-9]{7}[.][0-9]{4}[.]", myd021km_fname).group()
-        except Exception, e:
-            logger.warning("Could not extract time stamp from: ", myd021km_fname, "moving on to next file")
-            continue
 
         myd14_fname = [f for f in os.listdir(filepaths.path_to_modis_frp) if timestamp_myd in f]
 
