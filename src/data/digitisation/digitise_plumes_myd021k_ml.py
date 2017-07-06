@@ -122,10 +122,7 @@ def digitise(img):
 
     plt.figure(figsize=(25, 12))
     plt.imshow(img, interpolation='nearest')
-    plt.draw()
-    plt.pause(1)
-    raw_input("<Hit Enter To Close>")
-    plt.close()
+    plt.show()
 
     arg = raw_input("Do you want to digitise this plume?: [y, N]")
     if arg.lower() in ['', 'no', 'n']:

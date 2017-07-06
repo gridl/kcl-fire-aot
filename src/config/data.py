@@ -10,7 +10,7 @@ import numpy as np
 
 # MYD data download settings
 myd_year = '2016'  # needs to be a string as used to acces the FTP server
-myd_doy_range = np.arange(267, 300, 1)  # 267-300 92-153
+myd_doy_range = np.arange(213, 300, 1)  # 213-300 92-153
 myd_min_time = 1600
 myd_max_time = 2200
 myd_min_fires = 10  # minimum number of fires in the scene
