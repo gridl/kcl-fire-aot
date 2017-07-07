@@ -97,7 +97,7 @@ def main():
 
     # save the dataframe
     df = pd.DataFrame.from_dict(holding_dict)
-    df.to_csv(filepaths.path_to_plume_classification_features + 'classification_features.csv')
+    df.to_pickle(filepaths.path_to_plume_classification_features)
 
 
 if __name__ == '__main__':

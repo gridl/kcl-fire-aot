@@ -42,4 +42,4 @@ else:
     path_to_goes_tmp = root_path + 'tmp/goes/'
 
     # features filepaths
-    path_to_plume_classification_features = root_path + 'interim/'
+    path_to_plume_classification_features = root_path + 'interim/classification_features.pickle'
