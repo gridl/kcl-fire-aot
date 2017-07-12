@@ -43,6 +43,7 @@ else:
 
     # features filepaths
     path_to_plume_classification_features = root_path + 'interim/classification_features.pickle'
+    path_to_reduced_plume_classification_features = root_path + 'interim/reduced_classification_features.pickle'
 
     # model filepaths
     path_to_rf_model = root_path + 'models/rf_model.pickle'

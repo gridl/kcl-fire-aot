@@ -26,7 +26,6 @@ import src.config.features as features_settings
 import src.data.readers as readers
 import GLCM.Textures as textures
 
-
 __author__ = "Daniel Fisher"
 __email__ = "daniel.fisher@kcl.ac.uk"
 
@@ -57,42 +56,63 @@ def generate_textures(mod_chan_data, plume, i):
 
     return measures, names
 
-def fill_dict(plume, flag, fill_dict, fp, modis_fname):
 
+def fill_dict(plume, flag, fill_dict, fp, modis_fname):
     path_to_data = os.path.join(fp, modis_fname)
     modis_data = read_myd021km(path_to_data)
 
     try:
-        for chan_band_name, chan_data_name in zip(['Band_1KM_RefSB', 'Band_1KM_Emissive'],
-                                                  ['EV_1KM_RefSB', 'EV_1KM_Emissive']):
+        for chan_band_name, chan_data_name in zip(['Band_500M', 'Band_250M', 'Band_1KM_Emissive'],
+                                                  ['EV_500_Aggr1km_RefSB', 'EV_250_Aggr1km_RefSB', 'EV_1KM_Emissive']):
 
             mod_chan_band = modis_data.select(chan_band_name).get()
             mod_chan_data = modis_data.select(chan_data_name).get()
+
             for i, band in enumerate(mod_chan_band):
 
-                # check to see if we are working with a plume subset or an entire image
-                data_for_band = mod_chan_data[i, plume.sample_bounds[2]:plume.sample_bounds[3],
-                                plume.sample_bounds[0]:plume.sample_bounds[1]]
-                data_for_band = data_for_band.flatten()
+                # first check if we are reducing the plume extents by percentile
+                if features_settings.reduce_features & (band == 3):
+                    data = mod_chan_data[i, plume.sample_bounds[2]:plume.sample_bounds[3],
+                           plume.sample_bounds[0]:plume.sample_bounds[1]]
+                    per = np.percentile(data, 50)
+                    mask = (data >= per).flatten()
 
-                # let generate GLCM texture measures for MODIS band 8
-                if band == 8:
+                # now lets generate GLCM texture measures for MODIS band 3
+                if band == 3:
+
                     texture_measure, keys = generate_textures(mod_chan_data, plume, i)
 
                     for i, k in enumerate(keys):
                         if k in fill_dict:
-                            fill_dict[k].extend(list(texture_measure[i]))
+                            if features_settings.reduce_features:
+                                fill_dict[k].extend(list(texture_measure[i][mask]))
+                            else:
+                                fill_dict[k].extend(list(texture_measure[i]))
                         else:
-                            fill_dict[k] = list(texture_measure[i])
+                            if features_settings.reduce_features:
+                                fill_dict[k] = list(texture_measure[i][mask])
+                            else:
+                                fill_dict[k] = list(texture_measure[i])
 
-
+                data_for_band = mod_chan_data[i, plume.sample_bounds[2]:plume.sample_bounds[3],
+                                plume.sample_bounds[0]:plume.sample_bounds[1]]
+                data_for_band = data_for_band.flatten()
 
                 if band in fill_dict:
-                    fill_dict[band].extend(list(data_for_band))
+                    if features_settings.reduce_features:
+                        fill_dict[band].extend(list(data_for_band[mask]))
+                    else:
+                        fill_dict[band].extend(list(data_for_band))
                 else:
-                    fill_dict[band] = list(data_for_band)
+                    if features_settings.reduce_features:
+                        fill_dict[band] = list(data_for_band[mask])
+                    else:
+                        fill_dict[band] = list(data_for_band)
 
-        n_pixels = data_for_band.size
+        if features_settings.reduce_features:
+            n_pixels = np.sum(mask)
+        else:
+            n_pixels = data_for_band.size
         if 'fname' in fill_dict:
             fill_dict['fname'].extend([path_to_data.split('/')[-1]] * n_pixels)
             fill_dict['smoke_flag'].extend([flag] * n_pixels)
@@ -104,9 +124,7 @@ def fill_dict(plume, flag, fill_dict, fp, modis_fname):
         logger.warning("Failed to process modis granule: " + modis_fname + ' with error: ' + str(e))
 
 
-
 def extract_samples(plume_masks, holding_dict, flag):
-
     current_modis_filename = ''
     for index, plume in plume_masks.iterrows():
         if plume.filename != current_modis_filename:
@@ -117,12 +135,10 @@ def extract_samples(plume_masks, holding_dict, flag):
 
 
 def main():
-
     # create dict to hold the outputs
     holding_dict = dict()
 
-    for path, flag in zip([filepaths.path_to_ml_smoke_plume_masks, filepaths.path_to_ml_smoke_free_masks], [1,0]):
-
+    for path, flag in zip([filepaths.path_to_ml_smoke_plume_masks, filepaths.path_to_ml_smoke_free_masks], [1, 0]):
         # read in plume dataframe
         plume_masks = readers.read_plume_data(path)
 
@@ -131,7 +147,10 @@ def main():
 
     # save the dataframe
     df = pd.DataFrame.from_dict(holding_dict)
-    df.to_pickle(filepaths.path_to_plume_classification_features)
+    if features_settings.reduce_features:
+        df.to_pickle(filepaths.path_to_reduced_plume_classification_features)
+    else:
+        df.to_pickle(filepaths.path_to_plume_classification_features)
 
 
 if __name__ == '__main__':
