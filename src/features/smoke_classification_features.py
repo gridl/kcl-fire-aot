@@ -71,10 +71,10 @@ def fill_dict(plume, flag, fill_dict, fp, modis_fname):
             for i, band in enumerate(mod_chan_band):
 
                 # first check if we are reducing the plume extents by percentile
-                if features_settings.reduce_features & (band == 3):
+                if features_settings.reduce_features & (band == 3) & flag:
                     data = mod_chan_data[i, plume.sample_bounds[2]:plume.sample_bounds[3],
                            plume.sample_bounds[0]:plume.sample_bounds[1]]
-                    per = np.percentile(data, 50)
+                    per = np.percentile(data, features_settings.reduce_percentile)
                     mask = (data >= per).flatten()
 
                 # now lets generate GLCM texture measures for MODIS band 3
@@ -84,12 +84,12 @@ def fill_dict(plume, flag, fill_dict, fp, modis_fname):
 
                     for i, k in enumerate(keys):
                         if k in fill_dict:
-                            if features_settings.reduce_features:
+                            if features_settings.reduce_features & flag:
                                 fill_dict[k].extend(list(texture_measure[i][mask]))
                             else:
                                 fill_dict[k].extend(list(texture_measure[i]))
                         else:
-                            if features_settings.reduce_features:
+                            if features_settings.reduce_features & flag:
                                 fill_dict[k] = list(texture_measure[i][mask])
                             else:
                                 fill_dict[k] = list(texture_measure[i])
@@ -99,17 +99,17 @@ def fill_dict(plume, flag, fill_dict, fp, modis_fname):
                 data_for_band = data_for_band.flatten()
 
                 if band in fill_dict:
-                    if features_settings.reduce_features:
+                    if features_settings.reduce_features & flag:
                         fill_dict[band].extend(list(data_for_band[mask]))
                     else:
                         fill_dict[band].extend(list(data_for_band))
                 else:
-                    if features_settings.reduce_features:
+                    if features_settings.reduce_features & flag:
                         fill_dict[band] = list(data_for_band[mask])
                     else:
                         fill_dict[band] = list(data_for_band)
 
-        if features_settings.reduce_features:
+        if features_settings.reduce_features & flag:
             n_pixels = np.sum(mask)
         else:
             n_pixels = data_for_band.size

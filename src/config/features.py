@@ -10,7 +10,7 @@ fill_value = 0
 
 # review features flag
 reduce_features = True
-reduce_percentile = 0.5
+reduce_percentile = 15
 
 # GLCM Texture measure settings
 glcm_window_radius = 2
