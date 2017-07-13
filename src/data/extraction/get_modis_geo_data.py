@@ -62,9 +62,6 @@ def get_file(ftp_laads, doy, myd021km_file):
                     return str()
 
 
-
-
-
 def get_files(ftp_laads):
     file_list = []
     ftp_laads.retrlines("LIST", file_list.append)
@@ -98,14 +95,7 @@ def main():
     ftp_laads = ftp_connect_laads()
 
     # get the files to download
-    with open(filepaths.path_to_transfer_file, 'r') as f:
-        files_to_get = f.read()
-
-    files_to_get = files_to_get.split('\n')
-    files_to_get = [f.split('/')[-1] for f in files_to_get]
-    files_to_get = list(set(files_to_get))
-
-    for f in files_to_get:
+    for f in os.listdir(filepaths.path_to_modis_l1b):
 
         if not f:
             continue
