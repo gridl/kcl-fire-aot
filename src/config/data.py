@@ -3,6 +3,7 @@ Contains the various parameters for the data extraction
 '''
 
 import numpy as np
+import sensor
 
 # ----------------------------------------------------------------------------------
 # Data
@@ -17,14 +18,11 @@ myd_min_fires = 10  # minimum number of fires in the scene
 myd_min_power = 1000 # minimum power of the fires in the scene
 myd_min_szn = 85  # minimum solar zenith angle to ensure daylight obs
 
-# Geostationary sensor flag
-geo_sensor = 'GOES'   # 'Himawari
-
 # lon0 for check if MODIS data intersects with geostationary footprint
-if geo_sensor == 'GOES':
+if sensor.sensor == 'goes':
     lon_0 = -75.0  # GOES E lon_0
 
-elif geo_sensor == 'Himawari':
+elif sensor.sensor == 'himawari':
     lon_0 = 140.7
 
 # assumed geostationary sensor footprint size

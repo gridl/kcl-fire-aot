@@ -1,37 +1,36 @@
 #!/usr/bin/env python
 
 '''
-Train smoke classification for MODIS scenes
+Using the smoke random forest smoke classifier process all the MODIS data that we
+have and generate smoke plume masks.
+
+- Load in MODIS data
+- Derive GLCM for MODIS data
+- Apply smoke classifier
+- Save mask output in
 '''
+
+import os
 
 import numpy as np
 import pandas as pd
-
-from sklearn.decomposition import PCA
-from sklearn.tree import DecisionTreeClassifier, export_graphviz
-
 import matplotlib.pyplot as plt
+from pyhdf.SD import SD, SDC
 import logging
 
+import matplotlib.pyplot as plt
+
+import resampling
 import src.config.filepaths as filepaths
-import src.config.models as model_settings
+import src.config.features as features_settings
+import src.data.readers as readers
+import GLCM.Textures as textures
 
 __author__ = "Daniel Fisher"
 __email__ = "daniel.fisher@kcl.ac.uk"
 
 
 def main():
-
-    # load the dataframe
-    df = pd.read_pickle(filepaths.path_to_plume_classification_features)
-
-
-
-
-    # do the PCA
-    hold =1
-
-    # do the training
 
 
 

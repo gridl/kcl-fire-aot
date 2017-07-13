@@ -13,7 +13,7 @@ import logging
 
 import urllib
 import urllib2
-from BeautifulSoup import BeautifulSoup
+from bs4 import BeautifulSoup
 import re
 
 import src.config.filepaths as filepaths
@@ -31,7 +31,7 @@ def get_file_list(order_id):
     source = filepaths.path_to_class_https
     order = order_id + '/001/'
     html_page = urllib2.urlopen(source+order)
-    soup = BeautifulSoup(html_page)
+    soup = BeautifulSoup(html_page, "lxml")
     for link in soup.findAll('a', attrs={'href': re.compile("^001/goes13")}):
         file_list.append(link.get('href')[4:])  # 4: to get rid of the 001/ at the start
     return file_list
@@ -89,7 +89,7 @@ def main():
 
     # path to write to
     data_store_path = filepaths.path_to_goes_l1b
-    temp_path = filepaths.path_to_goes_tmp  # nothings gets stored here, just keeps track of what file is being dwnldrd
+    temp_path = filepaths.path_to_goes_tmp  # nothings gets stored here, just keeps track of what file is being dwnldd
 
     for order_id in data_settings.class_order_ids:
 
@@ -112,10 +112,17 @@ def main():
 
                 # do the download
                 logger.info("Downloading: " + goes_file)
-                retrieve_l1(order_id, local_filename, goes_file)
+                try:
+                    retrieve_l1(order_id, local_filename, goes_file)
+                except Exception, e:
+                    logger.warning("Failed to download file: " + goes_file, 'with warning:', str(e))
+                    logger.info("Second download attempt: " + goes_file)
 
-                # remote temp empty file from currently downloading list
+                # remove temp empty file from currently downloading list
                 remove_from_download_list(temp_path, goes_file)
+
+            else:
+                logger.info("The following GOES file already on system: " + goes_file)
 
 
 if __name__ == "__main__":

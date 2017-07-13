@@ -127,11 +127,15 @@ def fill_dict(plume, flag, fill_dict, fp, modis_fname):
 def extract_samples(plume_masks, holding_dict, flag):
     current_modis_filename = ''
     for index, plume in plume_masks.iterrows():
-        if plume.filename != current_modis_filename:
-            current_modis_filename = plume.filename
+        try:
+            if plume.filename != current_modis_filename:
+                current_modis_filename = plume.filename
 
-        # get modis plume data into holding dict
-        fill_dict(plume, flag, holding_dict, filepaths.path_to_modis_l1b, current_modis_filename)
+            # get modis plume data into holding dict
+            fill_dict(plume, flag, holding_dict, filepaths.path_to_modis_l1b, current_modis_filename)
+        except Exception, e:
+            logger.warning("Failed to process plumes in modis granule: " + current_modis_filename +
+                           ' with error: ' + str(e))
 
 
 def main():
