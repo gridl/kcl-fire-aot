@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
 import logging
-from dotenv import find_dotenv, load_dotenv
 
 import ftplib
 import time
@@ -102,6 +101,8 @@ def main():
 
         # find the correct myd03 file
         doy = f[14:17]
+        if not doy:
+            continue
         myd03_filename = get_file(ftp_laads, doy, f)
 
         if not myd03_filename:
@@ -114,11 +115,13 @@ def main():
         if not os.path.isfile(local_filename):  # if we dont have the file, then dl it
             logger.info("Downloading: " + myd03_filename)
             retrieve_l1(ftp_laads, doy, local_filename, myd03_filename)
+        else:
+            logger.info(myd03_filename + ' already exists on the system')
 
 
 if __name__ == "__main__":
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    logging.basicConfig(level=logging.WARNING, format=log_fmt)
+    logging.basicConfig(level=logging.INFO, format=log_fmt)
     logger = logging.getLogger(__name__)
 
     main()
