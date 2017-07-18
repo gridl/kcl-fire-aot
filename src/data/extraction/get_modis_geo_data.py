@@ -88,7 +88,26 @@ def ftp_cd(ftp_laads, doy, directory):
     ftp_laads.cwd(doy)
 
 
+def check_downloading_status(temp_path, f):
+    # a small function to check if a goes file is being downloaded
+    files_downloading = os.listdir(temp_path)
+    if f in files_downloading:
+        return True
+    else:
+        return False
+
+
+def append_to_download_list(temp_path, f):
+    open(temp_path + f, 'a').close()
+
+
+def remove_from_download_list(temp_path, f):
+    os.remove(temp_path + f)
+
+
 def main():
+
+    temp_path = filepaths.path_to_modis_tmp
 
     # first connect to ftp site
     ftp_laads = ftp_connect_laads()
@@ -98,6 +117,14 @@ def main():
 
         if not f:
             continue
+
+        # check if the file is being downloaded by another script already
+        downloading = check_downloading_status(temp_path, f)
+        if downloading:
+            continue
+        else:
+            append_to_download_list(temp_path, f)
+
 
         # find the correct myd03 file
         doy = f[14:17]
@@ -117,6 +144,9 @@ def main():
             retrieve_l1(ftp_laads, doy, local_filename, myd03_filename)
         else:
             logger.info(myd03_filename + ' already exists on the system')
+
+        # remote temp empty file from currently downloading list
+        remove_from_download_list(temp_path, f)
 
 
 if __name__ == "__main__":

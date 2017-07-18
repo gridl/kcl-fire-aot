@@ -41,10 +41,11 @@ path_to_class_https = 'https://download.class.ncdc.noaa.gov/download/'
 
 # temporary file paths
 path_to_goes_tmp = root_path + 'tmp/goes/'
+path_to_modis_tmp = root_path + 'tmp/modis/'
 
 # features filepaths
 path_to_plume_classification_features = root_path + 'interim/classification_features.pickle'
-path_to_reduced_plume_classification_features = root_path + 'interim/classification_features_15pc.pickle'
+path_to_reduced_plume_classification_features = root_path + 'interim/classification_features_20pc.pickle'
 
 # model filepaths
 path_to_rf_model = root_path + 'models/rf_model.pickle'

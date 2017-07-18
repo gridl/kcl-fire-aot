@@ -113,10 +113,12 @@ def assess_fires_present_inbounds(ftp_laads, doy, local_filename, filename_frp):
             ftp_laads = ftp_connect_laads()
             ftp_cd(ftp_laads, doy, filepaths.path_to_myd14)
 
-
+        logger.info('Downloading myd14 file: ' + filename_frp)
         lf = open(local_filename, "wb")
         ftp_laads.retrbinary("RETR " + filename_frp, lf.write, 8 * 1024)
         lf.close()
+    else:
+        logger.info(filename_frp + ' already exists on the system')
 
     # determine whether to download the scene or not
     try:
@@ -168,14 +170,40 @@ def retrieve_l1(ftp_laads, doy, local_filename, filename_l1):
     ftp_laads.close()
 
 
+def check_downloading_status(temp_path, mod_doy):
+    # a small function to check if a goes file is being downloaded
+    files_downloading = os.listdir(temp_path)
+    if mod_doy + '.tmp' in files_downloading:
+        return True
+    else:
+        return False
+
+
+def append_to_download_list(temp_path, mod_doy):
+    open(temp_path + mod_doy + '.tmp', 'a').close()
+
+
+def remove_from_download_list(temp_path, mod_doy):
+    os.remove(temp_path + mod_doy + '.tmp')
+
+
 def main():
 
     # first connect to ftp site
     ftp_laads = ftp_connect_laads()
 
+    temp_path = filepaths.path_to_modis_tmp
+
     for doy in data_settings.myd_doy_range:
 
         doy = str(doy).zfill(3)
+
+        # check if current doy is being assessed by another script
+        downloading = check_downloading_status(temp_path, doy)
+        if downloading:
+            continue
+        else:
+            append_to_download_list(temp_path, doy)
 
         logger.info("Downloading MODIS data with fires for DOY: " + doy)
 
@@ -192,23 +220,28 @@ def main():
 
         for l1_filename, frp_filename in zip(l1_filenames, frp_filenames):
 
+            # first check if the l1b file exists on the system
+            local_filename_l1b = os.path.join(filepaths.path_to_modis_l1b, l1_filename)
+            if os.path.isfile(local_filename_l1b):
+                logger.info(l1_filename + 'already exists on system')
+                continue
+
             # assess if fire pixels in scene
             try:
-                local_filename = os.path.join(filepaths.path_to_modis_frp, frp_filename)
-                fires_present = assess_fires_present_inbounds(ftp_laads, doy, local_filename, frp_filename)
+                local_filename_frp = os.path.join(filepaths.path_to_modis_frp, frp_filename)
+                fires_present = assess_fires_present_inbounds(ftp_laads, doy, local_filename_frp, frp_filename)
             except Exception, e:
                 logger.warning("Could not acces file: " + l1_filename + ".  Failed with error" + str(e))
 
             if not fires_present:
                 continue
 
-            # download the file
-            local_filename = os.path.join(filepaths.path_to_modis_l1b, l1_filename)
+            # download the file if we have some fires
+            logger.info("Downloading L1B file: " + l1_filename)
+            retrieve_l1(ftp_laads, doy, local_filename_l1b, l1_filename)
 
-            if not os.path.isfile(local_filename):  # if we dont have the file, then dl it
-                logger.info("Downloading: " + l1_filename)
-                retrieve_l1(ftp_laads, doy, local_filename, l1_filename)
-
+        # remove the temp file showing that the doy is being downloaded
+        remove_from_download_list(temp_path, doy)
 
 if __name__ == "__main__":
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
