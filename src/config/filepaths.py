@@ -52,3 +52,6 @@ path_to_reduced_plume_classification_features = root_path + 'interim/classificat
 
 # model filepaths
 path_to_rf_model = root_path + 'models/rf_model.pickle'
+
+# visualisation filepaths
+path_to_orac_visuals = root_path + 'visualisations/orac/'

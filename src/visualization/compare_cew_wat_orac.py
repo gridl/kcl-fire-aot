@@ -4,11 +4,15 @@ Script to compare CEW and WAT LUT AOD, RE and Cost
 
 import glob
 import logging
+import cPickle as pickle
 from datetime import datetime
 
 import numpy as np
 import pandas as pd
 from netCDF4 import Dataset
+from matplotlib.path import Path
+import seaborn as sns
+sns.set(style="white")
 
 import src.config.filepaths as filepaths
 
@@ -62,32 +66,71 @@ def make_mask(primary_data, primary_time, mask_df):
 
 def main():
 
-    # read in the masks
-    mask_df = pd.read_pickle(filepaths.path_to_smoke_plume_masks)
+    try:
 
-    # get wat and dew files
-    wat_files = glob.glob(filepaths.path_to_processed_orac + '*/*/*WAT.primary*')
-    cew_files = glob.glob(filepaths.path_to_processed_orac + '*/*/*CEW.primary*')
+        wat_dd = pickle.load(open(filepaths.path_to_orac_visuals + 'wat_dd.p', 'rb'))
+        cew_dd = pickle.load(open(filepaths.path_to_orac_visuals + 'cew_dd.p', 'rb'))
 
-    # make some dicts to hold the data
-    wat_dd = {'cot': [], 'cer': [], 'costjm': []}
-    cew_dd = {'cot': [], 'cer': [], 'costjm': []}
+    except:
 
-    for wat_f, cew_f in zip(wat_files, cew_files):
+        wat_dd = {'cot': [], 'cer': [], 'costjm': []}
+        cew_dd = {'cot': [], 'cer': [], 'costjm': []}
 
-        # first get the primary file time
-        primary_time = get_primary_time(wat_f)
+        # read in the masks
+        mask_df = pd.read_pickle(filepaths.path_to_smoke_plume_masks)
 
-        # open up the ORAC primary files
-        primary_wat_data = open_primary(wat_f)
-        primary_cew_data = open_primary(cew_f)
+        # get wat and dew files
+        wat_files = glob.glob(filepaths.path_to_processed_orac + '*/*/*/*WAT.primary*')
+        cew_files = glob.glob(filepaths.path_to_processed_orac + '*/*/*/*CEW.primary*')
 
-        # make the smoke plume mask
-        plume_mask = make_mask(primary_wat_data, primary_time, mask_df)
+        for wat_f, cew_f in zip(wat_files, cew_files):
 
-        for k in wat_dd.keys():
-            wat_dd[k].extend(primary_wat_data[k][plume_mask])
-            cew_dd[k].extend(primary_cew_data[k][plume_mask])
+            # first get the primary file time
+            primary_time = get_primary_time(wat_f)
+
+            # open up the ORAC primary files
+            primary_wat_data = open_primary(wat_f)
+            primary_cew_data = open_primary(cew_f)
+
+            # make the smoke plume mask
+            plume_mask = make_mask(primary_wat_data, primary_time, mask_df)
+
+
+            for k in wat_dd.keys():
+                wat_dd[k].extend(primary_wat_data[k][:][(plume_mask).astype('bool')])
+                cew_dd[k].extend(primary_cew_data[k][:][(plume_mask).astype('bool')])
+
+            pickle.dump(wat_dd, open(filepaths.path_to_orac_visuals + 'wat_dd.p', 'wb'))
+            pickle.dump(cew_dd, open(filepaths.path_to_orac_visuals + 'cew_dd.p', 'wb'))
+
+    # lets do the plotting
+
+    mask = (np.array(wat_dd['costjm']) < 30) & (np.array(cew_dd['costjm']) < 30)
+    masked_wat_costjm = np.array(wat_dd['costjm'])[mask]
+    masked_cew_costjm = np.array(cew_dd['costjm'])[mask]
+
+    cost_wat = pd.Series(masked_wat_costjm, name="$costjm_{WAT}$")
+    cost_cew = pd.Series(masked_cew_costjm, name="$costjm_{CEW}$")
+    c = sns.jointplot(cost_wat, cost_cew, kind="kde", size=7, space=0)
+
+
+    mask = (~(np.isnan(wat_dd['cer'])) & ~(np.isnan(cew_dd['cer'])))
+    masked_wat_cer = np.array(wat_dd['cer'])[mask]
+    masked_cew_cer = np.array(cew_dd['cer'])[mask]
+
+    re_wat = pd.Series(masked_wat_cer, name="$RE_{WAT}$")
+    re_cew = pd.Series(masked_cew_cer, name="$RE_{CEW}$")
+    b = sns.jointplot(re_wat, re_cew, kind="kde", size=7, space=0)
+
+
+    mask = (np.array(wat_dd['cot']) < 5) & (np.array(cew_dd['cot']) < 5)
+    masked_wat_aod = np.array(wat_dd['cot'])[mask]
+    masked_cew_aod = np.array(cew_dd['cot'])[mask]
+
+    aod_wat = pd.Series(masked_wat_aod, name="$AOD_{WAT}$")
+    aod_cew = pd.Series(masked_cew_aod, name="$AOD_{CEW}$")
+    a = sns.jointplot(aod_wat, aod_cew, kind="kde", size=7, space=0)
+
 
 
 
