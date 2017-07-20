@@ -241,7 +241,7 @@ def main():
             retrieve_l1(ftp_laads, doy, local_filename_l1b, l1_filename)
 
         # remove the temp file showing that the doy is being downloaded
-        remove_from_download_list(temp_path, doy)
+        #remove_from_download_list(temp_path, doy)
 
 if __name__ == "__main__":
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'

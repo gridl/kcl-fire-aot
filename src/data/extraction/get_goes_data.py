@@ -20,6 +20,11 @@ import src.config.filepaths as filepaths
 import src.config.data as data_settings
 
 
+def open_webpage(source, order):
+    html_page = urllib2.urlopen(source+order)
+    return BeautifulSoup(html_page, "lxml")
+
+
 def get_file_list(order_id):
     '''
     Finds the list4 of files from the https site.
@@ -28,12 +33,14 @@ def get_file_list(order_id):
     :return: list of goes files on the https site
     '''
     file_list = []
-    source = filepaths.path_to_class_https
+
+    sources = [filepaths.path_to_class_https_a, filepaths.path_to_class_https_b]
     order = order_id + '/001/'
-    html_page = urllib2.urlopen(source+order)
-    soup = BeautifulSoup(html_page, "lxml")
-    for link in soup.findAll('a', attrs={'href': re.compile("^001/goes13")}):
-        file_list.append(link.get('href')[4:])  # 4: to get rid of the 001/ at the start
+    for source in sources:
+        soup = open_webpage(source, order)
+        for link in soup.findAll('a', attrs={'href': re.compile("^001/goes13")}):
+            file_list.append(link.get('href')[4:])  # 4: to get rid of the 001/ at the start
+
     return file_list
 
 
@@ -46,10 +53,13 @@ def retrieve_l1(order_id, local_filename, filename):
     :param filename: the name of the file to be downloaded
     :return: nothing
     '''
-    source = filepaths.path_to_class_https
+    sources = [filepaths.path_to_class_https_a, filepaths.path_to_class_https_b]
     order = order_id + '/001/'
-    urllib.urlretrieve(source + order + filename, local_filename)
-
+    for source in sources:
+        try:
+            urllib.urlretrieve(source + order + filename, local_filename)
+        except:
+            continue
 
 def check_downloading_status(temp_path, goes_file):
     # a small function to check if a goes file is being downloaded
@@ -115,11 +125,14 @@ def main():
                 try:
                     retrieve_l1(order_id, local_filename, goes_file)
                 except Exception, e:
-                    logger.warning("Failed to download file: " + goes_file, 'with warning:', str(e))
+                    logger.warning("Failed to download file: " + goes_file +' with error: ' + str(e))
                     logger.info("Second download attempt: " + goes_file)
 
                 # remove temp empty file from currently downloading list
-                remove_from_download_list(temp_path, goes_file)
+                try:
+                    remove_from_download_list(temp_path, goes_file)
+                except:
+                    continue
 
             else:
                 logger.info("The following GOES file already on system: " + goes_file)

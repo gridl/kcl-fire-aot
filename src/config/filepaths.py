@@ -28,6 +28,7 @@ path_to_transfer_file = root_path + 'raw/rsync_file_list/files_to_transfer.txt'
 path_to_modis_l1b = root_path + 'raw/modis/l1b/'
 path_to_modis_geo = root_path + 'raw/modis/geo'
 path_to_modis_frp = root_path + 'raw/modis/frp/'
+path_to_modis_myd04_3k = root_path + 'raw/modis/MYD04_3K/'
 path_to_goes_l1b = root_path + 'raw/goes/'
 
 # FTP paths (MODIS / Ladsweb)
@@ -35,9 +36,11 @@ path_to_ladsweb_ftp = "ladsweb.nascom.nasa.gov"
 path_to_myd03 = 'allData/6/MYD03/'
 path_to_myd021km = 'allData/6/MYD021KM/'
 path_to_myd14 = 'allData/6/MYD14/'
+path_to_myd04_3K = 'allData/6/MYD04_3K/'
 
 # HTTPS paths (GOES / class)
-path_to_class_https = 'https://download.class.ncdc.noaa.gov/download/'
+path_to_class_https_a = 'https://download.class.ncdc.noaa.gov/download/'
+path_to_class_https_b = 'https://download.class.ngdc.noaa.gov/download/'
 
 # temporary file paths
 path_to_goes_tmp = root_path + 'tmp/goes/'
