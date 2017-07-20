@@ -31,7 +31,7 @@ __email__ = "daniel.fisher@kcl.ac.uk"
 
 
 def main():
-
+    pass
 
 
 if __name__ == '__main__':
