@@ -118,7 +118,7 @@ def main():
         if not f:
             continue
 
-        # check if the file is being downloaded by another script already
+        # check if the file for the MYD04_3K data  is being downloaded by another script already
         downloading = check_downloading_status(temp_path, f)
         if downloading:
             continue
