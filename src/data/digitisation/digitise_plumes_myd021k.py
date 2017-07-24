@@ -9,8 +9,8 @@ import uuid
 import numpy as np
 import pandas as pd
 
-import matplotlib
-matplotlib.use('Qt5Agg')
+# import matplotlib
+# matplotlib.use('Qt5Agg')
 
 import scipy.ndimage as ndimage
 from datetime import datetime
@@ -81,7 +81,7 @@ class Annotate(object):
         self.ax = plt.gca()
         self.im = self.ax.imshow(im, interpolation='none')
         patches = [Polygon(verts, True) for verts in polygons]
-        p = PatchCollection(patches, cmap='Reds', alpha=0.4)
+        p = PatchCollection(patches, cmap='Oranges', alpha=0.8)
         self.polygons = self.ax.add_collection(p)
 
         # set up the point holders for the polygon
@@ -98,7 +98,6 @@ class Annotate(object):
 
         # set up the events
         self.ax.figure.canvas.mpl_connect('button_press_event', self.click)
-#        self.ax.figure.canvas.mpl_connect('button_release_event', self.release)
 
     def click(self, event):
         if event.button == 3:
@@ -106,18 +105,13 @@ class Annotate(object):
             self.y.append(int(event.ydata))
             self.ax.add_patch(Circle((event.xdata, event.ydata), radius=0.25, facecolor='red', edgecolor='black'))
             self.ax.figure.canvas.draw()
-    #     elif event.button == 2:
-    #         self.x0_rect = int(event.xdata)
-    #         self.y0_rect = int(event.ydata)
-    #
-    # def release(self, event):
-    #     if event.button == 2:
-    #         self.x1_rect = int(event.xdata)
-    #         self.y1_rect = int(event.ydata)
-    #         self.rect.set_width(self.x1_rect - self.x0_rect)
-    #         self.rect.set_height(self.y1_rect - self.y0_rect)
-    #         self.rect.set_xy((self.x0_rect, self.y0_rect))
-    #         self.ax.figure.canvas.draw()
+
+
+def run_annotator(img, smoke_polygons):
+    annotator = Annotate(img, smoke_polygons)
+    plt.show()
+    return annotator
+
 
 
 def show_image(img, pts=None):
@@ -142,11 +136,11 @@ def digitise(img):
     if arg.lower() in ['', 'no', 'n']:
         return None, None, None
 
-    while True:
+    annotate = True
+    while annotate:
 
         # first set up the annotator and show the image
-        annotator = Annotate(img, smoke_polygons)
-        plt.show()
+        annotator = run_annotator(img, smoke_polygons)
 
         # show them what they have digitised, and check if they are OK with that
         # if they are append the polygon, and modify the RGB to reflect the digitised region
@@ -155,7 +149,6 @@ def digitise(img):
         if not pts:
             print "you must select define a polygon containing smoke pixels"
             continue
-
 
         show_image(img, pts)
 
@@ -170,9 +163,9 @@ def digitise(img):
         # ask if they want to digitise some more?
         arg = raw_input("Do you want to digitise more plumes? [Y,n]")
         if arg.lower() not in ["", "y", "yes", 'ye']:
-            break
+            annotate = False
 
-    plt.close()
+        plt.close()
 
     return smoke_polygons, plume_ids
 
