@@ -113,7 +113,6 @@ def run_annotator(img, smoke_polygons):
     return annotator
 
 
-
 def show_image(img, pts=None):
 
     fig = plt.figure(figsize=(30, 15))
@@ -228,13 +227,13 @@ def main():
         # do the digitising
         myd14_fire_mask = firemask_myd14(myd14)
         img = fcc_myd021km(myd021km, myd14_fire_mask)
-        smoke_polygons, background_rectangles, plume_ids = digitise(img)
-        if (smoke_polygons is None) | (background_rectangles is None):
+        smoke_polygons, plume_ids = digitise(img)
+        if smoke_polygons is None:
             continue
 
         # process plumes and backgrounds
         plumes_list = []
-        for plume, background, plume_id in zip(smoke_polygons, background_rectangles, plume_ids):
+        for plume, plume_id in zip(smoke_polygons, plume_ids):
             extract_plume_bounds(plume, myd021km_fname, plume_id, plumes_list)
 
         # covert pixel/background lists to dataframes and concatenate to main dataframes
