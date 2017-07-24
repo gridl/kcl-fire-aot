@@ -76,9 +76,9 @@ def fcc_myd021km(mod_data, fire_mask):
 
 
 class Annotate(object):
-    def __init__(self, im, polygons):
+    def __init__(self, im, ax, polygons):
         self.f = plt.figure(figsize=(30, 15))
-        self.ax = plt.gca()
+        self.ax = ax
         self.im = self.ax.imshow(im, interpolation='none')
         patches = [Polygon(verts, True) for verts in polygons]
         p = PatchCollection(patches, cmap='Oranges', alpha=0.8)
@@ -99,6 +99,8 @@ class Annotate(object):
         # set up the events
         self.ax.figure.canvas.mpl_connect('button_press_event', self.click)
 
+    # TODO I think we can draw the polygon as we click round the plume.  Would look better than the circles
+    # TODO perhaps check if once we have three points start drawing the polygon
     def click(self, event):
         if event.button == 3:
             self.x.append(int(event.xdata))
@@ -107,66 +109,39 @@ class Annotate(object):
             self.ax.figure.canvas.draw()
 
 
-def run_annotator(img, smoke_polygons):
-    annotator = Annotate(img, smoke_polygons)
-    plt.show()
-    return annotator
-
-
-def show_image(img, pts=None):
-
-    fig = plt.figure(figsize=(30, 15))
-    ax = fig.add_subplot(111)
-    ax.imshow(img, interpolation="nearest")
-    if pts is not None:
-        p = plt.Polygon(pts, color='Red', alpha=0.6)
-        ax.add_patch(p)
-    plt.show()
-
-
 def digitise(img):
 
     smoke_polygons = []
     plume_ids = []
 
-    show_image(img)
+    while True:
 
-    arg = raw_input("Do you want to digitise this plume?: [y, N]")
-    if arg.lower() in ['', 'no', 'n']:
-        return None, None, None
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
 
-    annotate = True
-    while annotate:
+        # first set up the annotator
+        annotator = Annotate(img, ax, smoke_polygons)
 
-        # first set up the annotator and show the image
-        annotator = run_annotator(img, smoke_polygons)
+        # then show the image
+        plt.show()
 
-        # show them what they have digitised, and check if they are OK with that
-        # if they are append the polygon, and modify the RGB to reflect the digitised region
+        # get the polygon points from the closed image
         pts = zip(annotator.x, annotator.y)
 
+        # if there are no points then assume no more digitisation to be done
         if not pts:
-            print "you must select define a polygon containing smoke pixels"
-            continue
+            return smoke_polygons, plume_ids
 
-        show_image(img, pts)
-
-        arg = raw_input("Are you happy with this plume digitisation? [Y,n]")
+        # if there are points ask if digitisation is suitable and store outcomes if so
+        arg = raw_input("Is the digitisation suitable? [Y,n]")
         if arg.lower() in ["", "y", "yes", 'ye']:
             smoke_polygons.append(zip(annotator.x, annotator.y))
-
-            # store the plume id
-            plume_id = uuid.uuid4()
-            plume_ids.append(plume_id)
+            plume_ids.append(uuid.uuid4())
 
         # ask if they want to digitise some more?
         arg = raw_input("Do you want to digitise more plumes? [Y,n]")
         if arg.lower() not in ["", "y", "yes", 'ye']:
-            annotate = False
-
-        plt.close()
-
-    return smoke_polygons, plume_ids
+            return smoke_polygons, plume_ids
 
 
 def extract_plume_bounds(plume, fname, plume_id, plumes_list):
