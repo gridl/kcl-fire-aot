@@ -10,16 +10,15 @@ import numpy as np
 import pandas as pd
 
 import matplotlib
-matplotlib.use('TKAgg')
+matplotlib.use('Qt5Agg')
 
 import scipy.ndimage as ndimage
 from datetime import datetime
 from pyhdf.SD import SD, SDC
 from skimage import exposure
 import matplotlib.pyplot as plt
-from matplotlib.patches import Circle, Rectangle
-import cv2
-import time
+from matplotlib.patches import Circle, Rectangle, Polygon
+from matplotlib.collections import PatchCollection
 
 
 import src.config.filepaths as filepaths
@@ -77,10 +76,13 @@ def fcc_myd021km(mod_data, fire_mask):
 
 
 class Annotate(object):
-    def __init__(self, im):
+    def __init__(self, im, polygons):
         self.f = plt.figure(figsize=(30, 15))
         self.ax = plt.gca()
-        self.im = self.ax.imshow(im, interpolation='nearest')
+        self.im = self.ax.imshow(im, interpolation='none')
+        patches = [Polygon(verts, True) for verts in polygons]
+        p = PatchCollection(patches, cmap='Reds', alpha=0.4)
+        self.polygons = self.ax.add_collection(p)
 
         # set up the point holders for the polygon
         self.x = []
@@ -96,7 +98,7 @@ class Annotate(object):
 
         # set up the events
         self.ax.figure.canvas.mpl_connect('button_press_event', self.click)
-        self.ax.figure.canvas.mpl_connect('button_release_event', self.release)
+#        self.ax.figure.canvas.mpl_connect('button_release_event', self.release)
 
     def click(self, event):
         if event.button == 3:
@@ -104,29 +106,38 @@ class Annotate(object):
             self.y.append(int(event.ydata))
             self.ax.add_patch(Circle((event.xdata, event.ydata), radius=0.25, facecolor='red', edgecolor='black'))
             self.ax.figure.canvas.draw()
-        elif event.button == 2:
-            self.x0_rect = int(event.xdata)
-            self.y0_rect = int(event.ydata)
+    #     elif event.button == 2:
+    #         self.x0_rect = int(event.xdata)
+    #         self.y0_rect = int(event.ydata)
+    #
+    # def release(self, event):
+    #     if event.button == 2:
+    #         self.x1_rect = int(event.xdata)
+    #         self.y1_rect = int(event.ydata)
+    #         self.rect.set_width(self.x1_rect - self.x0_rect)
+    #         self.rect.set_height(self.y1_rect - self.y0_rect)
+    #         self.rect.set_xy((self.x0_rect, self.y0_rect))
+    #         self.ax.figure.canvas.draw()
 
-    def release(self, event):
-        if event.button == 2:
-            self.x1_rect = int(event.xdata)
-            self.y1_rect = int(event.ydata)
-            self.rect.set_width(self.x1_rect - self.x0_rect)
-            self.rect.set_height(self.y1_rect - self.y0_rect)
-            self.rect.set_xy((self.x0_rect, self.y0_rect))
-            self.ax.figure.canvas.draw()
+
+def show_image(img, pts=None):
+
+    fig = plt.figure(figsize=(30, 15))
+    ax = fig.add_subplot(111)
+    ax.imshow(img, interpolation="nearest")
+    if pts is not None:
+        p = plt.Polygon(pts, color='Red', alpha=0.6)
+        ax.add_patch(p)
+    plt.show()
 
 
 def digitise(img):
-    img_copy = img.copy()
+
     smoke_polygons = []
-    background_rectangles = []
     plume_ids = []
 
-    plt.figure(figsize=(30, 15))
-    plt.imshow(img, interpolation="nearest")
-    plt.show()
+    show_image(img)
+
     arg = raw_input("Do you want to digitise this plume?: [y, N]")
     if arg.lower() in ['', 'no', 'n']:
         return None, None, None
@@ -134,7 +145,7 @@ def digitise(img):
     while True:
 
         # first set up the annotator and show the image
-        annotator = Annotate(img_copy)
+        annotator = Annotate(img, smoke_polygons)
         plt.show()
 
         # show them what they have digitised, and check if they are OK with that
@@ -144,29 +155,13 @@ def digitise(img):
         if not pts:
             print "you must select define a polygon containing smoke pixels"
             continue
-        if annotator.x0_rect is None:
-            print "you must define a background rectangle"
-            continue
-        pts = np.array(pts).reshape(-1, 1, 2)
 
-        digitised_copy = img_copy.copy()
 
-        cv2.polylines(digitised_copy, [pts], True, (255, 0, 0, 255), thickness=2)
-        cv2.rectangle(digitised_copy,
-                      (annotator.x0_rect,
-                       annotator.y0_rect),
-                      (annotator.x1_rect,
-                       annotator.y1_rect),
-                      (0, 0, 0, 255))
-        plt.figure(figsize=(30, 15))
-        plt.imshow(digitised_copy)
-        plt.show()
+        show_image(img, pts)
 
         arg = raw_input("Are you happy with this plume digitisation? [Y,n]")
         if arg.lower() in ["", "y", "yes", 'ye']:
             smoke_polygons.append(zip(annotator.x, annotator.y))
-            background_rectangles.append((annotator.x0_rect, annotator.x1_rect, annotator.y0_rect, annotator.y1_rect))
-            img_copy = digitised_copy
 
             # store the plume id
             plume_id = uuid.uuid4()
@@ -179,15 +174,7 @@ def digitise(img):
 
     plt.close()
 
-    return smoke_polygons, background_rectangles, plume_ids
-
-
-def extract_background_bounds(background, plume_id, background_list):
-    row_dict = {}
-    row_dict['plume_id'] = plume_id
-    row_dict['bg_extent'] = background
-
-    background_list.append(row_dict)
+    return smoke_polygons, plume_ids
 
 
 def extract_plume_bounds(plume, fname, plume_id, plumes_list):
@@ -210,11 +197,9 @@ def main():
 
     try:
         myd021km_plume_df = pd.read_pickle(filepaths.path_to_smoke_plume_masks)
-        myd021km_bg_df = pd.read_pickle(filepaths.path_to_background_masks)
     except:
         logger.info("myd021km dataframe does not exist, creating now")
         myd021km_plume_df = pd.DataFrame()
-        myd021km_bg_df = pd.DataFrame()
 
     for myd021km_fname in os.listdir(filepaths.path_to_modis_l1b):
 
@@ -256,19 +241,13 @@ def main():
 
         # process plumes and backgrounds
         plumes_list = []
-        background_list = []
         for plume, background, plume_id in zip(smoke_polygons, background_rectangles, plume_ids):
-            extract_background_bounds(background, plume_id, background_list)
             extract_plume_bounds(plume, myd021km_fname, plume_id, plumes_list)
 
         # covert pixel/background lists to dataframes and concatenate to main dataframes
         temp_plume_df = pd.DataFrame(plumes_list)
-        temp_bg_df = pd.DataFrame(background_list)
         myd021km_plume_df = pd.concat([myd021km_plume_df, temp_plume_df])
-        myd021km_bg_df = pd.concat([myd021km_bg_df, temp_bg_df])
-
         myd021km_plume_df.to_pickle(filepaths.path_to_smoke_plume_masks)
-        myd021km_bg_df.to_pickle(filepaths.path_to_background_masks)
 
 
 if __name__ == '__main__':
