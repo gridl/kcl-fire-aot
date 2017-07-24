@@ -19,6 +19,7 @@ from skimage import exposure
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Rectangle
 import cv2
+import time
 
 
 import src.config.filepaths as filepaths
@@ -119,7 +120,6 @@ class Annotate(object):
 
 def digitise(img):
     img_copy = img.copy()
-    plume_img = img.copy()
     smoke_polygons = []
     background_rectangles = []
     plume_ids = []
@@ -172,70 +172,14 @@ def digitise(img):
             plume_id = uuid.uuid4()
             plume_ids.append(plume_id)
 
-            # plot the plume
-            plume_img_copy = plume_img.copy()
-            cv2.polylines(plume_img_copy, [pts], True, (255, 0, 0, 255), thickness=2, lineType=2)
-            sub_plume_img = plume_img_copy[np.min(annotator.y) - 20:np.max(annotator.y) + 20,
-                                           np.min(annotator.x) - 20:np.max(annotator.x) + 20]
-            plt.figure(figsize=(10, 5))
-            plt.imshow(sub_plume_img)
-            plt.savefig(r"../../data/processed/plume_imgs/" + str(plume_id) + '.png', bbox_inches='tight')
-            plt.close()
-
         # ask if they want to digitise some more?
         arg = raw_input("Do you want to digitise more plumes? [Y,n]")
         if arg.lower() not in ["", "y", "yes", 'ye']:
             break
 
+    plt.close()
+
     return smoke_polygons, background_rectangles, plume_ids
-
-
-def get_plume_pixels(img, image_pt):
-    matrix = np.zeros((img.shape[0], img.shape[1]))
-    image_pt_reshape = np.array(image_pt).reshape(-1, 1, 2).squeeze()
-    cv2.drawContours(matrix, [image_pt_reshape], -1, (1), thickness=-1)
-    return np.nonzero(matrix)
-
-
-# def load_myd021km(myd021km):
-#
-#     myd021km_data = {}
-#
-#     # extract the radiances
-#     for group in ['EV_250_Aggr1km_RefSB', 'EV_500_Aggr1km_RefSB', 'EV_1KM_RefSB', 'EV_1KM_Emissive']:
-#         group_attributes = myd021km.select(group).attributes()
-#         for b, band in enumerate(group_attributes['band_names'].split(',')):
-#             # TODO check that the pixels being extracted are in the correct location
-#             myd021km_data['band_' + band] = (myd021km.select(group)[b, :, :] -
-#                                         group_attributes['radiance_offsets'][b]) * \
-#                                         group_attributes['radiance_scales'][b]
-#
-#     for group in ["SensorZenith", "SensorAzimuth", "SolarZenith", "SolarAzimuth", "Latitude", "Longitude"]:
-#         # we drop the last pixel due to the fact that the modis x axis is not a whole number
-#         # when divided into five.  So we end up with one pixel too many, this has very limited impact
-#         # impact onthe accuracy as it shifts each pixel by 1/1354 - very small.
-#         myd021km_data[group] = ndimage.zoom(myd021km.select(group).get(), 5, order=1)[:, :-1]
-#
-#     return myd021km_data
-#
-#
-# def extract_pixel_info(y, x, myd021km_data, fname, plume_id,  plumes_list):
-#
-#     row_dict = {}
-#
-#     row_dict['pixel_id'] = uuid.uuid4()
-#     row_dict['plume_id'] = plume_id
-#     row_dict['line'] = y
-#     row_dict['sample'] = x
-#     row_dict['sensor'] = "MYD"
-#     row_dict['filename'] = fname
-#
-#     # extract the data
-#     for k in myd021km_data:
-#         row_dict[k] = myd021km_data[k][y, x]
-#
-#     # lastly append to the data dictionary
-#     plumes_list.append(row_dict)
 
 
 def extract_background_bounds(background, plume_id, background_list):
@@ -279,7 +223,7 @@ def main():
         try:
             timestamp_myd = re.search("[0-9]{7}[.][0-9]{4}[.]", myd021km_fname).group()
         except Exception, e:
-            logger.warning("Could not extract time stamp from: ", myd021km_fname, "moving on to next file")
+            logger.warning("Could not extract time stamp from: " + myd021km_fname + " moving on to next file")
             continue
 
         try:
@@ -310,21 +254,12 @@ def main():
         if (smoke_polygons is None) | (background_rectangles is None):
             continue
 
-        # if we have a digitisation load in the myd021km data
-        # myd021km_data = load_myd021km(myd021km)
-
         # process plumes and backgrounds
         plumes_list = []
         background_list = []
         for plume, background, plume_id in zip(smoke_polygons, background_rectangles, plume_ids):
             extract_background_bounds(background, plume_id, background_list)
             extract_plume_bounds(plume, myd021km_fname, plume_id, plumes_list)
-
-            # save the plot with the plume_id
-
-            # plume_pixels = get_plume_pixels(img, plume)
-            # for y, x in zip(plume_pixels[0], plume_pixels[1]):
-            #     extract_pixel_info(int(y), int(x), myd021km_data, myd021km_fname, plume_id, plumes_list)
 
         # covert pixel/background lists to dataframes and concatenate to main dataframes
         temp_plume_df = pd.DataFrame(plumes_list)
