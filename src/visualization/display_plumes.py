@@ -140,6 +140,7 @@ def main():
     mask_path = '/home/users/dnfisher/nceo_aerosolfire/data/plume_masks/myd021km_plumes_df.pickle'
     output = '/home/users/dnfisher/nceo_aerosolfire/data/quicklooks/plume_retrievals/'
     output_txt = '/home/users/dnfisher/nceo_aerosolfire/data/plume_masks/'
+    lut_class = 'CEW'
 
     # read in the masks
     mask_df = pd.read_pickle(mask_path)
@@ -152,7 +153,7 @@ def main():
     with open(output_txt + "plume_extents.txt", "w") as text_file:
 
         # iterate over modis files
-        for primary_file in glob.glob(orac_data_path + '*/*/*primary*'):
+        for primary_file in glob.glob(orac_data_path + '*/*/*' + lut_class + '.primary*'):
 
             # first get the primary file time
             primary_time = get_primary_time(primary_file)

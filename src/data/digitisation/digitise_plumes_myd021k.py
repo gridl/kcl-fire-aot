@@ -289,6 +289,7 @@ def main():
                 continue
 
             elif myd021km_plume_df['filename'].str.contains(myd021km_fname).any():
+                logger.info(myd021km_fname + ' already processed (contained in DF) moving on')
                 continue
         except:
             logger.info("filename column not in dataframe - if the dataframe has just been created no problem!")
