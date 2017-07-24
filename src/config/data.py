@@ -10,8 +10,8 @@ import sensor
 # ----------------------------------------------------------------------------------
 
 # MYD data download settings
-myd_year = '2014'  # needs to be a string as used to acces the FTP server
-myd_doy_range = np.arange(91, 151, 1)  # Americas: 91-151 & 182-304; Asia: 1-365
+myd_year = '2016'  # needs to be a string as used to acces the FTP server
+myd_doy_range = np.arange(1, 152, 1)  # Americas: 91-151 & 182-304; Asia: 1-365
 myd_min_fires = 10  # minimum number of fires in the scene
 myd_min_power = 1000 # minimum power of the fires in the scene
 myd_min_szn = 85  # minimum solar zenith angle to ensure daylight obs
