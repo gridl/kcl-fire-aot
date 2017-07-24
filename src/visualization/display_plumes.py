@@ -19,6 +19,8 @@ from netCDF4 import Dataset
 from pyhdf.SD import SD, SDC
 from datetime import datetime
 
+from mpl_toolkits.basemap import Basemap
+
 
 def get_primary_time(primary_file):
     tt = datetime.strptime(primary_file.split('_')[-2], '%Y%m%d%H%M').timetuple()
@@ -87,7 +89,7 @@ def label_plumes(mask):
     return plume_positions
 
 
-def make_plot(fname, visrad, primary_data, plume_positions):
+def make_plume_plot(fname, visrad, primary_data, plume_positions):
 
     # iterate over the plumes
     for i, pp in enumerate(plume_positions):
@@ -116,6 +118,20 @@ def make_plot(fname, visrad, primary_data, plume_positions):
 	plt.close()
 
 
+def make_plume_location_plot(plume_positions, primary_data, m):
+
+    for i, pp in enumerate(plume_positions):
+
+        mean_lat = np.mean(primary_data.variables['lon'][pp[0]:pp[1], pp[2]:pp[3]])
+        mean_lon = np.mean(primary_data.variables['lat'][pp[0]:pp[1], pp[2]:pp[3]])
+
+        m.plot('o', mean_lon, mean_lat, latlon=True)
+
+    plt.show()
+
+
+
+
 def main():
 
     # set up paths
@@ -128,6 +144,11 @@ def main():
 
     # read in the masks
     mask_df = pd.read_pickle(mask_path)
+
+    # set up geostationary projection to hold all the plumes
+    m = Basemap(projection='geos', lon_0=-75, resolution='l')
+
+
 
     with open(output_txt + "plume_extents.txt", "w") as text_file:
 
@@ -152,14 +173,15 @@ def main():
             plume_positions = label_plumes(plume_mask)
 
             # visualise
-            make_plot(fname, visrad, primary_data, plume_positions)
+            #make_plume_plot(fname, visrad, primary_data, plume_positions)
+            make_plume_location_plot(plume_positions, primary_data, m)
 
             # let dump coords of plume to text file for Caroline
             for pp in plume_positions:
-                text_file.write(primary_file.split('/')[-1] + " " + 
+                text_file.write(primary_file.split('/')[-1] + " " +
                                 str(pp[0]) + " " +
                                 str(pp[1]) + " " +
-                                str(pp[2]) + " " + 
+                                str(pp[2]) + " " +
                                 str(pp[3]) + "\n")
 
 if __name__ == '__main__':

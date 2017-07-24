@@ -4,19 +4,16 @@
 
 import pandas as pd
 import datetime
+import src.config.filepaths as filepaths
 
-myd021km_plume_df = pd.read_pickle(r"../../data/interim/myd021km_plumes_df.pickle")
-
-files_to_transfer = '/Users/dnf/git/kcl-fire-aot/data/raw/rsync_file_list/files_to_transfer.txt'
-path_to_files = '/Users/dnf/git/kcl-fire-aot/data/raw/l1b/'
+myd021km_plume_df = pd.read_pickle(filepaths.path_to_smoke_plume_masks)
 
 dates = []
 files = []
-
 for index, row in myd021km_plume_df.iterrows():
 
-    with open(files_to_transfer, 'a') as the_file:
-        the_file.write(path_to_files + row[0] + '\n')
+    with open(filepaths.path_to_transfer_file, 'a') as the_file:
+        the_file.write(filepaths.path_to_modis_l1b + row[0] + '\n')
 
     doy = row['filename'][14:17]
     dates.append(datetime.datetime.strptime('2014'+doy, '%Y%j').strftime('%d/%m/%Y'))

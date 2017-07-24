@@ -13,8 +13,16 @@ import logging
 
 import urllib
 import urllib2
-from BeautifulSoup import BeautifulSoup
+from bs4 import BeautifulSoup
 import re
+
+import src.config.filepaths as filepaths
+import src.config.data as data_settings
+
+
+def open_webpage(source, order):
+    html_page = urllib2.urlopen(source+order)
+    return BeautifulSoup(html_page, "lxml")
 
 
 def get_file_list(order_id):
@@ -25,12 +33,14 @@ def get_file_list(order_id):
     :return: list of goes files on the https site
     '''
     file_list = []
-    source = 'https://download.class.ncdc.noaa.gov/download/'
+
+    sources = [filepaths.path_to_class_https_a, filepaths.path_to_class_https_b]
     order = order_id + '/001/'
-    html_page = urllib2.urlopen(source+order)
-    soup = BeautifulSoup(html_page)
-    for link in soup.findAll('a', attrs={'href': re.compile("^001/goes13")}):
-        file_list.append(link.get('href')[4:])  # 4: to get rid of the 001/ at the start
+    for source in sources:
+        soup = open_webpage(source, order)
+        for link in soup.findAll('a', attrs={'href': re.compile("^001/goes13")}):
+            file_list.append(link.get('href')[4:])  # 4: to get rid of the 001/ at the start
+
     return file_list
 
 
@@ -43,10 +53,13 @@ def retrieve_l1(order_id, local_filename, filename):
     :param filename: the name of the file to be downloaded
     :return: nothing
     '''
-    source = 'https://download.class.ncdc.noaa.gov/download/'
+    sources = [filepaths.path_to_class_https_a, filepaths.path_to_class_https_b]
     order = order_id + '/001/'
-    urllib.urlretrieve(source + order + filename, local_filename)
-
+    for source in sources:
+        try:
+            urllib.urlretrieve(source + order + filename, local_filename)
+        except:
+            continue
 
 def check_downloading_status(temp_path, goes_file):
     # a small function to check if a goes file is being downloaded
@@ -84,19 +97,11 @@ def remove_from_download_list(temp_path, goes_file):
 
 def main():
 
-    # order id's
-    order_ids = ['2720282193', '2720283243', '2720283253', '2720285893',
-                 '2720285903', '2720285923', '2720285913', '2720285973',
-                 '2720285983', '2720286013', '2720283233', '2720283263',
-                 '2720283273', '2720284513', '2720285883', '2720285933',
-                 '2720285943', '2720285953', '2720285963', '2720285993',
-                 '2720286003', '2720284213', '2720286023']
-
     # path to write to
-    data_store_path = r"../../data/raw/goes"  # data gets stored in here
-    temp_path = r"../../data/tmp/goes/"  # nothings gets stored here, just keeps track of what file is being dwnldrd
+    data_store_path = filepaths.path_to_goes_l1b
+    temp_path = filepaths.path_to_goes_tmp  # nothings gets stored here, just keeps track of what file is being dwnldd
 
-    for order_id in order_ids:
+    for order_id in data_settings.class_order_ids:
 
         logger.info("Downloading GOES files for order: " + order_id)
 
@@ -117,10 +122,20 @@ def main():
 
                 # do the download
                 logger.info("Downloading: " + goes_file)
-                retrieve_l1(order_id, local_filename, goes_file)
+                try:
+                    retrieve_l1(order_id, local_filename, goes_file)
+                except Exception, e:
+                    logger.warning("Failed to download file: " + goes_file +' with error: ' + str(e))
+                    logger.info("Second download attempt: " + goes_file)
 
-                # remote temp empty file from currently downloading list
-                remove_from_download_list(temp_path, goes_file)
+                # remove temp empty file from currently downloading list
+                try:
+                    remove_from_download_list(temp_path, goes_file)
+                except:
+                    continue
+
+            else:
+                logger.info("The following GOES file already on system: " + goes_file)
 
 
 if __name__ == "__main__":

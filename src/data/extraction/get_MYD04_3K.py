@@ -31,13 +31,13 @@ def ftp_connect_laads():
 
 def get_file(ftp_laads, doy, myd021km_file):
     try:
-        ftp_cd(ftp_laads, doy, filepaths.path_to_myd03)
+        ftp_cd(ftp_laads, doy, filepaths.path_to_myd04_3K)
         file_list = get_files(ftp_laads)
 
         # find the right file
         file_list = [f.split(None, 8)[-1].lstrip() for f in file_list]
-        myd03_file = [f for f in file_list if myd021km_file[10:23] in f][0]
-        return myd03_file
+        myd04_3K_file = [f for f in file_list if myd021km_file[10:23] in f][0]
+        return myd04_3K_file
 
     except:
         logger.info('Could not access file list for DOY: ' + doy + " on attempt 1. Reattempting...")
@@ -45,13 +45,13 @@ def get_file(ftp_laads, doy, myd021km_file):
         while True:
             try:
                 ftp_laads = ftp_connect_laads()
-                ftp_cd(ftp_laads, doy, filepaths.path_to_myd03)
+                ftp_cd(ftp_laads, doy, filepaths.path_to_myd04_3K)
                 file_list = get_files(ftp_laads)
 
                 # find the right file
                 file_list = [f.split(None, 8)[-1].lstrip() for f in file_list]
-                myd03_file = [f for f in file_list if myd021km_file[10:23] in f][0]
-                return myd03_file
+                myd04_3K_file = [f for f in file_list if myd021km_file[10:23] in f][0]
+                return myd04_3K_file
             except:
                 attempt += 1
                 logger.info('Could not access file list for DOY: ' + doy + " on attempt " + str(attempt) +
@@ -67,17 +67,17 @@ def get_files(ftp_laads):
     return file_list
 
 
-def retrieve_l1(ftp_laads, doy, local_filename, filename_l1):
+def retrieve(ftp_laads, doy, local_filename, filename):
     # try accessing ftp, if fail then reconnect
     try:
-        ftp_cd(ftp_laads, doy, filepaths.path_to_myd03)
+        ftp_cd(ftp_laads, doy, filepaths.path_to_myd04_3K)
     except:
         ftp_laads = ftp_connect_laads()
-        ftp_cd(ftp_laads, doy, filepaths.path_to_myd03)
+        ftp_cd(ftp_laads, doy, filepaths.path_to_myd04_3K)
 
 
     lf = open(local_filename, "wb")
-    ftp_laads.retrbinary("RETR " + filename_l1, lf.write, 8 * 1024)
+    ftp_laads.retrbinary("RETR " + filename, lf.write, 8 * 1024)
     lf.close()
     ftp_laads.close()
 
@@ -118,7 +118,7 @@ def main():
         if not f:
             continue
 
-        # check if the file is being downloaded by another script already
+        # check if the file for the MYD04_3K data  is being downloaded by another script already
         downloading = check_downloading_status(temp_path, f)
         if downloading:
             continue
@@ -126,24 +126,24 @@ def main():
             append_to_download_list(temp_path, f)
 
 
-        # find the correct myd03 file
+        # find the correct myd04_3K file
         doy = f[14:17]
         if not doy:
             continue
-        myd03_filename = get_file(ftp_laads, doy, f)
+        myd04_3K_filename = get_file(ftp_laads, doy, f)
 
-        if not myd03_filename:
-            logger.warning('Could not download geo file for file: ' + f)
+        if not myd04_3K_filename:
+            logger.warning('Could not download myd04_3K file for file: ' + f)
             continue
 
         # download the file
-        local_filename = os.path.join(filepaths.path_to_modis_geo, myd03_filename)
+        local_filename = os.path.join(filepaths.path_to_modis_myd04_3k, myd04_3K_filename)
 
         if not os.path.isfile(local_filename):  # if we dont have the file, then dl it
-            logger.info("Downloading: " + myd03_filename)
-            retrieve_l1(ftp_laads, doy, local_filename, myd03_filename)
+            logger.info("Downloading: " + myd04_3K_filename)
+            retrieve(ftp_laads, doy, local_filename, myd04_3K_filename)
         else:
-            logger.info(myd03_filename + ' already exists on the system')
+            logger.info(myd04_3K_filename + ' already exists on the system')
 
         # remote temp empty file from currently downloading list
         remove_from_download_list(temp_path, f)

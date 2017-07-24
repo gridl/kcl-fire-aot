@@ -124,7 +124,7 @@ def digitise(img):
     plt.imshow(img, interpolation='nearest')
     plt.show()
 
-    arg = raw_input("Do you want to digitise this plume?: [y, N]")
+    arg = raw_input("Do you want to digitise this sample?: [y, N]")
     if arg.lower() in ['', 'no', 'n']:
         return None
 
@@ -137,7 +137,7 @@ def digitise(img):
         # show them what they have digitised, and check if they are OK with that
         # if they are append the polygon, and modify the RGB to reflect the digitised region
         if annotator.x0_rect is None:
-            print "you must define a plume rectangle"
+            print "you must define a sample rectangle"
             continue
 
         digitised_copy = img_copy.copy()
@@ -149,13 +149,13 @@ def digitise(img):
                       (0, 0, 0, 255))
 
 
-        arg = raw_input("Are you happy with this plume sample? [Y,n]")
+        arg = raw_input("Are you happy with this sample? [Y,n]")
         if arg.lower() in ["", "y", "yes", 'ye']:
             smoke_samples.append((annotator.x0_rect, annotator.x1_rect, annotator.y0_rect, annotator.y1_rect))
             img_copy = digitised_copy
 
         # ask if they want to digitise some more?
-        arg = raw_input("Do you want to digitise more plumes? [Y,n]")
+        arg = raw_input("Do you want to digitise more samples? [Y,n]")
         if arg.lower() not in ["", "y", "yes", 'ye']:
             break
     return smoke_samples
@@ -180,7 +180,7 @@ def main():
     """
 
     try:
-        ml_df = pd.read_pickle(filepaths.path_to_ml_smoke_plume_masks)
+        ml_df = pd.read_pickle(filepaths.path_to_ml_smoke_free_masks)
     except:
         logger.info("myd021km dataframe does not exist, creating now")
         ml_df = pd.DataFrame()
@@ -233,7 +233,7 @@ def main():
         temporary_sample_df = pd.DataFrame(sample_list)
         ml_df = pd.concat([ml_df, temporary_sample_df])
 
-        ml_df.to_pickle(filepaths.path_to_ml_smoke_plume_masks)
+        ml_df.to_pickle(filepaths.path_to_ml_smoke_free_masks)
 
 
 if __name__ == '__main__':
