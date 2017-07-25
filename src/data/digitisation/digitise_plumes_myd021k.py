@@ -53,12 +53,12 @@ def image_seen(myd021km_fname, myd021km_plume_df):
 def image_not_proccesed_but_seen(timestamp_myd, myd021km_plume_df):
     try:
         image_time = datetime.strptime(timestamp_myd, '%Y%j.%H%M.')
-        df_firsttime = datetime.strptime(re.search("[0-9]{7}[.][0-9]{4}[.]",
-                                    myd021km_plume_df['filename'].iloc[0]).group(), '%Y%j.%H%M.')
+        # df_firsttime = datetime.strptime(re.search("[0-9]{7}[.][0-9]{4}[.]",
+        #                             myd021km_plume_df['filename'].iloc[0]).group(), '%Y%j.%H%M.')
         df_lasttime = datetime.strptime(re.search("[0-9]{7}[.][0-9]{4}[.]",
                                     myd021km_plume_df['filename'].iloc[-1]).group(), '%Y%j.%H%M.')
         # here we check if we have seen this image before
-        return (image_time > df_firsttime) & (image_time < df_lasttime)
+        return  image_time < df_lasttime
     except Exception, e:
         logger.warning("Could not check time stamp for : " + timestamp_myd + ". With error: " + str(e))
         return False  # if we cannot do it, lets just assume we haven't seen the image before
