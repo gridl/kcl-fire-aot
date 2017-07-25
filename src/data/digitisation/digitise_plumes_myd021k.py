@@ -76,8 +76,8 @@ def read_myd(f):
     return SD(f, SDC.READ)
 
 
-def firemask_myd14(myd14_data):
-    return myd14_data.select('fire mask').get() >= 7
+def fires_myd14(myd14_data):
+    return np.where(myd14_data.select('fire mask').get() >= 7)
 
 
 def aod_myd04_3K(myd04_3K):
@@ -104,7 +104,7 @@ def image_histogram_equalization(image, number_bins=256):
     return image_equalized.reshape(image.shape)
 
 
-def tcc_myd021km(mod_data, fire_mask):
+def tcc_myd021km(mod_data):
     mod_params_500 = mod_data.select("EV_500_Aggr1km_RefSB").attributes()
     ref_500 = mod_data.select("EV_500_Aggr1km_RefSB").get()
 
@@ -126,15 +126,11 @@ def tcc_myd021km(mod_data, fire_mask):
     g = np.round((g * (255 / np.max(g))) * 1).astype('uint8')
     b = np.round((b * (255 / np.max(b))) * 1).astype('uint8')
 
-    r[fire_mask] = 255
-    g[fire_mask] = 0
-    b[fire_mask] = 0
-
     rgb = np.dstack((r, g, b))
     return rgb
 
 
-def fcc_myd021km(mod_data, fire_mask):
+def fcc_myd021km(mod_data):
     mod_params_ref = mod_data.select("EV_1KM_RefSB").attributes()
     mod_params_emm = mod_data.select("EV_1KM_Emissive").attributes()
     ref = mod_data.select("EV_1KM_RefSB").get()
@@ -158,27 +154,25 @@ def fcc_myd021km(mod_data, fire_mask):
 
     r_min, r_max = np.percentile(r, (mini, maxi))
     r = exposure.rescale_intensity(r, in_range=(r_min, r_max))
-    r[fire_mask] = 255
 
     g_min, g_max = np.percentile(g, (mini, maxi))
     g = exposure.rescale_intensity(g, in_range=(g_min, g_max))
-    g[fire_mask] = 0
 
     b_min, b_max = np.percentile(b, (mini, maxi))
     b = exposure.rescale_intensity(b, in_range=(b_min, b_max))
-    b[fire_mask] = 0
 
     rgb = np.dstack((r, g, b))
     return rgb
 
 
 class Annotate(object):
-    def __init__(self, fcc, tcc, aod, ax, polygons):
+    def __init__(self, fcc, tcc, aod, fires, ax, polygons):
         self.ax = ax
         self.fcc = fcc
         self.tcc = tcc
         self.aod = aod
         self.im = self.ax.imshow(self.aod, interpolation='none')
+        self.plot = self.ax.plot(fires[1], fires[0], 'r.')
         patches = [Polygon(verts, True) for verts in polygons]
         p = PatchCollection(patches, cmap='Oranges', alpha=0.8)
         self.polygons = self.ax.add_collection(p)
@@ -250,7 +244,7 @@ class Annotate(object):
             self.ax.figure.canvas.draw()
 
 
-def digitise(fcc, tcc, aod):
+def digitise(fcc, tcc, aod, fires):
 
     smoke_polygons = []
     plume_ids = []
@@ -263,7 +257,7 @@ def digitise(fcc, tcc, aod):
         ax.yaxis.set_visible(False)
 
         # first set up the annotator
-        annotator = Annotate(fcc, tcc, aod, ax, smoke_polygons)
+        annotator = Annotate(fcc, tcc, aod, fires, ax, smoke_polygons)
 
         # then show the image
         plt.show()
@@ -320,11 +314,11 @@ def main():
         myd021km = read_myd(os.path.join(filepaths.path_to_modis_l1b, myd021km_fname))
 
         # do the digitising
-        myd14_fire_mask = firemask_myd14(myd14)
+        fires = fires_myd14(myd14)
         aod = aod_myd04_3K(myd04_3K)
-        fcc = fcc_myd021km(myd021km, myd14_fire_mask)
-        tcc = tcc_myd021km(myd021km, myd14_fire_mask)
-        smoke_polygons, plume_ids = digitise(fcc, tcc, aod)
+        fcc = fcc_myd021km(myd021km)
+        tcc = tcc_myd021km(myd021km)
+        smoke_polygons, plume_ids = digitise(fcc, tcc, aod, fires)
         if smoke_polygons is None:
             continue
 
