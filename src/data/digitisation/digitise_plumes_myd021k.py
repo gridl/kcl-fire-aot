@@ -63,23 +63,24 @@ def image_not_proccesed_but_seen(timestamp_myd, myd021km_plume_df):
         return False  # if we cannot do it, lets just assume we haven't seen the image before
 
 
-def get_myd14_fname(timestamp_myd, myd021km_fname):
-    myd14_fname = [f for f in os.listdir(filepaths.path_to_modis_frp) if timestamp_myd in f]
-    if len(myd14_fname) > 1:
+def get_fname(path, timestamp_myd, myd021km_fname):
+    fname = [f for f in os.listdir(path) if timestamp_myd in f]
+    if len(fname) > 1:
         logger.warning("More that one frp granule matched " + myd021km_fname + "selecting 0th option")
-    return myd14_fname[0]
+    return fname[0]
 
 
-def read_myd14(myd14_file):
-    return SD(myd14_file, SDC.READ)
+def read_myd(f):
+    return SD(f, SDC.READ)
 
 
 def firemask_myd14(myd14_data):
     return myd14_data.select('fire mask').get() >= 7
 
 
-def read_myd021km(local_filename):
-    return SD(local_filename, SDC.READ)
+def aod_myd04_3k(myd04_3k):
+    pass
+
 
 
 def image_histogram_equalization(image, number_bins=256):
@@ -318,11 +319,12 @@ def main():
         if image_not_proccesed_but_seen(timestamp_myd, myd021km_plume_df):
             continue
 
-        myd14_fname = get_myd14_fname(timestamp_myd, myd021km_fname)
-        mod04_3k_fname =
+        myd14_fname = get_fname(filepaths.path_to_modis_frp, timestamp_myd, myd021km_fname)
+        myd04_3K_fname = get_fname(filepaths.path_to_myd04_3K, timestamp_myd, myd021km_fname)
 
-        myd14 = read_myd14(os.path.join(filepaths.path_to_modis_frp, myd14_fname))
-        myd021km = read_myd021km(os.path.join(filepaths.path_to_modis_l1b, myd021km_fname))
+        myd14 = read_myd(os.path.join(filepaths.path_to_modis_frp, myd14_fname))
+        myd04_3K = read_myd(os.path.join(filepaths.path_to_myd04_3K, myd04_3K_fname))
+        myd021km = read_myd(os.path.join(filepaths.path_to_modis_l1b, myd021km_fname))
 
         # do the digitising
         myd14_fire_mask = firemask_myd14(myd14)
