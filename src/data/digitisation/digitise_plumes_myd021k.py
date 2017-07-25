@@ -4,7 +4,6 @@ import logging
 from dotenv import find_dotenv, load_dotenv
 
 import re
-import uuid
 
 import numpy as np
 import pandas as pd
@@ -61,7 +60,7 @@ def image_not_proccesed_but_seen(timestamp_myd, myd021km_plume_df):
         # here we check if we have seen this image before
         return (image_time > df_firsttime) & (image_time < df_lasttime)
     except Exception, e:
-        logger.warning("Could check time stamp for : " + timestamp_myd + ". With error: " + str(e))
+        logger.warning("Could not check time stamp for : " + timestamp_myd + ". With error: " + str(e))
         return False  # if we cannot do it, lets just assume we haven't seen the image before
 
 
@@ -247,7 +246,6 @@ class Annotate(object):
 def digitise(fcc, tcc, aod, fires):
 
     smoke_polygons = []
-    plume_ids = []
 
     do_annotation = True
     while do_annotation:
@@ -269,14 +267,15 @@ def digitise(fcc, tcc, aod, fires):
 
         do_annotation = annotator.do_annotation
 
-    return smoke_polygons, plume_ids
+    plt.close(fig)
+
+    return smoke_polygons
 
 
 
-def extract_plume_bounds(plume, fname, plume_id, plumes_list):
+def extract_plume_bounds(plume, fname, plumes_list):
     row_dict = {}
 
-    row_dict['plume_id'] = plume_id
     row_dict['sensor'] = "MYD"
     row_dict['filename'] = fname
     row_dict['plume_extent'] = plume
@@ -318,14 +317,14 @@ def main():
         aod = aod_myd04_3K(myd04_3K)
         fcc = fcc_myd021km(myd021km)
         tcc = tcc_myd021km(myd021km)
-        smoke_polygons, plume_ids = digitise(fcc, tcc, aod, fires)
+        smoke_polygons = digitise(fcc, tcc, aod, fires)
         if smoke_polygons is None:
             continue
 
         # process plumes and backgrounds
         plumes_list = []
-        for plume, plume_id in zip(smoke_polygons, plume_ids):
-            extract_plume_bounds(plume, myd021km_fname, plume_id, plumes_list)
+        for poly in smoke_polygons:
+            extract_plume_bounds(poly, myd021km_fname, plumes_list)
 
         # covert pixel/background lists to dataframes and concatenate to main dataframes
         temp_plume_df = pd.DataFrame(plumes_list)
@@ -336,6 +335,7 @@ def main():
 if __name__ == '__main__':
 
     #plt.ioff()
+    matplotlib.pyplot.close("all")
 
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     logging.basicConfig(level=logging.INFO, format=log_fmt)
