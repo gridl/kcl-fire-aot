@@ -19,7 +19,7 @@ from skimage import exposure
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Rectangle, Polygon
 from matplotlib.collections import PatchCollection
-
+from matplotlib.widgets import RadioButtons
 
 import src.config.filepaths as filepaths
 
@@ -147,8 +147,19 @@ class Annotate(object):
         # set up the events
         self.ax.figure.canvas.mpl_connect('button_press_event', self.click)
 
-    # TODO I think we can draw the polygon as we click round the plume.  Would look better than the circles
-    # TODO perhaps check if once we have three points start drawing the polygon
+        # set up check to see if we keep annotating
+        self.do_annotation = True
+
+        # set up radio buttons
+        self.axcolor = 'lightgoldenrodyellow'
+        self.rax = plt.axes([0.05, 0.7, 0.15, 0.15], facecolor=self.axcolor)
+        self.radio = RadioButtons(self.rax, ('Digitise', 'Stop'))
+        self.radio.on_clicked(self.do_annotation_func)
+
+    def do_annotation_func(self, label):
+        annodict = {'Digitise': True, 'Stop': False}
+        self.do_annotation = annodict[label]
+
     def click(self, event):
         if event.button == 3:
             self.x.append(int(event.xdata))
@@ -168,11 +179,12 @@ def digitise(img):
     smoke_polygons = []
     plume_ids = []
 
+    do_annotation = True
+    while do_annotation:
 
-    while True:
-
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
+        fig, ax = plt.subplots(1)
+        ax.xaxis.set_visible(False)
+        ax.yaxis.set_visible(False)
 
         # first set up the annotator
         annotator = Annotate(img, ax, smoke_polygons)
@@ -182,21 +194,26 @@ def digitise(img):
 
         # get the polygon points from the closed image
         pts = zip(annotator.x, annotator.y)
+        smoke_polygons.append(pts)
 
-        # if there are no points then assume no more digitisation to be done
-        if not pts:
-            return smoke_polygons, plume_ids
+        do_annotation = annotator.do_annotation
 
-        # if there are points ask if digitisation is suitable and store outcomes if so
-        arg = raw_input("Is the digitisation suitable? [Y,n]")
-        if arg.lower() in ["", "y", "yes", 'ye']:
-            smoke_polygons.append(zip(annotator.x, annotator.y))
-            plume_ids.append(uuid.uuid4())
+    return smoke_polygons, plume_ids
 
-        # ask if they want to digitise some more?
-        arg = raw_input("Do you want to digitise more plumes? [Y,n]")
-        if arg.lower() not in ["", "y", "yes", 'ye']:
-            return smoke_polygons, plume_ids
+        # # if there are no points then assume no more digitisation to be done
+        # if not pts:
+        #     return smoke_polygons, plume_ids
+        #
+        # # if there are points ask if digitisation is suitable and store outcomes if so
+        # arg = raw_input("Is the digitisation suitable? [Y,n]")
+        # if arg.lower() in ["", "y", "yes", 'ye']:
+        #     smoke_polygons.append(pts)
+        #     plume_ids.append(uuid.uuid4())
+        #
+        # # ask if they want to digitise some more?
+        # arg = raw_input("Do you want to digitise more plumes? [Y,n]")
+        # if arg.lower() not in ["", "y", "yes", 'ye']:
+        #     return smoke_polygons, plume_ids
 
 
 def extract_plume_bounds(plume, fname, plume_id, plumes_list):
