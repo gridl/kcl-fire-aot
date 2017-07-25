@@ -20,6 +20,8 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Rectangle, Polygon
 from matplotlib.collections import PatchCollection
 from matplotlib.widgets import RadioButtons
+from matplotlib.colors import LogNorm
+
 
 import src.config.filepaths as filepaths
 
@@ -78,9 +80,14 @@ def firemask_myd14(myd14_data):
     return myd14_data.select('fire mask').get() >= 7
 
 
-def aod_myd04_3k(myd04_3k):
-    pass
-
+def aod_myd04_3K(myd04_3K):
+    aod_params = myd04_3K.select("Optical_Depth_Land_And_Ocean").attributes()
+    aod = myd04_3K.select("Optical_Depth_Land_And_Ocean").get()
+    aod = (aod + aod_params['add_offset']) * aod_params['scale_factor']
+    aod[aod < 0] = 0
+    aod[aod > 0.5] = 0.5
+    aod = ndimage.zoom(aod, 3, order=1)
+    return aod
 
 
 def image_histogram_equalization(image, number_bins=256):
@@ -320,17 +327,18 @@ def main():
             continue
 
         myd14_fname = get_fname(filepaths.path_to_modis_frp, timestamp_myd, myd021km_fname)
-        myd04_3K_fname = get_fname(filepaths.path_to_myd04_3K, timestamp_myd, myd021km_fname)
+        myd04_3K_fname = get_fname(filepaths.path_to_modis_aod, timestamp_myd, myd021km_fname)
 
         myd14 = read_myd(os.path.join(filepaths.path_to_modis_frp, myd14_fname))
-        myd04_3K = read_myd(os.path.join(filepaths.path_to_myd04_3K, myd04_3K_fname))
+        myd04_3K = read_myd(os.path.join(filepaths.path_to_modis_aod, myd04_3K_fname))
         myd021km = read_myd(os.path.join(filepaths.path_to_modis_l1b, myd021km_fname))
 
         # do the digitising
         myd14_fire_mask = firemask_myd14(myd14)
+        aod = aod_myd04_3K(myd04_3K)
         fcc = fcc_myd021km(myd021km, myd14_fire_mask)
         tcc = tcc_myd021km(myd021km, myd14_fire_mask)
-        smoke_polygons, plume_ids = digitise(fcc, tcc, tcc)
+        smoke_polygons, plume_ids = digitise(fcc, tcc, aod)
         if smoke_polygons is None:
             continue
 
