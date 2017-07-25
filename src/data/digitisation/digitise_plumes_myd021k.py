@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 import matplotlib
-matplotlib.use('TKAgg')
+matplotlib.use('Qt5Agg')
 
 import scipy.ndimage as ndimage
 from datetime import datetime
@@ -47,7 +47,7 @@ def image_seen(myd021km_fname, myd021km_plume_df):
     try:
         return myd021km_plume_df['filename'].str.contains(myd021km_fname).any()
     except Exception, e:
-        logger.warning("Could check time filename for : " + myd021km_fname + ". With error: " + str(e))
+        logger.warning("Could not check time filename for : " + myd021km_fname + ". With error: " + str(e))
         return False  # if we cannot do it, lets just assume we haven't seen the image before
 
 
@@ -216,7 +216,7 @@ class Annotate(object):
         self.radio_discard.on_clicked(self.discard_func)
 
         self.rax_image = plt.axes([0.05, 0.1, 0.15, 0.15], facecolor=self.axcolor)
-        self.radio_image = RadioButtons(self.rax_image, ('FCC', 'TCC', 'AOD'))
+        self.radio_image = RadioButtons(self.rax_image, ('AOD', 'FCC', 'TCC'))
         self.radio_image.on_clicked(self.image_func)
 
     def annotation_func(self, label):
@@ -230,7 +230,7 @@ class Annotate(object):
             self.y = []
 
     def image_func(self, label):
-        image_dict = {'FCC': self.fcc, 'TCC': self.tcc, 'AOD': self.aod}
+        image_dict = {'AOD': self.aod, 'FCC': self.fcc, 'TCC': self.tcc, }
         im_data = image_dict[label]
         self.im.set_data(im_data)
         plt.draw()
