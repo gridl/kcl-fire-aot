@@ -9,8 +9,8 @@ import uuid
 import numpy as np
 import pandas as pd
 
-# import matplotlib
-# matplotlib.use('Qt5Agg')
+import matplotlib
+matplotlib.use('TKAgg')
 
 import scipy.ndimage as ndimage
 from datetime import datetime
@@ -123,7 +123,6 @@ def fcc_myd021km(mod_data, fire_mask):
 
 class Annotate(object):
     def __init__(self, im, ax, polygons):
-        self.f = plt.figure(figsize=(30, 15))
         self.ax = ax
         self.im = self.ax.imshow(im, interpolation='none')
         patches = [Polygon(verts, True) for verts in polygons]
@@ -142,6 +141,9 @@ class Annotate(object):
         self.x1_rect = None
         self.y1_rect = None
 
+        # set up the patch
+        self.p = Circle((1,1))
+
         # set up the events
         self.ax.figure.canvas.mpl_connect('button_press_event', self.click)
 
@@ -151,7 +153,13 @@ class Annotate(object):
         if event.button == 3:
             self.x.append(int(event.xdata))
             self.y.append(int(event.ydata))
-            self.ax.add_patch(Circle((event.xdata, event.ydata), radius=0.25, facecolor='red', edgecolor='black'))
+            if len(self.x) < 3:
+                self.p = Circle((event.xdata, event.ydata), radius=0.25, facecolor='red', edgecolor='black')
+                self.ax.add_patch(self.p)
+            else:
+                self.p.remove()
+                self.p = Polygon(zip(self.x, self.y), color='red', alpha=0.5)
+                p = self.ax.add_patch(self.p)
             self.ax.figure.canvas.draw()
 
 
@@ -159,6 +167,7 @@ def digitise(img):
 
     smoke_polygons = []
     plume_ids = []
+
 
     while True:
 
@@ -247,6 +256,9 @@ def main():
 
 
 if __name__ == '__main__':
+
+    #plt.ioff()
+
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     logging.basicConfig(level=logging.INFO, format=log_fmt)
     logger = logging.getLogger(__name__)
