@@ -82,6 +82,50 @@ def read_myd021km(local_filename):
     return SD(local_filename, SDC.READ)
 
 
+def image_histogram_equalization(image, number_bins=256):
+    # from http://www.janeriksolem.net/2009/06/histogram-equalization-with-python-and.html
+
+    # get image histogram
+    image_histogram, bins = np.histogram(image.flatten(), number_bins, normed=True)
+    cdf = image_histogram.cumsum() # cumulative distribution function
+    cdf = 255 * cdf / cdf[-1] # normalize
+
+    # use linear interpolation of cdf to find new pixel values
+    image_equalized = np.interp(image.flatten(), bins[:-1], cdf)
+
+    return image_equalized.reshape(image.shape)
+
+
+def tcc_myd021km(mod_data, fire_mask):
+    mod_params_500 = mod_data.select("EV_500_Aggr1km_RefSB").attributes()
+    ref_500 = mod_data.select("EV_500_Aggr1km_RefSB").get()
+
+    mod_params_250 = mod_data.select("EV_250_Aggr1km_RefSB").attributes()
+    ref_250 = mod_data.select("EV_250_Aggr1km_RefSB").get()
+
+    r = (ref_250[0, :, :] - mod_params_250['radiance_offsets'][0]) * mod_params_250['radiance_scales'][
+        0]  # 2.1 microns
+    g = (ref_500[1, :, :] - mod_params_500['radiance_offsets'][1]) * mod_params_500['radiance_scales'][
+        1]  # 0.8 microns
+    b = (ref_500[0, :, :] - mod_params_500['radiance_offsets'][0]) * mod_params_500['radiance_scales'][
+        0]  # 0.6 microns
+
+    r = image_histogram_equalization(r)
+    g = image_histogram_equalization(g)
+    b = image_histogram_equalization(b)
+
+    r = np.round((r * (255 / np.max(r))) * 1).astype('uint8')
+    g = np.round((g * (255 / np.max(g))) * 1).astype('uint8')
+    b = np.round((b * (255 / np.max(b))) * 1).astype('uint8')
+
+    r[fire_mask] = 255
+    g[fire_mask] = 0
+    b[fire_mask] = 0
+
+    rgb = np.dstack((r, g, b))
+    return rgb
+
+
 def fcc_myd021km(mod_data, fire_mask):
     mod_params_ref = mod_data.select("EV_1KM_RefSB").attributes()
     mod_params_emm = mod_data.select("EV_1KM_Emissive").attributes()
@@ -117,14 +161,16 @@ def fcc_myd021km(mod_data, fire_mask):
     b[fire_mask] = 0
 
     rgb = np.dstack((r, g, b))
-
     return rgb
 
 
 class Annotate(object):
-    def __init__(self, im, ax, polygons):
+    def __init__(self, fcc, tcc, aod, ax, polygons):
         self.ax = ax
-        self.im = self.ax.imshow(im, interpolation='none')
+        self.fcc = fcc
+        self.tcc = tcc
+        self.aod = aod  # TODO work out how to draw a 2D image, as others are 3D
+        self.im = self.ax.imshow(self.fcc, interpolation='none')
         patches = [Polygon(verts, True) for verts in polygons]
         p = PatchCollection(patches, cmap='Oranges', alpha=0.8)
         self.polygons = self.ax.add_collection(p)
@@ -161,6 +207,10 @@ class Annotate(object):
         self.radio_discard = RadioButtons(self.rax_discard, ('Keep', 'Discard'))
         self.radio_discard.on_clicked(self.discard_func)
 
+        self.rax_image = plt.axes([0.05, 0.1, 0.15, 0.15], facecolor=self.axcolor)
+        self.radio_image = RadioButtons(self.rax_image, ('FCC', 'TCC', 'AOD'))
+        self.radio_image.on_clicked(self.image_func)
+
     def annotation_func(self, label):
         anno_dict = {'Digitise': True, 'Stop': False}
         self.do_annotation = anno_dict[label]
@@ -170,6 +220,12 @@ class Annotate(object):
         if keep_dict[label]:
             self.x = []
             self.y = []
+
+    def image_func(self, label):
+        image_dict = {'FCC': self.fcc, 'TCC': self.tcc, 'AOD': self.aod}
+        im_data = image_dict[label]
+        self.im.set_data(im_data)
+        plt.draw()
 
 
     def click(self, event):
@@ -186,7 +242,7 @@ class Annotate(object):
             self.ax.figure.canvas.draw()
 
 
-def digitise(img):
+def digitise(fcc, tcc, aod):
 
     smoke_polygons = []
     plume_ids = []
@@ -199,7 +255,7 @@ def digitise(img):
         ax.yaxis.set_visible(False)
 
         # first set up the annotator
-        annotator = Annotate(img, ax, smoke_polygons)
+        annotator = Annotate(fcc, tcc, aod, ax, smoke_polygons)
 
         # then show the image
         plt.show()
@@ -269,8 +325,9 @@ def main():
 
         # do the digitising
         myd14_fire_mask = firemask_myd14(myd14)
-        img = fcc_myd021km(myd021km, myd14_fire_mask)
-        smoke_polygons, plume_ids = digitise(img)
+        fcc = fcc_myd021km(myd021km, myd14_fire_mask)
+        tcc = tcc_myd021km(myd021km, myd14_fire_mask)
+        smoke_polygons, plume_ids = digitise(fcc, tcc, tcc)
         if smoke_polygons is None:
             continue
 
