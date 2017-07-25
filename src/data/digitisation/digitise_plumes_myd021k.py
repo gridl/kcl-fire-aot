@@ -177,8 +177,8 @@ class Annotate(object):
         self.ax = ax
         self.fcc = fcc
         self.tcc = tcc
-        self.aod = aod  # TODO work out how to draw a 2D image, as others are 3D
-        self.im = self.ax.imshow(self.fcc, interpolation='none')
+        self.aod = aod
+        self.im = self.ax.imshow(self.aod, interpolation='none')
         patches = [Polygon(verts, True) for verts in polygons]
         p = PatchCollection(patches, cmap='Oranges', alpha=0.8)
         self.polygons = self.ax.add_collection(p)
