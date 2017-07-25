@@ -21,6 +21,7 @@ import sys
 import tempfile
 import time
 import warnings
+import uuid
 
 # -----------------------------------------------------------------------------
 # ----- ERROR HANDLING CLASSES ------------------------------------------------
@@ -692,20 +693,20 @@ class ParticleType():
         self.ls = ls
 
 tau = Invpar('ITau', ap=-1, sx=10e8)
-re = Invpar('IRe', ap=0.36, sx=10e8)
+aer = Invpar('IRe', ap=0.36, sx=10e8)
 wvl = (0.858, 0.469, 0.555, 2.13, 11, 12)
 
-settings['WAT'] = ParticleType(wvl=wvl, inv=(tau, re), sad=defaults.sad_dir, ls=False)
+settings['WAT'] = ParticleType(wvl=wvl, inv=(tau, aer), sad=defaults.sad_dir, ls=False)
 settings['ICE'] = ParticleType(wvl=wvl,sad=defaults.sad_dir, ls=False)
 
 # TODO check whether thess use the correct SAD dirs and that the wavelenght are appropriate
 # TODO and get updated ap and sx values from gareth
   # this needs to change depending on the channels that I am using in the retrieval?
-settings['BOR'] = ParticleType(wvl=wvl, inv=(tau, re))
-settings['CER'] = ParticleType(wvl=wvl, inv=(tau, re))
-settings['AMZ'] = ParticleType(wvl=wvl, inv=(tau, re))
-settings['AFR'] = ParticleType(wvl=wvl, inv=(tau, re))
-settings['CEW'] = ParticleType(wvl=wvl, inv=(tau, re))
+settings['BOR'] = ParticleType(wvl=wvl, inv=(tau, aer))
+settings['CER'] = ParticleType(wvl=wvl, inv=(tau, aer))
+settings['AMZ'] = ParticleType(wvl=wvl, inv=(tau, aer))
+settings['AFR'] = ParticleType(wvl=wvl, inv=(tau, aer))
+settings['CEW'] = ParticleType(wvl=wvl, inv=(tau, aer))
 
 # -----------------------------------------------------------------------------
 # ----- PARSER ARGUMENT DEFINITIONS -------------------------------------------
@@ -1086,7 +1087,7 @@ def args_cc4cl(parser):
     cccl.add_argument('--land_dir', type=str, nargs='?',
                       default=defaults.land_dir,
                       help='Name of subfolder for land-only aerosol output.')
-    ccl.add_argument('--log_dir', type=str, nargs='?',
+    cccl.add_argument('--log_dir', type=str, nargs='?',
                      default=defaults.log_dir,
                      help='Name of subfolder for log files from batch proc.')
     cccl.add_argument('--main_dir', type=str, nargs='?',
