@@ -114,8 +114,12 @@ def main():
 
     # get the files to download
     for f in os.listdir(filepaths.path_to_modis_l1b):
-
+        
         if not f:
+            continue
+
+        # check if year we are working on is in the file, if not move on
+        if data_settings.myd_year not in f[0:16]:
             continue
 
         # check if the file for the MYD04_3K data  is being downloaded by another script already

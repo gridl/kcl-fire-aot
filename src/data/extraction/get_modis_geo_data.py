@@ -118,6 +118,10 @@ def main():
         if not f:
             continue
 
+        # check if year we are working on is in the file, if not move on
+        if data_settings.myd_year not in f[0:16]:
+            continue
+
         # check if the file is being downloaded by another script already
         downloading = check_downloading_status(temp_path, f)
         if downloading:

@@ -319,6 +319,7 @@ def main():
             continue
 
         myd14_fname = get_myd14_fname(timestamp_myd, myd021km_fname)
+        mod04_3k_fname =
 
         myd14 = read_myd14(os.path.join(filepaths.path_to_modis_frp, myd14_fname))
         myd021km = read_myd021km(os.path.join(filepaths.path_to_modis_l1b, myd021km_fname))
