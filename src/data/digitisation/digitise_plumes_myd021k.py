@@ -152,13 +152,25 @@ class Annotate(object):
 
         # set up radio buttons
         self.axcolor = 'lightgoldenrodyellow'
-        self.rax = plt.axes([0.05, 0.7, 0.15, 0.15], facecolor=self.axcolor)
-        self.radio = RadioButtons(self.rax, ('Digitise', 'Stop'))
-        self.radio.on_clicked(self.do_annotation_func)
 
-    def do_annotation_func(self, label):
-        annodict = {'Digitise': True, 'Stop': False}
-        self.do_annotation = annodict[label]
+        self.rax_digitise = plt.axes([0.05, 0.7, 0.15, 0.15], facecolor=self.axcolor)
+        self.radio_disitise = RadioButtons(self.rax_digitise, ('Digitise', 'Stop'))
+        self.radio_disitise.on_clicked(self.annotation_func)
+
+        self.rax_discard = plt.axes([0.05, 0.4, 0.15, 0.15], facecolor=self.axcolor)
+        self.radio_discard = RadioButtons(self.rax_discard, ('Keep', 'Discard'))
+        self.radio_discard.on_clicked(self.discard_func)
+
+    def annotation_func(self, label):
+        anno_dict = {'Digitise': True, 'Stop': False}
+        self.do_annotation = anno_dict[label]
+
+    def discard_func(self, label):
+        keep_dict = {'Keep': False, 'Discard': True}
+        if keep_dict[label]:
+            self.x = []
+            self.y = []
+
 
     def click(self, event):
         if event.button == 3:
@@ -194,7 +206,8 @@ def digitise(img):
 
         # get the polygon points from the closed image
         pts = zip(annotator.x, annotator.y)
-        smoke_polygons.append(pts)
+        if pts:
+            smoke_polygons.append(pts)
 
         do_annotation = annotator.do_annotation
 
