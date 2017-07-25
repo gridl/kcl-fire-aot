@@ -24,6 +24,52 @@ from matplotlib.collections import PatchCollection
 import src.config.filepaths as filepaths
 
 
+def load_df(path):
+    try:
+        myd021km_plume_df = pd.read_pickle(path)
+    except:
+        logger.info("myd021km dataframe does not exist, creating now")
+        myd021km_plume_df = pd.DataFrame()
+    return myd021km_plume_df
+
+
+def get_timestamp(myd021km_fname):
+    try:
+        return re.search("[0-9]{7}[.][0-9]{4}[.]", myd021km_fname).group()
+    except Exception, e:
+        logger.warning("Could not extract time stamp from: " + myd021km_fname + " with error: " + str(e))
+        return ''
+
+
+def image_seen(myd021km_fname, myd021km_plume_df):
+    try:
+        return myd021km_plume_df['filename'].str.contains(myd021km_fname).any()
+    except Exception, e:
+        logger.warning("Could check time filename for : " + myd021km_fname + ". With error: " + str(e))
+        return False  # if we cannot do it, lets just assume we haven't seen the image before
+
+
+def image_not_proccesed_but_seen(timestamp_myd, myd021km_plume_df):
+    try:
+        image_time = datetime.strptime(timestamp_myd, '%Y%j.%H%M.')
+        df_firsttime = datetime.strptime(re.search("[0-9]{7}[.][0-9]{4}[.]",
+                                    myd021km_plume_df['filename'].iloc[0]).group(), '%Y%j.%H%M.')
+        df_lasttime = datetime.strptime(re.search("[0-9]{7}[.][0-9]{4}[.]",
+                                    myd021km_plume_df['filename'].iloc[-1]).group(), '%Y%j.%H%M.')
+        # here we check if we have seen this image before
+        return (image_time > df_firsttime) & (image_time < df_lasttime)
+    except Exception, e:
+        logger.warning("Could check time stamp for : " + timestamp_myd + ". With error: " + str(e))
+        return False  # if we cannot do it, lets just assume we haven't seen the image before
+
+
+def get_myd14_fname(timestamp_myd, myd021km_fname):
+    myd14_fname = [f for f in os.listdir(filepaths.path_to_modis_frp) if timestamp_myd in f]
+    if len(myd14_fname) > 1:
+        logger.warning("More that one frp granule matched " + myd021km_fname + "selecting 0th option")
+    return myd14_fname[0]
+
+
 def read_myd14(myd14_file):
     return SD(myd14_file, SDC.READ)
 
@@ -161,40 +207,23 @@ def main():
         timeframe, and time stamps.  The user can then process these
         images and extract smoke plumes.
     """
-
-    try:
-        myd021km_plume_df = pd.read_pickle(filepaths.path_to_smoke_plume_masks)
-    except:
-        logger.info("myd021km dataframe does not exist, creating now")
-        myd021km_plume_df = pd.DataFrame()
+    myd021km_plume_df = load_df(filepaths.path_to_smoke_plume_masks)
 
     for myd021km_fname in os.listdir(filepaths.path_to_modis_l1b):
 
         logger.info("Processing modis granule: " + myd021km_fname)
 
-        try:
-            timestamp_myd = re.search("[0-9]{7}[.][0-9]{4}[.]", myd021km_fname).group()
-        except Exception, e:
-            logger.warning("Could not extract time stamp from: " + myd021km_fname + " moving on to next file")
+        timestamp_myd = get_timestamp(myd021km_fname)
+        if not timestamp_myd:
             continue
 
-        try:
-            if datetime.strptime(timestamp_myd, '%Y%j.%H%M.') < \
-                    datetime.strptime(re.search("[0-9]{7}[.][0-9]{4}[.]",
-                                                myd021km_plume_df['filename'].iloc[-1]).group(), '%Y%j.%H%M.'):
-                continue
+        if image_seen(myd021km_fname, myd021km_plume_df):
+            continue
 
-            elif myd021km_plume_df['filename'].str.contains(myd021km_fname).any():
-                logger.info(myd021km_fname + ' already processed (contained in DF) moving on')
-                continue
-        except:
-            logger.info("filename column not in dataframe - if the dataframe has just been created no problem!")
+        if image_not_proccesed_but_seen(timestamp_myd, myd021km_plume_df):
+            continue
 
-        myd14_fname = [f for f in os.listdir(filepaths.path_to_modis_frp) if timestamp_myd in f]
-
-        if len(myd14_fname) > 1:
-            logger.warning("More that one frp granule matched " + myd021km_fname + "selecting 0th option")
-        myd14_fname = myd14_fname[0]
+        myd14_fname = get_myd14_fname(timestamp_myd, myd021km_fname)
 
         myd14 = read_myd14(os.path.join(filepaths.path_to_modis_frp, myd14_fname))
         myd021km = read_myd021km(os.path.join(filepaths.path_to_modis_l1b, myd021km_fname))
