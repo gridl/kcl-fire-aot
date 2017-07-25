@@ -258,7 +258,7 @@ def digitise(fcc, tcc, aod):
     do_annotation = True
     while do_annotation:
 
-        fig, ax = plt.subplots(1)
+        fig, ax = plt.subplots(1, figsize=(12,20))
         ax.xaxis.set_visible(False)
         ax.yaxis.set_visible(False)
 
@@ -277,20 +277,6 @@ def digitise(fcc, tcc, aod):
 
     return smoke_polygons, plume_ids
 
-        # # if there are no points then assume no more digitisation to be done
-        # if not pts:
-        #     return smoke_polygons, plume_ids
-        #
-        # # if there are points ask if digitisation is suitable and store outcomes if so
-        # arg = raw_input("Is the digitisation suitable? [Y,n]")
-        # if arg.lower() in ["", "y", "yes", 'ye']:
-        #     smoke_polygons.append(pts)
-        #     plume_ids.append(uuid.uuid4())
-        #
-        # # ask if they want to digitise some more?
-        # arg = raw_input("Do you want to digitise more plumes? [Y,n]")
-        # if arg.lower() not in ["", "y", "yes", 'ye']:
-        #     return smoke_polygons, plume_ids
 
 
 def extract_plume_bounds(plume, fname, plume_id, plumes_list):
