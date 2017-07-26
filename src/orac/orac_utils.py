@@ -693,7 +693,7 @@ class ParticleType():
         self.ls = ls
 
 tau = Invpar('ITau', ap=-1, sx=10e8)
-aer = Invpar('IRe', ap=0.36, sx=10e8)
+aer = Invpar('IRe', ap=-0.7, sx=10e8)
 wvl = (0.858, 0.469, 0.555, 2.13, 11, 12)
 
 settings['WAT'] = ParticleType(wvl=wvl, inv=(tau, aer), sad=defaults.sad_dir, ls=False)
