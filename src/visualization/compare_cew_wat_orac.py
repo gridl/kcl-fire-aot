@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 from netCDF4 import Dataset
 from matplotlib.path import Path
+import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set(style="white")
 
@@ -105,14 +106,15 @@ def main():
 
     # lets do the plotting
 
-    mask = (np.array(wat_dd['costjm']) < 30) & (np.array(cew_dd['costjm']) < 30)
+    mask = (np.array(wat_dd['costjm']) > 0) & (np.array(cew_dd['costjm']) > 00)
     masked_wat_costjm = np.array(wat_dd['costjm'])[mask]
     masked_cew_costjm = np.array(cew_dd['costjm'])[mask]
 
     cost_wat = pd.Series(masked_wat_costjm, name="$costjm_{WAT}$")
     cost_cew = pd.Series(masked_cew_costjm, name="$costjm_{CEW}$")
-    c = sns.jointplot(cost_wat, cost_cew, kind="kde", size=7, space=0)
-
+    sns_plot = sns.jointplot(cost_wat, cost_cew, kind="kde", size=7, space=0)
+    plt.savefig('cost.png')
+    plt.close()
 
     mask = (~(np.isnan(wat_dd['cer'])) & ~(np.isnan(cew_dd['cer'])))
     masked_wat_cer = np.array(wat_dd['cer'])[mask]
@@ -120,8 +122,9 @@ def main():
 
     re_wat = pd.Series(masked_wat_cer, name="$RE_{WAT}$")
     re_cew = pd.Series(masked_cew_cer, name="$RE_{CEW}$")
-    b = sns.jointplot(re_wat, re_cew, kind="kde", size=7, space=0)
-
+    sns_plot = sns.jointplot(re_wat, re_cew, kind='kde', size=7, space=0)
+    plt.savefig('re.png')
+    plt.close()
 
     mask = (np.array(wat_dd['cot']) < 5) & (np.array(cew_dd['cot']) < 5)
     masked_wat_aod = np.array(wat_dd['cot'])[mask]
@@ -129,9 +132,9 @@ def main():
 
     aod_wat = pd.Series(masked_wat_aod, name="$AOD_{WAT}$")
     aod_cew = pd.Series(masked_cew_aod, name="$AOD_{CEW}$")
-    a = sns.jointplot(aod_wat, aod_cew, kind="kde", size=7, space=0)
-
-
+    sns_plot = sns.jointplot(aod_wat, aod_cew, kind="kde", size=7, space=0)
+    plt.savefig('aod.png')
+    plt.close()
 
 
 if __name__ == '__main__':

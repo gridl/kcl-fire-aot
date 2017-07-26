@@ -313,7 +313,8 @@ def main():
             myd04_3K = read_myd(os.path.join(filepaths.path_to_modis_aod, myd04_3K_fname))
             myd021km = read_myd(os.path.join(filepaths.path_to_modis_l1b, myd021km_fname))
         except Exception, e:
-            logger.warning('Could not read the input files and failed with ' + str(e))
+            logger.warning('Could not read the input files for ' + myd021km_fname + ' and failed with ' + str(e))
+            continue
 
 
         # do the digitising
