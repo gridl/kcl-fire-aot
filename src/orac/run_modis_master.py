@@ -15,7 +15,7 @@ class ProcParams(object):
         self.cldsaddir = '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/sad_dir/modis_WAT'
         self.cldphs = ['WAT']
         self.aersaddir = '/group_workspaces/cems/nceo_aerosolfire/luts/sad'
-        self.aerphs = ['CEW', 'BOR', 'AMZ', 'CER']
+        self.aerphs = [ 'BOW', 'AMW', 'AFW']
 
 
 def run_pre(proc_params):

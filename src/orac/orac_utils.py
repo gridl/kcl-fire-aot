@@ -693,7 +693,7 @@ class ParticleType():
         self.ls = ls
 
 tau = Invpar('ITau', ap=-1, sx=10e8)
-aer = Invpar('IRe', ap=-0.7, sx=10e8)
+aer = Invpar('IRe', ap=-1.7, sx=10e8)
 wvl = (0.858, 0.469, 0.555, 2.13, 11, 12)
 
 settings['WAT'] = ParticleType(wvl=wvl, inv=(tau, aer), sad=defaults.sad_dir, ls=False)
@@ -703,9 +703,12 @@ settings['ICE'] = ParticleType(wvl=wvl,sad=defaults.sad_dir, ls=False)
 # TODO and get updated ap and sx values from gareth
   # this needs to change depending on the channels that I am using in the retrieval?
 settings['BOR'] = ParticleType(wvl=wvl, inv=(tau, aer))
+settings['BOW'] = ParticleType(wvl=wvl, inv=(tau, aer))
 settings['CER'] = ParticleType(wvl=wvl, inv=(tau, aer))
 settings['AMZ'] = ParticleType(wvl=wvl, inv=(tau, aer))
+settings['AMW'] = ParticleType(wvl=wvl, inv=(tau, aer))
 settings['AFR'] = ParticleType(wvl=wvl, inv=(tau, aer))
+settings['AFW'] = ParticleType(wvl=wvl, inv=(tau, aer))
 settings['CEW'] = ParticleType(wvl=wvl, inv=(tau, aer))
 
 # -----------------------------------------------------------------------------

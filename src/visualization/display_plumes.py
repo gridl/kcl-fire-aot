@@ -140,7 +140,7 @@ def main():
     mask_path = '/home/users/dnfisher/nceo_aerosolfire/data/plume_masks/myd021km_plumes_df.pickle'
     output = '/home/users/dnfisher/nceo_aerosolfire/data/quicklooks/plume_retrievals/'
     output_txt = '/home/users/dnfisher/nceo_aerosolfire/data/plume_masks/'
-    lut_class = 'CEW'
+    lut_class = 'BOW'
 
     # read in the masks
     mask_df = pd.read_pickle(mask_path)
@@ -173,8 +173,8 @@ def main():
             plume_positions = label_plumes(plume_mask)
 
             # visualise
-            #make_plume_plot(fname, visrad, primary_data, plume_positions)
-            make_plume_location_plot(plume_positions, primary_data, m)
+            make_plume_plot(fname, visrad, primary_data, plume_positions)
+            #make_plume_location_plot(plume_positions, primary_data, m)
 
             # let dump coords of plume to text file for Caroline
             for pp in plume_positions:
