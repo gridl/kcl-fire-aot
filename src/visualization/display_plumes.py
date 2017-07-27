@@ -23,13 +23,17 @@ from datetime import datetime
 from mpl_toolkits.basemap import Basemap
 
 
-def get_primary_time(primary_file):
-    tt = datetime.strptime(primary_file.split('_')[-2], '%Y%m%d%H%M').timetuple()
-    primary_datestring = str(tt.tm_year) + \
-                         str(tt.tm_yday).zfill(3) + \
-                         '.' + \
-                         str(tt.tm_hour).zfill(2) + \
-                         str(tt.tm_min).zfill(2)
+def get_primary_times(primary_files):
+    times = [datetime.strptime(pf.split('_')[-2], '%Y%m%d%H%M').timetuple() for pf in primary_files]
+    unique_times = list(set(times))
+
+    primary_datestring = []
+    for tt in unique_times:
+        primary_datestring.append(str(tt.tm_year) + \
+                                  str(tt.tm_yday).zfill(3) + \
+                                  '.' + \
+                                  str(tt.tm_hour).zfill(2) + \
+                                  str(tt.tm_min).zfill(2))
     return primary_datestring
 
 
@@ -164,30 +168,34 @@ def main():
     # read in the masks
     mask_df = pd.read_pickle(mask_path)
 
-    for lut_class in lut_classes:
+    # get the list of file times
+    primary_times = get_primary_times(glob.glob(orac_data_path + '*/*/*' + '.primary*'))
 
-        with open(output_txt + lut_class + "_plume_extents.txt", "w") as text_file:
 
-            # iterate over modis files
-            for primary_file in glob.glob(orac_data_path + '*/*/*' + lut_class + '.primary*'):
+        with open(output_txt + "plume_extents.txt", "w") as text_file:
 
-                # first get the primary file time
-                primary_time = get_primary_time(primary_file)
-                fname = output + primary_file.split('/')[-1][:-3] + '_quicklook'
+            for lut_class in lut_classes:
 
-                # get the tcc of the associated l1b file
-                l1b_file = glob.glob(l1b_path + '/*/*' + primary_time + '*')[0]
-                tcc = tcc_myd021km(l1b_file)
+                # iterate over modis files
+                for primary_file in glob.glob(orac_data_path + '*/*/*' + lut_class + '.primary*'):
 
-                # open up the ORAC primary file
-                primary_data = open_primary(primary_file)
+                    # first get the primary file time
+                    primary_time =
+                    fname = output + primary_file.split('/')[-1][:-3] + '_quicklook'
 
-                # get the plumes
-                plume_mask = make_mask(primary_data, primary_time, mask_df)
-                plume_positions = label_plumes(plume_mask)
+                    # get the tcc of the associated l1b file
+                    l1b_file = glob.glob(l1b_path + '/*/*' + primary_time + '*')[0]
+                    tcc = tcc_myd021km(l1b_file)
 
-                # visualise
-                make_plume_plot(fname, tcc, primary_data, plume_positions, plume_mask)
+                    # open up the ORAC primary file
+                    primary_data = open_primary(primary_file)
+
+                    # get the plumes
+                    plume_mask = make_mask(primary_data, primary_time, mask_df)
+                    plume_positions = label_plumes(plume_mask)
+
+                    # visualise
+                    make_plume_plot(fname, tcc, primary_data, plume_positions, plume_mask)
 
                 # let dump coords of plume to text file for Caroline
                 for pp in plume_positions:
