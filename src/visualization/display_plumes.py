@@ -37,7 +37,7 @@ def get_sub_df(primary_time, mask_df):
     return mask_df[mask_df['filename'].str.contains(primary_time)]
 
 
-def image_histogram_equalization(image, number_bins=256):
+def image_histogram_equalization(image, number_bins=512):
     # from http://www.janeriksolem.net/2009/06/histogram-equalization-with-python-and.html
 
     # get image histogram
@@ -51,7 +51,8 @@ def image_histogram_equalization(image, number_bins=256):
     return image_equalized.reshape(image.shape)
 
 
-def tcc_myd021km(mod_data):
+def tcc_myd021km(mod_file):
+    mod_data = SD(mod_file, SDC.READ)
     mod_params_500 = mod_data.select("EV_500_Aggr1km_RefSB").attributes()
     ref_500 = mod_data.select("EV_500_Aggr1km_RefSB").get()
 
@@ -132,7 +133,7 @@ def make_plume_plot(fname, tcc, primary_data, plume_positions, plume_mask):
             ax.get_yaxis().set_visible(False)
 
             # get the mask
-            mask = plume_mask[pp[0]:pp[1], pp[2]:pp[3]]
+            mask = plume_mask[pp[0]:pp[1], pp[2]:pp[3]].astype('bool')
 
             if not k:
                 p = ax.imshow(tcc[pp[0]:pp[1], pp[2]:pp[3]], interpolation='None')
@@ -143,12 +144,15 @@ def make_plume_plot(fname, tcc, primary_data, plume_positions, plume_mask):
             else:
                 data = primary_data.variables[k][pp[0]:pp[1], pp[2]:pp[3]]
                 masked_data = np.ma.masked_array(data, mask=~mask)
-                p = ax.imshow(masked_data, interpolation='none', norm=LogNorm(vmin=0.01, vmax=1))
+                if k == 'costjm':
+                    p = ax.imshow(masked_data, interpolation='none', norm=LogNorm(vmin=1, vmax=1000))
+                else:
+                    p = ax.imshow(masked_data, interpolation='none', norm=LogNorm(vmin=0.01, vmax=1))
                 cbar = plt.colorbar(p, ax=ax)
                 cbar.ax.get_yaxis().labelpad = 15
                 cbar.ax.set_ylabel(k, rotation=270, fontsize=14)
         plt.savefig(fname + '_p' + str(i) + '.png', bbox_inches='tight')
-    plt.close()
+    plt.close('all')
 
 
 def main():
@@ -159,7 +163,7 @@ def main():
     mask_path = '/home/users/dnfisher/nceo_aerosolfire/data/plume_masks/myd021km_plumes_df.pickle'
     output = '/home/users/dnfisher/nceo_aerosolfire/data/quicklooks/plume_retrievals/'
     output_txt = '/home/users/dnfisher/nceo_aerosolfire/data/plume_masks/'
-    lut_classes = ['WAT', 'AMZ', 'BOW']
+    lut_classes = ['WAT', 'AMZ', 'BOR', 'CER', 'AMW', 'BOW', 'CEW']
 
     # read in the masks
     mask_df = pd.read_pickle(mask_path)
