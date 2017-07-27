@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 import scipy.ndimage as ndimage
 
 from matplotlib.path import Path
+from matplotlib.colors import LogNorm
 from netCDF4 import Dataset
 from pyhdf.SD import SD, SDC
 from datetime import datetime
@@ -36,15 +37,44 @@ def get_sub_df(primary_time, mask_df):
     return mask_df[mask_df['filename'].str.contains(primary_time)]
 
 
-def read_vis(l1b_file):
-    ds = SD(l1b_file, SDC.READ)
-    mod_params_ref = ds.select("EV_1KM_RefSB").attributes()
-    ref = ds.select("EV_1KM_RefSB").get()
-    ref_chan = 0
-    vis = (ref[ref_chan, :, :] - mod_params_ref['radiance_offsets'][ref_chan]) * mod_params_ref['radiance_scales'][
-        ref_chan]
-    vis = np.round((vis * (255 / np.max(vis))) * 1).astype('uint8')
-    return vis
+def image_histogram_equalization(image, number_bins=256):
+    # from http://www.janeriksolem.net/2009/06/histogram-equalization-with-python-and.html
+
+    # get image histogram
+    image_histogram, bins = np.histogram(image.flatten(), number_bins, normed=True)
+    cdf = image_histogram.cumsum() # cumulative distribution function
+    cdf = 255 * cdf / cdf[-1] # normalize
+
+    # use linear interpolation of cdf to find new pixel values
+    image_equalized = np.interp(image.flatten(), bins[:-1], cdf)
+
+    return image_equalized.reshape(image.shape)
+
+
+def tcc_myd021km(mod_data):
+    mod_params_500 = mod_data.select("EV_500_Aggr1km_RefSB").attributes()
+    ref_500 = mod_data.select("EV_500_Aggr1km_RefSB").get()
+
+    mod_params_250 = mod_data.select("EV_250_Aggr1km_RefSB").attributes()
+    ref_250 = mod_data.select("EV_250_Aggr1km_RefSB").get()
+
+    r = (ref_250[0, :, :] - mod_params_250['radiance_offsets'][0]) * mod_params_250['radiance_scales'][
+        0]  # 2.1 microns
+    g = (ref_500[1, :, :] - mod_params_500['radiance_offsets'][1]) * mod_params_500['radiance_scales'][
+        1]  # 0.8 microns
+    b = (ref_500[0, :, :] - mod_params_500['radiance_offsets'][0]) * mod_params_500['radiance_scales'][
+        0]  # 0.6 microns
+
+    r = image_histogram_equalization(r)
+    g = image_histogram_equalization(g)
+    b = image_histogram_equalization(b)
+
+    r = np.round((r * (255 / np.max(r))) * 1).astype('uint8')
+    g = np.round((g * (255 / np.max(g))) * 1).astype('uint8')
+    b = np.round((b * (255 / np.max(b))) * 1).astype('uint8')
+
+    rgb = np.dstack((r, g, b))
+    return rgb
 
 
 def open_primary(primary_file):
@@ -89,47 +119,36 @@ def label_plumes(mask):
     return plume_positions
 
 
-def make_plume_plot(fname, visrad, primary_data, plume_positions):
+def make_plume_plot(fname, tcc, primary_data, plume_positions, plume_mask):
 
     # iterate over the plumes
     for i, pp in enumerate(plume_positions):
 
-        fig, axes = plt.subplots(2, 3, figsize=(15,12))
+        fig, axes = plt.subplots(1, 4, figsize=(20, 6))
 
-        for ax, k in zip(axes.flatten(), ['' , 'cer', 'cot', 'ctp', 'ctt', 'costjm']):
+        for ax, k in zip(axes.flatten(), ['', 'cer', 'cot', 'costjm']):
 
             ax.get_xaxis().set_visible(False)
             ax.get_yaxis().set_visible(False)
 
+            # get the mask
+            mask = plume_mask[pp[0]:pp[1], pp[2]:pp[3]]
 
             if not k:
-                p = ax.imshow(visrad[pp[0]:pp[1], pp[2]:pp[3]], cmap='gray', interpolation='None')
+                p = ax.imshow(tcc[pp[0]:pp[1], pp[2]:pp[3]], interpolation='None')
                 cbar = plt.colorbar(p, ax=ax)
                 cbar.ax.get_yaxis().labelpad = 15
                 cbar.ax.set_ylabel('dn', rotation=270, fontsize=14)
 
             else:
                 data = primary_data.variables[k][pp[0]:pp[1], pp[2]:pp[3]]
-                p = ax.imshow(data, interpolation='none')
+                masked_data = np.ma.masked_array(data, mask=~mask)
+                p = ax.imshow(masked_data, interpolation='none', norm=LogNorm(vmin=0.01, vmax=1))
                 cbar = plt.colorbar(p, ax=ax)
                 cbar.ax.get_yaxis().labelpad = 15
                 cbar.ax.set_ylabel(k, rotation=270, fontsize=14)
         plt.savefig(fname + '_p' + str(i) + '.png', bbox_inches='tight')
-	plt.close()
-
-
-def make_plume_location_plot(plume_positions, primary_data, m):
-
-    for i, pp in enumerate(plume_positions):
-
-        mean_lat = np.mean(primary_data.variables['lon'][pp[0]:pp[1], pp[2]:pp[3]])
-        mean_lon = np.mean(primary_data.variables['lat'][pp[0]:pp[1], pp[2]:pp[3]])
-
-        m.plot('o', mean_lon, mean_lat, latlon=True)
-
-    plt.show()
-
-
+    plt.close()
 
 
 def main():
@@ -140,49 +159,43 @@ def main():
     mask_path = '/home/users/dnfisher/nceo_aerosolfire/data/plume_masks/myd021km_plumes_df.pickle'
     output = '/home/users/dnfisher/nceo_aerosolfire/data/quicklooks/plume_retrievals/'
     output_txt = '/home/users/dnfisher/nceo_aerosolfire/data/plume_masks/'
-    lut_class = 'BOW'
+    lut_classes = ['WAT', 'AMZ', 'BOW']
 
     # read in the masks
     mask_df = pd.read_pickle(mask_path)
 
-    # set up geostationary projection to hold all the plumes
-    m = Basemap(projection='geos', lon_0=-75, resolution='l')
+    for lut_class in lut_classes:
 
+        with open(output_txt + lut_class + "_plume_extents.txt", "w") as text_file:
 
+            # iterate over modis files
+            for primary_file in glob.glob(orac_data_path + '*/*/*' + lut_class + '.primary*'):
 
-    with open(output_txt + "plume_extents.txt", "w") as text_file:
+                # first get the primary file time
+                primary_time = get_primary_time(primary_file)
+                fname = output + primary_file.split('/')[-1][:-3] + '_quicklook'
 
-        # iterate over modis files
-        for primary_file in glob.glob(orac_data_path + '*/*/*' + lut_class + '.primary*'):
+                # get the tcc of the associated l1b file
+                l1b_file = glob.glob(l1b_path + '/*/*' + primary_time + '*')[0]
+                tcc = tcc_myd021km(l1b_file)
 
-            # first get the primary file time
-            primary_time = get_primary_time(primary_file)
-            fname = output + primary_file.split('/')[-1][:-3] + '_quicklook'
+                # open up the ORAC primary file
+                primary_data = open_primary(primary_file)
 
-            # find and read the vis channel of the associated l1b file
-            l1b_file = glob.glob(l1b_path + '/*/*' + primary_time + '*')[0]
-            visrad = read_vis(l1b_file)
+                # get the plumes
+                plume_mask = make_mask(primary_data, primary_time, mask_df)
+                plume_positions = label_plumes(plume_mask)
 
-            # open up the ORAC primary file
-            primary_data = open_primary(primary_file)
+                # visualise
+                make_plume_plot(fname, tcc, primary_data, plume_positions, plume_mask)
 
-            # make the smoke plume mask
-            plume_mask = make_mask(primary_data, primary_time, mask_df)
-
-            # get the individual plumes
-            plume_positions = label_plumes(plume_mask)
-
-            # visualise
-            make_plume_plot(fname, visrad, primary_data, plume_positions)
-            #make_plume_location_plot(plume_positions, primary_data, m)
-
-            # let dump coords of plume to text file for Caroline
-            for pp in plume_positions:
-                text_file.write(primary_file.split('/')[-1] + " " +
-                                str(pp[0]) + " " +
-                                str(pp[1]) + " " +
-                                str(pp[2]) + " " +
-                                str(pp[3]) + "\n")
+                # let dump coords of plume to text file for Caroline
+                for pp in plume_positions:
+                    text_file.write(primary_file.split('/')[-1] + " " +
+                                    str(pp[0]) + " " +
+                                    str(pp[1]) + " " +
+                                    str(pp[2]) + " " +
+                                    str(pp[3]) + "\n")
 
 if __name__ == '__main__':
     main()
