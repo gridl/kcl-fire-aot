@@ -70,7 +70,7 @@ def main():
     try:
 
         wat_dd = pickle.load(open(filepaths.path_to_orac_visuals + 'wat_dd.p', 'rb'))
-        cew_dd = pickle.load(open(filepaths.path_to_orac_visuals + 'cew_dd.p', 'rb'))
+        cew_dd = pickle.load(open(filepaths.path_to_orac_visuals + 'amz_dd.p', 'rb'))
 
     except:
 
@@ -82,7 +82,7 @@ def main():
 
         # get wat and dew files
         wat_files = glob.glob(filepaths.path_to_processed_orac + '*/*/*/*WAT.primary*')
-        cew_files = glob.glob(filepaths.path_to_processed_orac + '*/*/*/*CEW.primary*')
+        cew_files = glob.glob(filepaths.path_to_processed_orac + '*/*/*/*AMZ.primary*')
 
         for wat_f, cew_f in zip(wat_files, cew_files):
 
@@ -111,7 +111,7 @@ def main():
     masked_cew_costjm = np.array(cew_dd['costjm'])[mask]
 
     cost_wat = pd.Series(masked_wat_costjm, name="$costjm_{WAT}$")
-    cost_cew = pd.Series(masked_cew_costjm, name="$costjm_{CEW}$")
+    cost_cew = pd.Series(masked_cew_costjm, name="$costjm_{AMZ}$")
     sns_plot = sns.jointplot(cost_wat, cost_cew, kind="kde", size=7, space=0)
     plt.savefig('cost.png')
     plt.close()
@@ -121,7 +121,7 @@ def main():
     masked_cew_cer = np.array(cew_dd['cer'])[mask]
 
     re_wat = pd.Series(masked_wat_cer, name="$RE_{WAT}$")
-    re_cew = pd.Series(masked_cew_cer, name="$RE_{CEW}$")
+    re_cew = pd.Series(masked_cew_cer, name="$RE_{AMZ}$")
     sns_plot = sns.jointplot(re_wat, re_cew, kind='kde', size=7, space=0)
     plt.savefig('re.png')
     plt.close()
@@ -131,7 +131,7 @@ def main():
     masked_cew_aod = np.array(cew_dd['cot'])[mask]
 
     aod_wat = pd.Series(masked_wat_aod, name="$AOD_{WAT}$")
-    aod_cew = pd.Series(masked_cew_aod, name="$AOD_{CEW}$")
+    aod_cew = pd.Series(masked_cew_aod, name="$AOD_{AMZ}$")
     sns_plot = sns.jointplot(aod_wat, aod_cew, kind="kde", size=7, space=0)
     plt.savefig('aod.png')
     plt.close()

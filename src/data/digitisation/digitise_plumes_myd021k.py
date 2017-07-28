@@ -42,26 +42,18 @@ def get_timestamp(myd021km_fname):
         return ''
 
 
-def image_seen(myd021km_fname, myd021km_plume_df):
+def image_seen(myd021km_fname):
     try:
-        return myd021km_plume_df['filename'].str.contains(myd021km_fname).any()
+        with open(filepaths.path_to_processed_filelist, 'ab') as txt_file:
+            if myd021km_fname in txt_file:
+                return True
+            else:
+                txt_file.write(f + '\n')
+                return False
     except Exception, e:
         logger.warning("Could not check time filename for : " + myd021km_fname + ". With error: " + str(e))
         return False  # if we cannot do it, lets just assume we haven't seen the image before
 
-
-def image_not_proccesed_but_seen(timestamp_myd, myd021km_plume_df):
-    try:
-        image_time = datetime.strptime(timestamp_myd, '%Y%j.%H%M.')
-        # df_firsttime = datetime.strptime(re.search("[0-9]{7}[.][0-9]{4}[.]",
-        #                             myd021km_plume_df['filename'].iloc[0]).group(), '%Y%j.%H%M.')
-        df_lasttime = datetime.strptime(re.search("[0-9]{7}[.][0-9]{4}[.]",
-                                    myd021km_plume_df['filename'].iloc[-1]).group(), '%Y%j.%H%M.')
-        # here we check if we have seen this image before
-        return  image_time < df_lasttime
-    except Exception, e:
-        logger.warning("Could not check time stamp for : " + timestamp_myd + ". With error: " + str(e))
-        return False  # if we cannot do it, lets just assume we haven't seen the image before
 
 
 def get_fname(path, timestamp_myd, myd021km_fname):
@@ -299,10 +291,7 @@ def main():
         if not timestamp_myd:
             continue
 
-        if image_seen(myd021km_fname, myd021km_plume_df):
-            continue
-
-        if image_not_proccesed_but_seen(timestamp_myd, myd021km_plume_df):
+        if image_seen(myd021km_fname):
             continue
 
         myd14_fname = get_fname(filepaths.path_to_modis_frp, timestamp_myd, myd021km_fname)
