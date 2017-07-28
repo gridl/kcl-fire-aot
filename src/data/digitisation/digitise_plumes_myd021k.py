@@ -44,11 +44,12 @@ def get_timestamp(myd021km_fname):
 
 def image_seen(myd021km_fname):
     try:
-        with open(filepaths.path_to_processed_filelist, 'ab') as txt_file:
-            if myd021km_fname in txt_file:
+        with open(filepaths.path_to_processed_filelist, 'r+') as txt_file:
+            if myd021km_fname in txt_file.read():
+                logger.info( myd021km_fname + " already processed")
                 return True
             else:
-                txt_file.write(f + '\n')
+                txt_file.write(myd021km_fname + '\n')
                 return False
     except Exception, e:
         logger.warning("Could not check time filename for : " + myd021km_fname + ". With error: " + str(e))
