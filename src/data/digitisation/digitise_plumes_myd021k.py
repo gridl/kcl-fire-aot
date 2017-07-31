@@ -308,10 +308,14 @@ def main():
 
 
         # do the digitising
-        fires = fires_myd14(myd14)
-        aod = aod_myd04_3K(myd04_3K)
-        fcc = fcc_myd021km(myd021km)
-        tcc = tcc_myd021km(myd021km)
+        try:
+            fires = fires_myd14(myd14)
+            aod = aod_myd04_3K(myd04_3K)
+            fcc = fcc_myd021km(myd021km)
+            tcc = tcc_myd021km(myd021km)
+        except Exception, e:
+            logger.warning('Could not generate images for ' + myd021km_fname + ' and failed with ' + str(e))
+            continue
         smoke_polygons = digitise(fcc, tcc, aod, fires)
         if smoke_polygons is None:
             continue
