@@ -998,7 +998,10 @@ def args_main(parser):
     main.add_argument('--use_channel', type='bool', nargs='+', metavar='T/F',
                       default=[True, True, True, True, True, True],
                       help='Channels to be evaluated by main processor.')
-
+    main.add_argument('--llim_IRe', type=int(), default=-2,
+                      help='Lower limit value for effective radius')
+    main.add_argument('--ulim_IRe', type=int(), default=1,
+                      help='Upper limit value for effective radius')
     ls = main.add_mutually_exclusive_group()
     ls.add_argument('--land', action='store_false',
                     help='Process only land pixels.')
@@ -1435,6 +1438,12 @@ Ctrl%RS%Use_Full_BRDF      = {use_brdf}""".format(
         driver += "\nCtrl%Surfaces_To_Skip      = ILand"
     for var in settings[args.phase].inv:
         driver += var.driver()
+    # here we can change the upper and lower limits (which are set by default in ReadDriver.f90 (l523 and l540))
+    # of the effective radius retrieval so that we do not get the fill value.
+    if args.llim_IRe:
+        driver += "\nCtrl%Invpar%XLLim[[IRe] = " + args.llim_IRe
+    if args.ulim_IRe:
+        driver += "\nCtrl%Invpar%XULim[IRe] = " + args.ulim_IRe
     if args.extra_lines:
         try:
             e = open(args.extra_lines, "r")
