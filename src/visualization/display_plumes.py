@@ -24,17 +24,18 @@ from mpl_toolkits.basemap import Basemap
 
 
 def get_primary_times(primary_files):
-    times = [datetime.strptime(pf.split('_')[-2], '%Y%m%d%H%M').timetuple() for pf in primary_files]
-    unique_times = list(set(times))
+    orac_times = [pf.split('_')[-2] for pf in primary_files]
+    orac_times = list(set(orac_times))
+    times = [datetime.strptime(ot, '%Y%m%d%H%M').timetuple() for ot in orac_times]
 
-    primary_datestrings = []
-    for tt in unique_times:
-        primary_datestrings.append(str(tt.tm_year) + \
-                                  str(tt.tm_yday).zfill(3) + \
-                                  '.' + \
-                                  str(tt.tm_hour).zfill(2) + \
-                                  str(tt.tm_min).zfill(2))
-    return unique_times, primary_datestrings
+    l1b_times = []
+    for tt in times:
+        l1b_times.append(str(tt.tm_year) + \
+                         str(tt.tm_yday).zfill(3) + \
+                         '.' + \
+                         str(tt.tm_hour).zfill(2) + \
+                         str(tt.tm_min).zfill(2))
+    return orac_times, l1b_times
 
 
 def get_sub_df(primary_time, mask_df):
@@ -88,7 +89,7 @@ def open_primary(primary_file):
 
 def make_mask(primary_data, primary_time, mask_df):
 
-    primary_shape = primary_data.variables['cer'].shape
+    primary_shape = primary_data.variables['costja'].shape
 
     # get teh sub dataframe associated with the mask
     sub_df = get_sub_df(primary_time, mask_df)
@@ -124,7 +125,7 @@ def label_plumes(mask):
     return plume_positions
 
 
-def make_plume_plot(tcc, primary_data, pp, plume_mask, axis):
+def make_plume_plot(tcc, primary_data, pp, plume_mask, axis, lut_class):
 
 
     for ax, k in zip(axis.flatten(), ['', 'cer', 'cot', 'costjm']):
@@ -146,26 +147,32 @@ def make_plume_plot(tcc, primary_data, pp, plume_mask, axis):
             masked_data = np.ma.masked_array(data, mask=~mask)
             if k == 'costjm':
                 p = ax.imshow(masked_data, interpolation='none', norm=LogNorm(vmin=1, vmax=1000))
-            else:
-                p = ax.imshow(masked_data, interpolation='none', norm=LogNorm(vmin=0.01, vmax=1))
+            elif k == 'cot':
+                p = ax.imshow(masked_data, interpolation='none', cmap='Greys', norm=LogNorm(vmin=0.01, vmax=5))
+	    else:
+                p = ax.imshow(masked_data, interpolation='none', cmap='gnuplot', norm=LogNorm(vmin=0.01, vmax=5))
             cbar = plt.colorbar(p, ax=ax)
             cbar.ax.get_yaxis().labelpad = 15
-            cbar.ax.set_ylabel(k, rotation=270, fontsize=14)
+            cbar.ax.set_ylabel(k+ '_' + lut_class , rotation=270, fontsize=20)
 
 
 
 def main():
 
+    # some path params
+    year = '2015'  # 2014
+    region = 'asia'  # americas
+
     # set up paths
-    l1b_path = '/group_workspaces/cems2/nceo_generic/satellite_data/modis_c6/myd021km/2014/'
-    orac_data_path = '/home/users/dnfisher/nceo_aerosolfire/data/orac_proc/myd/2014/'
-    mask_path = '/home/users/dnfisher/nceo_aerosolfire/data/plume_masks/myd021km_plumes_df.pickle'
-    output = '/home/users/dnfisher/nceo_aerosolfire/data/quicklooks/plume_retrievals/'
-    output_txt = '/home/users/dnfisher/nceo_aerosolfire/data/plume_masks/'
-    lut_classes = ['WAT', 'AMZ', 'BOR', 'CER', 'AMW', 'BOW', 'CEW']
+    l1b_path = '/group_workspaces/cems2/nceo_generic/satellite_data/modis_c6/myd021km/' + year + '/'
+    orac_data_path = '/home/users/dnfisher/nceo_aerosolfire/data/orac_proc/myd/' + year + '/'
+    mask_path = '/home/users/dnfisher/nceo_aerosolfire/data/plume_masks/'+ region + '/myd021km_plumes_df.csv'
+    output = '/home/users/dnfisher/nceo_aerosolfire/data/quicklooks/plume_retrievals/' + region + '/'
+    output_txt = '/home/users/dnfisher/nceo_aerosolfire/data/plume_masks/' + region + '/'
+    lut_classes = ['WAT', 'AMZ', 'CER', 'BOR', 'AMW', 'CEW', 'BOW']
 
     # read in the masks
-    mask_df = pd.read_pickle(mask_path)
+    mask_df = pd.read_csv(mask_path)
 
     # get the list of file times
     orac_times, l1b_times = get_primary_times(glob.glob(orac_data_path + '*/*/*' + '.primary*'))
@@ -183,7 +190,7 @@ def main():
             # open up the orac products
             prod_dict = {}
             for lut_class in lut_classes:
-                orac_file = glob.glob(orac_data_path + '*/*/*' + orac_time + '*' + lut_class + '*.primary*')
+                orac_file = glob.glob(orac_data_path + '*/*/*' + orac_time + '*' + lut_class + '*.primary*')[0]
                 print orac_file
                 orac_data = open_primary(orac_file)
                 prod_dict[lut_class] = orac_data
@@ -193,16 +200,16 @@ def main():
             plume_positions = label_plumes(plume_mask)
 
             # iterate over plumes in scene
-            for i, pp in enumerate(plume_positions):
+            for p, pp in enumerate(plume_positions):
                 fig, axes = plt.subplots(len(lut_classes), 4, figsize=(20, 5*len(lut_classes)))
 
                 # iterate over the classes
-                for lut_class in lut_classes:
+                for i, lut_class in enumerate(lut_classes):
 
                     # visualise
-                    make_plume_plot(tcc, prod_dict[lut_class], pp, plume_mask, axes[i])
+                    make_plume_plot(tcc, prod_dict[lut_class], pp, plume_mask, axes[i], lut_class)
 
-                plt.savefig(fname + '_p' + str(i) + '.png', bbox_inches='tight')
+                plt.savefig(fname + '_p' + str(p) + '.png', bbox_inches='tight')
                 plt.close('all')
 
                 # dump plume pos for caroline

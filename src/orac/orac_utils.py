@@ -693,7 +693,7 @@ class ParticleType():
         self.ls = ls
 
 tau = Invpar('ITau', ap=-1, sx=10e8)
-aer = Invpar('IRe', ap=-1.7, sx=10e8)
+aer = Invpar('IRe', ap=0.01, sx=10e8)  # this is NOT in log scale
 wvl = (0.858, 0.469, 0.555, 2.13, 11, 12)
 
 settings['WAT'] = ParticleType(wvl=wvl, inv=(tau, aer), sad=defaults.sad_dir, ls=False)
@@ -998,9 +998,9 @@ def args_main(parser):
     main.add_argument('--use_channel', type='bool', nargs='+', metavar='T/F',
                       default=[True, True, True, True, True, True],
                       help='Channels to be evaluated by main processor.')
-    main.add_argument('--llim_IRe', type=int(), default=-2,
+    main.add_argument('--llim_IRe', type=str, default='0.001',
                       help='Lower limit value for effective radius')
-    main.add_argument('--ulim_IRe', type=int(), default=1,
+    main.add_argument('--ulim_IRe', type=str, default='10',
                       help='Upper limit value for effective radius')
     ls = main.add_mutually_exclusive_group()
     ls.add_argument('--land', action='store_false',
@@ -1441,9 +1441,9 @@ Ctrl%RS%Use_Full_BRDF      = {use_brdf}""".format(
     # here we can change the upper and lower limits (which are set by default in ReadDriver.f90 (l523 and l540))
     # of the effective radius retrieval so that we do not get the fill value.
     if args.llim_IRe:
-        driver += "\nCtrl%Invpar%XLLim[[IRe] = " + args.llim_IRe
+        driver += "\nCtrl%Invpar%XLLim(IRe) = " + args.llim_IRe
     if args.ulim_IRe:
-        driver += "\nCtrl%Invpar%XULim[IRe] = " + args.ulim_IRe
+        driver += "\nCtrl%Invpar%XULim(IRe) = " + args.ulim_IRe
     if args.extra_lines:
         try:
             e = open(args.extra_lines, "r")
@@ -1452,7 +1452,6 @@ Ctrl%RS%Use_Full_BRDF      = {use_brdf}""".format(
             e.close()
         except IOError:
             raise FileMissing('extra_lines', args.extra_lines)
-
     return driver
 
 
