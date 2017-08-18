@@ -18,11 +18,12 @@ root_path = '/Users/dnf/Projects/kcl-fire-aot/data/{0}/'.format(region)
 path_to_processed_orac = root_path + 'processed/orac_proc/'
 path_to_goes_frp = root_path + 'processed/goes_frp/goes13_2014_fire_frp_atm.csv'
 path_to_smoke_plume_masks = root_path + 'processed/plume_masks/myd021km_plumes_df.pickle'
+path_to_smoke_plume_masks_csv = root_path + 'processed/plume_masks/myd021km_plumes_df.csv'
 path_to_ml_smoke_plume_masks = root_path + 'processed/plume_masks/myd021km_plumes_ml_df.pickle'
 path_to_ml_smoke_free_masks = root_path + 'processed/plume_masks/myd021km_smoke_free_ml_df.pickle'
 path_to_background_masks = root_path + 'processed/plume_masks/myd021km_bg_df.pickle'
-path_to_landcover = root_path + 'external/land_cover/GLOBCOVER_L4_200901_200912_V2.3.tif'
 path_to_processed_filelist = root_path + 'processed/plume_masks/processed_filelist.txt'
+
 
 # raw data and data transfer paths
 path_to_transfer_file = root_path + 'raw/rsync_file_list/files_to_transfer.txt'
