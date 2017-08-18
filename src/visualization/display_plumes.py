@@ -5,6 +5,7 @@ combines the mask and the output and plots the result to allow
 the user to evaluate the various parameters.
 '''
 
+import ast
 import glob
 
 import pandas as pd
@@ -106,7 +107,6 @@ def make_mask(primary_data, primary_time, mask_df):
         points = np.vstack((x, y)).T
 
         poly_verts = plume['plume_extent']
-
         # apply mask
         path = Path(poly_verts)
         grid = path.contains_points(points)
@@ -172,32 +172,38 @@ def main():
     lut_classes = ['WAT', 'AMZ', 'CER', 'BOR', 'AMW', 'CEW', 'BOW']
 
     # read in the masks
-    mask_df = pd.read_csv(mask_path)
+    mask_df = pd.read_csv(mask_path, quotechar='"', sep=',', converters={'plume_extent':ast.literal_eval})
 
     # get the list of file times
     orac_times, l1b_times = get_primary_times(glob.glob(orac_data_path + '*/*/*' + '.primary*'))
-
 
     with open(output_txt + "plume_extents.txt", "w") as text_file:
 
         for orac_time, l1b_time in zip(orac_times, l1b_times):
 
+            # open up the orac products
+            prod_dict = {}
+            try:
+                for lut_class in lut_classes:
+                    orac_file = glob.glob(orac_data_path + '*/*/*' + orac_time + '*' + lut_class + '*.primary*')[0]
+                    orac_data = open_primary(orac_file)
+                    prod_dict[lut_class] = orac_data
+            except Exception, e:
+                print 'Failed with error:', str(e), 'on', orac_data_path + '*/*/*' + orac_time + '*' + lut_class + '*.primary*'
+                continue
+
+            # get the plume mask for the scene
+            try:
+                plume_mask = make_mask(orac_data, l1b_time, mask_df)
+            except Exception, e:
+                print 'failed with error:', str(e)
+                continue
+            plume_positions = label_plumes(plume_mask)
+ 
             # get the tcc of the associated l1b file
             l1b_file = glob.glob(l1b_path + '/*/*' + l1b_time + '*')[0]
             tcc = tcc_myd021km(l1b_file)
             fname = output + l1b_file.split('/')[-1][:-3] + '_orac_quicklooks'
-
-            # open up the orac products
-            prod_dict = {}
-            for lut_class in lut_classes:
-                orac_file = glob.glob(orac_data_path + '*/*/*' + orac_time + '*' + lut_class + '*.primary*')[0]
-                print orac_file
-                orac_data = open_primary(orac_file)
-                prod_dict[lut_class] = orac_data
-
-            # get the plume mask for the scene
-            plume_mask = make_mask(orac_data, l1b_time, mask_df)
-            plume_positions = label_plumes(plume_mask)
 
             # iterate over plumes in scene
             for p, pp in enumerate(plume_positions):
@@ -210,6 +216,7 @@ def main():
                     make_plume_plot(tcc, prod_dict[lut_class], pp, plume_mask, axes[i], lut_class)
 
                 plt.savefig(fname + '_p' + str(p) + '.png', bbox_inches='tight')
+                print 'saved fig at', fname
                 plt.close('all')
 
                 # dump plume pos for caroline
