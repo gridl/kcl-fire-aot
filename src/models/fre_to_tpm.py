@@ -30,8 +30,9 @@ from pyhdf.SD import SD, SDC
 from matplotlib.path import Path
 from scipy import stats
 
-
 import src.config.filepaths as filepaths
+
+import matplotlib.pyplot as plt
 
 
 def get_orac_fname(orac_file_path, plume):
@@ -41,6 +42,9 @@ def get_orac_fname(orac_file_path, plume):
     return glob.glob(os.path.join(orac_file_path, y, doy, 'main', '*' + time + '*.primary.nc'))[0]
 
 def find_landcover_class(plume, landcover):
+
+    #plt.imshow(np.array(landcover['Band1']), cmap='gray', interpolation='none')
+    #plt.show()
 
     y = plume.filename[10:14]
     doy = plume.filename[14:17]
@@ -70,7 +74,11 @@ def find_landcover_class(plume, landcover):
     for lat, lon in zip(lat_list, lon_list):
         s = int((lon - (-180)) / 360 * landcover['lon'].size)  # lon index
         l = int((lat - 90) * -1 / 180 * landcover['lat'].size)  # lat index
-        lc_list.append(np.array(landcover['Band1'][s:s+1, l:l+1][0]))
+
+        # image is flipped, so we need to reverse the lat coordinate
+        l = -(l + 1)
+
+        lc_list.append(np.array(landcover['Band1'][l:(l-1), s:s+1][0]))
 
     # return the most common landcover class for the fire contined in the ROI
     return stats.mode(lc_list)
@@ -97,9 +105,11 @@ def main():
         # find landcover type
         fire_lc_class = find_landcover_class(plume, landcover)
 
-        # find aod / tpm
+        # find aod / tpm for the plume
 
-        # find fre
+        # find fre for the plume
+
+        # store output
 
 
 
