@@ -24,16 +24,34 @@ import os
 
 import pandas as pd
 import numpy as np
-import pyresample as pr
 from netCDF4 import Dataset
 from pyhdf.SD import SD, SDC
 from matplotlib.path import Path
 from scipy import stats
+from shapely.geometry import Polygon, Point
+
 
 import src.config.filepaths as filepaths
+import src.config.sensor as sensor
 
 import matplotlib.pyplot as plt
 
+
+
+def load_frp():
+    data_dict = {}
+    if sensor.sensor == 'himawari':
+        for f in os.listdir(filepaths.path_to_himawari_frp):
+            k = f[3:9]
+
+            # first load in csv file as pandas
+            frp_data = pd.read_csv(os.path.join(filepaths.path_to_himawari_frp, f))
+            frp_data['points'] = zip(frp_data['LONGITUDE'].values, frp_data['LATITUDE'].values)
+            data_dict[k] = frp_data
+    elif sensor.sensor == 'goes':
+        pass
+
+    return data_dict
 
 def get_orac_fname(orac_file_path, plume):
     y = plume.filename[10:14]
@@ -78,10 +96,10 @@ def find_landcover_class(plume, landcover):
         # image is flipped, so we need to reverse the lat coordinate
         l = -(l + 1)
 
-        lc_list.append(np.array(landcover['Band1'][l:(l-1), s:s+1][0]))
+        lc_list.append(np.array(landcover['Band1'][(l-1):l, s:s+1][0])[0])
 
     # return the most common landcover class for the fire contined in the ROI
-    return stats.mode(lc_list)
+    return stats.mode(lc_list).mode[0]
 
 
 
@@ -95,15 +113,21 @@ def main():
     # open up the landcover dataset
     landcover = Dataset(landcover_path)
 
+    # load all geostationary frp data into geopandas dataframes
+    frp_data = load_frp()
+
     try:
         mask_df = pd.read_pickle(mask_path)
     except:
         mask_df = pd.read_csv(mask_path, quotechar='"', sep=',', converters={'plume_extent': ast.literal_eval})
 
     for index, plume in mask_df.iterrows():
+        continue
+
+        # convert plume polygon into geopandas
 
         # find landcover type
-        fire_lc_class = find_landcover_class(plume, landcover)
+        #fire_lc_class = find_landcover_class(plume, landcover)
 
         # find aod / tpm for the plume
 

@@ -48,6 +48,12 @@ path_to_class_https_b = 'https://download.class.ngdc.noaa.gov/download/'
 path_to_goes_tmp = root_path + 'tmp/goes/'
 path_to_modis_tmp = root_path + 'tmp/modis/'
 
+# paths to frp
+if sensor.sensor == 'goes':
+    path_to_geo_frp = root_path + 'processed/goes_frp/'
+elif sensor.sensor == 'himawari':
+    path_to_himawari_frp = root_path + 'processed/himawari/'
+
 # features filepaths
 path_to_plume_classification_features = root_path + 'interim/classification_features.pickle'
 path_to_reduced_plume_classification_features = root_path + 'interim/classification_features_20pc.pickle'
