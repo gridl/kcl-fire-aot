@@ -50,7 +50,7 @@ path_to_modis_tmp = root_path + 'tmp/modis/'
 
 # paths to frp
 if sensor.sensor == 'goes':
-    path_to_geo_frp = root_path + 'processed/goes_frp/'
+    path_to_goes_frp = root_path + 'processed/goes_frp/'
 elif sensor.sensor == 'himawari':
     path_to_himawari_frp = root_path + 'processed/himawari/'
 
