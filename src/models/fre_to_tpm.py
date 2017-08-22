@@ -30,47 +30,53 @@ from matplotlib.path import Path
 from scipy import stats
 from shapely.geometry import Polygon, Point
 
-
 import src.config.filepaths as filepaths
 import src.config.sensor as sensor
 
 import matplotlib.pyplot as plt
-
+import scipy.ndimage as ndimage
 
 
 def load_frp():
-    data_dict = {}
     if sensor.sensor == 'himawari':
-        for f in os.listdir(filepaths.path_to_himawari_frp):
-            k = f[3:9]
+        frp_files =  os.listdir(filepaths.path_to_himawari_frp)
+        df_from_each_file = (pd.read_csv(f) for f in frp_files)
+        frp_df = pd.concat(df_from_each_file, ignore_index=True)
 
-            # first load in csv file as pandas
-            frp_data = pd.read_csv(os.path.join(filepaths.path_to_himawari_frp, f))
-            frp_data['points'] = zip(frp_data['LONGITUDE'].values, frp_data['LATITUDE'].values)
-            data_dict[k] = frp_data
+        # make geocoords into shapely points
+        points = [Point(p[0], p[1]) for p in zip(frp_df['LONGITUDE'].values, frp_df['LATITUDE'].values)]
+        frp_df['points'] = points
+
+        # reindex onto date
+        for k in ['year', 'month', 'day', 'time']:
+            frp_df[k] = frp_df[k].astype(int).astype(str)
+            if k == 'time':
+                frp_df[k] = frp_df[k].str.zfill(4)
+            if k in ['month', 'day']:
+                frp_df[k] = frp_df[k].str.zfill(2)
+
+        format = '%Y%m%d%H%M'
+        frp_df['datetime'] = pd.to_datetime(frp_df['year'] +
+                                            frp_df['month'] +
+                                            frp_df['day'] +
+                                            frp_df['time'], format=format)
+        frp_df = frp_df.set_index('datetime')
+
+
     elif sensor.sensor == 'goes':
         pass
 
-    return data_dict
+    return frp_df
 
-def get_orac_fname(orac_file_path, plume):
-    y = plume.filename[10:14]
-    doy = plume.filename[14:17]
-    time = plume.filename[18:22]
-    return glob.glob(os.path.join(orac_file_path, y, doy, 'main', '*' + time + '*.primary.nc'))[0]
 
 def find_landcover_class(plume, landcover):
-
-    #plt.imshow(np.array(landcover['Band1']), cmap='gray', interpolation='none')
-    #plt.show()
-
     y = plume.filename[10:14]
     doy = plume.filename[14:17]
     time = plume.filename[18:22]
 
     myd14 = glob.glob(os.path.join(filepaths.path_to_modis_frp, '*A' + y + doy + '.' + time + '*.hdf'))[0]
     myd14 = SD(myd14, SDC.READ)
-    
+
     lines = myd14.select('FP_line').get()
     samples = myd14.select('FP_sample').get()
     lats = myd14.select('FP_latitude').get()
@@ -96,10 +102,36 @@ def find_landcover_class(plume, landcover):
         # image is flipped, so we need to reverse the lat coordinate
         l = -(l + 1)
 
-        lc_list.append(np.array(landcover['Band1'][(l-1):l, s:s+1][0])[0])
+        lc_list.append(np.array(landcover['Band1'][(l - 1):l, s:s + 1][0])[0])
 
     # return the most common landcover class for the fire contined in the ROI
     return stats.mode(lc_list).mode[0]
+
+
+def get_orac_data(plume, orac_file_path):
+    y = plume.filename[10:14]
+    doy = plume.filename[14:17]
+    time = plume.filename[18:22]
+    orac_file = glob.glob(os.path.join(orac_file_path, y, doy, 'main', '*' + time + '*.primary.nc'))[0]
+    return Dataset(orac_file)
+
+
+def build_polygon(plume, orac_data):
+
+    # TODO replace this with ORAC data, not using L1B data
+    # get geographic coordinates of plume bounds (first test with l2 data)
+    myd_data = SD(os.path.join(filepaths.path_to_modis_l1b, plume.filename), SDC.READ)
+    lats = ndimage.zoom(myd_data.select('Latitude').get(), 5)
+    lons = ndimage.zoom(myd_data.select('Longitude').get(), 5)
+
+    bounding_lats = [lats[point[0], point[1]] for point in plume.plume_extent]
+    bounding_lons = [lons[point[0], point[1]] for point in plume.plume_extent]
+
+    return Polygon(zip(bounding_lons, bounding_lats))
+
+
+def compute_fre(plume_polygon, frp_data):
+    pass
 
 
 
@@ -108,10 +140,10 @@ def main():
     # set the filepaths up here
     root_path = '/Users/dnf/Projects/kcl-fire-aot/data/'
     landcover_path = root_path + 'Global/land_cover/ESACCI-LC-L4-LCCS-Map-300m-P1Y-2015-v2.0.7_900m.nc'
-    mask_path = root_path + 'Americas/processed/plume_masks/myd021km_plumes_df.pickle'
+    mask_path = root_path + 'Asia/processed/plume_masks/myd021km_plumes_df.pickle'
 
     # open up the landcover dataset
-    landcover = Dataset(landcover_path)
+    landcover_data = Dataset(landcover_path)
 
     # load all geostationary frp data into geopandas dataframes
     frp_data = load_frp()
@@ -122,16 +154,21 @@ def main():
         mask_df = pd.read_csv(mask_path, quotechar='"', sep=',', converters={'plume_extent': ast.literal_eval})
 
     for index, plume in mask_df.iterrows():
-        continue
-
-        # convert plume polygon into geopandas
 
         # find landcover type
-        #fire_lc_class = find_landcover_class(plume, landcover)
+        # plume_lc_class = find_landcover_class(plume, landcover_data)
 
-        # find aod / tpm for the plume
+        # get orac file for plume
+        # orac_data = get_orac_fname(plume, orac_file_path)
+        orac_data = []
+
+        # convert plume into polygon
+        plume_polygon = build_polygon(plume, orac_data)
 
         # find fre for the plume
+        plume_fre = compute_fre(plume_polygon, frp_data)
+
+        # find aod / tpm for the plume
 
         # store output
 
