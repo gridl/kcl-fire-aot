@@ -141,7 +141,7 @@ def main():
             continue
 
         # download the file
-        local_filename = os.path.join(filepaths.path_to_modis_myd04_3k, myd04_3K_filename)
+        local_filename = os.path.join(filepaths.path_to_modis_aod, myd04_3K_filename)
 
         if not os.path.isfile(local_filename):  # if we dont have the file, then dl it
             logger.info("Downloading: " + myd04_3K_filename)

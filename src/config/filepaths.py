@@ -11,8 +11,8 @@ elif sensor.sensor == 'himawari':
     region = 'Asia'
 
 # root path to data folder
-root_path = '/Users/dnf/Projects/kcl-fire-aot/data/{0}/'.format(region)
-#root = '/Volumes/INTENSO/'
+#root_path = '/Users/dnf/Projects/kcl-fire-aot/data/{0}/'.format(region)
+root_path = '/Users/danielfisher/Projects/kcl-fire-aot/data/{0}/'.format(region)
 
 # processed data paths
 path_to_processed_orac = root_path + 'processed/orac_proc/'
@@ -23,7 +23,6 @@ path_to_ml_smoke_plume_masks = root_path + 'processed/plume_masks/myd021km_plume
 path_to_ml_smoke_free_masks = root_path + 'processed/plume_masks/myd021km_smoke_free_ml_df.pickle'
 path_to_background_masks = root_path + 'processed/plume_masks/myd021km_bg_df.pickle'
 path_to_processed_filelist = root_path + 'processed/plume_masks/processed_filelist.txt'
-
 
 # raw data and data transfer paths
 path_to_transfer_file = root_path + 'raw/rsync_file_list/files_to_transfer.txt'
@@ -63,3 +62,6 @@ path_to_rf_model = root_path + 'models/rf_model_64_trees.pickle'
 
 # visualisation filepaths
 path_to_orac_visuals = root_path + 'visualisations/orac/'
+
+# filelist paths
+path_to_filelists = root_path + 'filelists/'

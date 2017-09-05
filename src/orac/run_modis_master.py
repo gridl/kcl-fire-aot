@@ -7,9 +7,11 @@ import glob
 
 class ProcParams(object):
     def __init__(self):
-        self.data_dir = '/group_workspaces/cems2/nceo_generic/satellite_data/modis_c6/myd021km/2015/'
-        self.geo_dir = '/group_workspaces/cems2/nceo_generic/satellite_data/modis_c6/myd03/2015/'
-        self.output_dir = '/group_workspaces/cems/nceo_aerosolfire/data/orac_proc/myd/2015/'
+        self.filelist_name = ''
+        self.filelist_dir = ''
+        self.data_dir = '/group_workspaces/cems2/nceo_generic/satellite_data/modis_c6/myd021km/'
+        self.geo_dir = '/group_workspaces/cems2/nceo_generic/satellite_data/modis_c6/myd03/'
+        self.output_dir = '/group_workspaces/cems/nceo_aerosolfire/data/orac_proc/myd/'
         self.proc_level = 'pro'
 
         self.cldsaddir = '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/sad_dir/modis_WAT'
@@ -18,16 +20,26 @@ class ProcParams(object):
         self.aerphs = ['AMZ', 'AFR', 'CER', 'BOR', 'CEW',  'BOW', 'AMW', 'AFW']
 
 def run_pre(proc_params):
-    # iterate over mod files in data dir
+
+    # get list of files which we are processing
+    with open(os.path.join(proc_params.filelist_dir, proc_params.filelist_name), 'rb') as f:
+        file_list = f.readlines()
+
+    # iterate over mod files in proc filelisr
     for root, dirs, files in os.walk(proc_params.data_dir):
         for f in files:
-            if f:  # check if not empty
+            if f in file_list:
                 input_file_path = os.path.join(root, f)
+            #elif f:  # check if not empty
+            #    input_file_path = os.path.join(root, f)
             else:
                 continue
 
-            output_file_path = os.path.join(proc_params.output_dir, root.split('/')[-1], 'pre')
-            geo_file_path = os.path.join(proc_params.geo_dir, root.split('/')[-1])
+            split_root = root.split('/')
+            year = split_root[-2]
+            doy = split_root[-1]
+            output_file_path = os.path.join(proc_params.output_dir, year, doy, 'pre')
+            geo_file_path = os.path.join(proc_params.geo_dir, year, doy)
 
             if not os.path.exists(output_file_path):
                 os.makedirs(output_file_path)
