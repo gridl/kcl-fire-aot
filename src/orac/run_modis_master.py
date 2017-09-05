@@ -3,6 +3,7 @@ import sys
 import os
 import re
 import glob
+from datetime import datetime
 
 
 class ProcParams(object):
@@ -17,10 +18,10 @@ class ProcParams(object):
         self.cldsaddir = '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/sad_dir/modis_WAT'
         self.cldphs = ['WAT']
         self.aersaddir = '/group_workspaces/cems/nceo_aerosolfire/luts/sad'
-        self.aerphs = ['AMZ', 'AFR', 'CER', 'BOR', 'CEW',  'BOW', 'AMW', 'AFW']
+        self.aerphs = ['AMZ', 'AFR', 'CER', 'BOR', 'CEW', 'BOW', 'AMW', 'AFW']
+
 
 def run_pre(proc_params):
-
     # get list of files which we are processing
     with open(os.path.join(proc_params.filelist_dir, proc_params.filelist_name), 'rb') as f:
         file_list = f.readlines()
@@ -30,7 +31,7 @@ def run_pre(proc_params):
         for f in files:
             if f in file_list:
                 input_file_path = os.path.join(root, f)
-            #elif f:  # check if not empty
+            # elif f:  # check if not empty
             #    input_file_path = os.path.join(root, f)
             else:
                 continue
@@ -48,13 +49,18 @@ def run_pre(proc_params):
             pre_cmd = input_file_path \
                       + ' -o ' + output_file_path \
                       + ' -g ' + geo_file_path \
-		      + ' -c 1 2 3 4 7 20 31 32 ' \
-		      + ' --skip_ecmwf_hr ' \
+                      + ' -c 1 2 3 4 7 20 31 32 ' \
+                      + ' --skip_ecmwf_hr ' \
                       + ' --batch '
             os.system('./orac_preproc.py ' + pre_cmd)
 
 
 def run_pro(proc_params):
+
+    # get list of files which we are processing
+    with open(os.path.join(proc_params.filelist_dir, proc_params.filelist_name), 'rb') as f:
+        file_list = f.readlines()
+
     # iterate over mod files in data dir
     for root, dirs, files in os.walk(proc_params.output_dir):
 
@@ -65,24 +71,31 @@ def run_pro(proc_params):
         try:
             msi_roots = glob.glob(root + '/*.msi.nc')
         except:
-	    continue
+            continue
 
-	for msi_root in msi_roots:
-	    msi_root = os.path.basename(msi_root)[:-7]
+        for msi_root in msi_roots:
+            msi_root = os.path.basename(msi_root)[:-7]
+
+            # check if msi_root is one of the files to be processed in the file list
+            msi_time = datetime.strptime(msi_root.split('_')[-2], '%Y%m%%d%H%M')
+            msi_str_time = datetime.strftime(msi_time, '%Y%j.%H%M')
+            if not any(msi_str_time in f for f in file_list):
+                continue
+
+            print 'processing file for time:', msi_str_time
 
             pro_dir = root.replace('pre', 'main')
-           
-            print pro_dir 
-	    # Set up and call ORAC for the defined phases --ret_class ClsAerOx
+
+            # Set up and call ORAC for the defined phases --ret_class ClsAerOx
             proc_cmd = '-i ' + root \
-                     + ' -o ' + pro_dir \
-                     + ' --sad_dir ' + proc_params.aersaddir \
-                     + ' --use_channel 1 1 0 1 1 0 0 0 -a AppCld1L --ret_class ClsAerOx ' \
-                     + ' --keep_driver ' \
-                     + ' --batch ' \
-                     + ' --phase '
-        
-	    for phs in proc_params.aerphs:
+                       + ' -o ' + pro_dir \
+                       + ' --sad_dir ' + proc_params.aersaddir \
+                       + ' --use_channel 1 1 0 1 1 0 0 0 -a AppCld1L --ret_class ClsAerOx ' \
+                       + ' --keep_driver ' \
+                       + ' --batch ' \
+                       + ' --phase '
+
+            for phs in proc_params.aerphs:
                 os.system('./orac_main.py ' + proc_cmd + phs + ' ' + msi_root)
 
 
@@ -98,4 +111,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()
