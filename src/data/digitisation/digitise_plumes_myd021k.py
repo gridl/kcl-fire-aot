@@ -296,11 +296,11 @@ def main():
             continue
 
         myd14_fname = get_fname(filepaths.path_to_modis_frp, timestamp_myd, myd021km_fname)
-        myd04_3K_fname = get_fname(filepaths.path_to_modis_aod, timestamp_myd, myd021km_fname)
+        myd04_3K_fname = get_fname(filepaths.path_to_modis_aod_3k, timestamp_myd, myd021km_fname)
 
         try:
             myd14 = read_myd(os.path.join(filepaths.path_to_modis_frp, myd14_fname))
-            myd04_3K = read_myd(os.path.join(filepaths.path_to_modis_aod, myd04_3K_fname))
+            myd04_3K = read_myd(os.path.join(filepaths.path_to_modis_aod_3k, myd04_3K_fname))
             myd021km = read_myd(os.path.join(filepaths.path_to_modis_l1b, myd021km_fname))
         except Exception, e:
             logger.warning('Could not read the input files for ' + myd021km_fname + ' and failed with ' + str(e))

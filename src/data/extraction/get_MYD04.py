@@ -31,13 +31,13 @@ def ftp_connect_laads():
 
 def get_file(ftp_laads, doy, myd021km_file):
     try:
-        ftp_cd(ftp_laads, doy, filepaths.path_to_myd04_3K)
+        ftp_cd(ftp_laads, doy, filepaths.path_to_myd04)
         file_list = get_files(ftp_laads)
 
         # find the right file
         file_list = [f.split(None, 8)[-1].lstrip() for f in file_list]
-        myd04_3K_file = [f for f in file_list if myd021km_file[10:23] in f][0]
-        return myd04_3K_file
+        myd04_file = [f for f in file_list if myd021km_file[10:23] in f][0]
+        return myd04_file
 
     except:
         logger.info('Could not access file list for DOY: ' + doy + " on attempt 1. Reattempting...")
@@ -45,13 +45,13 @@ def get_file(ftp_laads, doy, myd021km_file):
         while True:
             try:
                 ftp_laads = ftp_connect_laads()
-                ftp_cd(ftp_laads, doy, filepaths.path_to_myd04_3K)
+                ftp_cd(ftp_laads, doy, filepaths.path_to_myd04)
                 file_list = get_files(ftp_laads)
 
                 # find the right file
                 file_list = [f.split(None, 8)[-1].lstrip() for f in file_list]
-                myd04_3K_file = [f for f in file_list if myd021km_file[10:23] in f][0]
-                return myd04_3K_file
+                myd04_file = [f for f in file_list if myd021km_file[10:23] in f][0]
+                return myd04_file
             except:
                 attempt += 1
                 logger.info('Could not access file list for DOY: ' + doy + " on attempt " + str(attempt) +
@@ -70,10 +70,10 @@ def get_files(ftp_laads):
 def retrieve(ftp_laads, doy, local_filename, filename):
     # try accessing ftp, if fail then reconnect
     try:
-        ftp_cd(ftp_laads, doy, filepaths.path_to_myd04_3K)
+        ftp_cd(ftp_laads, doy, filepaths.path_to_myd04)
     except:
         ftp_laads = ftp_connect_laads()
-        ftp_cd(ftp_laads, doy, filepaths.path_to_myd04_3K)
+        ftp_cd(ftp_laads, doy, filepaths.path_to_myd04)
 
 
     lf = open(local_filename, "wb")
@@ -122,7 +122,7 @@ def main():
         if data_settings.myd_year not in f[0:16]:
             continue
 
-        # check if the file for the MYD04_3K data  is being downloaded by another script already
+        # check if the file for the MYD04 data  is being downloaded by another script already
         downloading = check_downloading_status(temp_path, f)
         if downloading:
             continue
@@ -130,24 +130,24 @@ def main():
             append_to_download_list(temp_path, f)
 
 
-        # find the correct myd04_3K file
+        # find the correct myd04 file
         doy = f[14:17]
         if not doy:
             continue
-        myd04_3K_filename = get_file(ftp_laads, doy, f)
+        myd04_filename = get_file(ftp_laads, doy, f)
 
-        if not myd04_3K_filename:
-            logger.warning('Could not download myd04_3K file for file: ' + f)
+        if not myd04_filename:
+            logger.warning('Could not download myd04 file for file: ' + f)
             continue
 
-        # download the file
-        local_filename = os.path.join(filepaths.path_to_modis_aod, myd04_3K_filename)
+        # download the filef
+        local_filename = os.path.join(filepaths.path_to_modis_aod, myd04_filename)
 
         if not os.path.isfile(local_filename):  # if we dont have the file, then dl it
-            logger.info("Downloading: " + myd04_3K_filename)
-            retrieve(ftp_laads, doy, local_filename, myd04_3K_filename)
+            logger.info("Downloading: " + myd04_filename)
+            retrieve(ftp_laads, doy, local_filename, myd04_filename)
         else:
-            logger.info(myd04_3K_filename + ' already exists on the system')
+            logger.info(myd04_filename + ' already exists on the system')
 
         # remote temp empty file from currently downloading list
         remove_from_download_list(temp_path, f)

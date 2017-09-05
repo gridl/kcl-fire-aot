@@ -7,8 +7,8 @@ import glob
 
 class ProcParams(object):
     def __init__(self):
-        self.filelist_name = ''
-        self.filelist_dir = ''
+        self.filelist_name = 'indonesia_filepaths.txt'
+        self.filelist_dir = '/home/users/dnfisher/nceo_aerosolfire/data/filelists/'
         self.data_dir = '/group_workspaces/cems2/nceo_generic/satellite_data/modis_c6/myd021km/'
         self.geo_dir = '/group_workspaces/cems2/nceo_generic/satellite_data/modis_c6/myd03/'
         self.output_dir = '/group_workspaces/cems/nceo_aerosolfire/data/orac_proc/myd/'
