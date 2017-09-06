@@ -8,11 +8,13 @@ import numpy as np
 import pandas as pd
 
 import matplotlib
-matplotlib.use('TkAgg')
+#matplotlib.use('TkAgg')
 
+import pyresample as pr
 import scipy.ndimage as ndimage
 from datetime import datetime
 from pyhdf.SD import SD, SDC
+from netCDF4 import Dataset
 from skimage import exposure
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Rectangle, Polygon
@@ -89,8 +91,12 @@ def get_viirs_fname(path, timestamp_myd):
         return ''
 
 
-def read_myd(f):
+def read_hdf(f):
     return SD(f, SDC.READ)
+
+
+def read_orac(f):
+    return Dataset(f)
 
 
 def fires_myd14(myd14_data):
@@ -101,10 +107,45 @@ def aod_myd04_3K(myd04_3K):
     aod_params = myd04_3K.select("Optical_Depth_Land_And_Ocean").attributes()
     aod = myd04_3K.select("Optical_Depth_Land_And_Ocean").get()
     aod = (aod + aod_params['add_offset']) * aod_params['scale_factor']
-    aod[aod < 0] = 0
-    aod[aod > 0.5] = 0.5
     aod = ndimage.zoom(aod, 3, order=1)
     return aod
+
+
+def aod_orac(orac_ds):
+    return orac_ds.variables['cot'], orac_ds.variables['costjm']
+
+
+def aod_viirs(viirs_aod_data, viirs_geo_data, myd021km):
+
+    '''
+    Resample the VIIRS AOD data to the MODIS grid
+    '''
+
+    mod_lats = myd021km.select('Latitude').get()
+    mod_lons = myd021km.select('Longitude').get()
+    mod_swath_def = pr.geometry.SwathDefinition(lons=mod_lons, lats=mod_lats)
+
+    viirs_aod = viirs_aod_data.select('faot550').get()
+    viirs_mask = viirs_aod < 0
+
+    viirs_lats = viirs_geo_data.select('Latitude').get()
+    viirs_lons = viirs_geo_data.select('Longitude').get()
+    viirs_masked_lats = np.ma.masked_array(viirs_lats, viirs_mask)
+    viirs_masked_lons = np.ma.masked_array(viirs_lons, viirs_mask)
+    viirs_swath_def = pr.geometry.SwathDefinition(lons=viirs_masked_lons, lats=viirs_masked_lats)
+
+    resampled_viirs_aod = pr.kd_tree.resample_nearest(viirs_swath_def,
+                                                      viirs_aod,
+                                                      mod_swath_def,
+                                                      radius_of_influence=1000,
+                                                      epsilon=0.5,
+                                                      fill_value=0)
+
+    plt.imshow(resampled_viirs_aod)
+    cbar = plt.colorbar()
+    plt.show()
+
+    return resampled_viirs_aod
 
 
 def image_histogram_equalization(image, number_bins=256):
@@ -290,7 +331,6 @@ def digitise(fcc, tcc, aod, fires):
     return smoke_polygons
 
 
-
 def extract_plume_bounds(plume, fname, plumes_list):
     row_dict = {}
 
@@ -327,31 +367,40 @@ def main():
         viirs_geo_fname = get_viirs_fname(filepaths.path_to_viirs_geo, timestamp_myd)
 
         try:
-            myd021km = read_myd(os.path.join(filepaths.path_to_modis_l1b, myd021km_fname))
+            myd021km = read_hdf(os.path.join(filepaths.path_to_modis_l1b, myd021km_fname))
         except Exception, e:
             logger.warning('Could not read the input file: ' + myd021km_fname + '. Failed with ' + str(e))
             continue
 
-        # if filenames load in other data
-        myd_14, myd04_3K, orac_aod, viirs_aod = None, None, None, None
-        if myd14_fname:
-            myd14 = read_myd(os.path.join(filepaths.path_to_modis_frp, myd14_fname))
-        if myd04_3K_fname:
-            myd04_3K = read_myd(os.path.join(filepaths.path_to_modis_aod_3k, myd04_3K_fname))
-        if orac_fname:
-            orac_aod = read_orac()
-        if viirs_aod_fname & viirs_geo_fname:
-            viirs_aod = read_viirs()
+        # if filenames load in data
+        fires, mod_aod, orac_aod, orac_cost, viirs_aod = None, None, None, None, None
+        # if myd14_fname:
+        #     myd14 = read_hdf(os.path.join(filepaths.path_to_modis_frp, myd14_fname))
+        #     fires = fires_myd14(myd14)
+        #
+        # if myd04_3K_fname:
+        #     myd04_3K = read_hdf(os.path.join(filepaths.path_to_modis_aod_3k, myd04_3K_fname))
+        #     mod_aod = aod_myd04_3K(myd04_3K)
+
+        # if orac_fname:
+        #     orac_data = read_orac(os.path.join(filepaths.path_to_orac_aod, orac_fname))
+        #     orac_aod, orac_cost = aod_orac(orac_data)
+
+        if viirs_aod_fname and viirs_geo_fname:
+            viirs_aod_data = read_hdf(os.path.join(filepaths.path_to_viirs_aod, viirs_aod_fname))
+            try:
+                viirs_geo_data = read_hdf(os.path.join(filepaths.path_to_viirs_geo, viirs_geo_fname))
+            except:
+                continue
+            viirs_aod = aod_viirs(viirs_aod_data, viirs_geo_data, myd021km)
+
+        continue
+
+        #TODO move this to line 330
+        fcc = fcc_myd021km(myd021km)
+        tcc = tcc_myd021km(myd021km)
 
         # do the digitising
-        try:
-            fires = fires_myd14(myd14)
-            aod = aod_myd04_3K(myd04_3K)
-            fcc = fcc_myd021km(myd021km)
-            tcc = tcc_myd021km(myd021km)
-        except Exception, e:
-            logger.warning('Could not generate images for ' + myd021km_fname + ' and failed with ' + str(e))
-            continue
         smoke_polygons = digitise(fcc, tcc, aod, fires)
         if smoke_polygons is None:
             continue

@@ -34,7 +34,7 @@ path_to_modis_aod = root_path + 'raw/modis/MYD04/'
 path_to_orac_aod = root_path + 'processed/orac/'
 path_to_goes_l1b = root_path + 'raw/goes/'
 path_to_viirs_aod = root_path + 'raw/viirs/VAOTIP_L2/'
-path_to_viirs_geo = root_path + 'raw/viirs/IMFT_L1/'
+path_to_viirs_geo = root_path + 'raw/viirs/VMAE_L1/'
 
 # FTP paths (MODIS / Ladsweb)
 path_to_ladsweb_ftp = "ladsweb.nascom.nasa.gov"
@@ -44,7 +44,7 @@ path_to_myd14 = 'allData/6/MYD14/'
 path_to_myd04_3K = 'allData/6/MYD04_3K/'
 path_to_myd04 = 'allData/6/MYD04_L2/'
 path_to_VAOTIP_L2 = 'allData/3110/NPP_VAOTIP_L2/'  # VIIRS 750m IP AOD
-path_to_IMFT_L1 = 'allData/3110/NPP_IMFT_L1/'  # VIIRS 325m GEO for AOD
+path_to_VMAE_L1 = 'allData/3110/NPP_VMAE_L1/'  # VIIRS 750m GEO for AOD
 
 
 # HTTPS paths (GOES / class)
