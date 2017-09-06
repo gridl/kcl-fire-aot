@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
 import logging
-from dotenv import find_dotenv, load_dotenv
 
 import re
 
@@ -9,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 import matplotlib
-matplotlib.use('Qt5Agg')
+matplotlib.use('TkAgg')
 
 import scipy.ndimage as ndimage
 from datetime import datetime
@@ -56,12 +55,38 @@ def image_seen(myd021km_fname):
         return False  # if we cannot do it, lets just assume we haven't seen the image before
 
 
-
-def get_fname(path, timestamp_myd, myd021km_fname):
+def get_modis_fname(path, timestamp_myd, myd021km_fname):
     fname = [f for f in os.listdir(path) if timestamp_myd in f]
     if len(fname) > 1:
         logger.warning("More that one frp granule matched " + myd021km_fname + "selecting 0th option")
+        return fname[0]
+    elif len(fname) == 1:
+        return fname[0]
+    else:
+        return ''
+
+
+def get_orac_fname(path, timestamp_myd):
+    t = datetime.strptime(timestamp_myd, '%Y%j.%H%M.')
+    t = datetime.strftime(t, '%Y%m%d%H%M')
+    fname = [f for f in os.listdir(path) if t in f]
     return fname[0]
+
+
+def get_viirs_fname(path, timestamp_myd):
+    # only one dataset per day for this analysis
+    # so do not need to worry about geolocating the data
+    # however put in warning for future to catch errors
+    t = timestamp_myd[0:7]
+    fname = [f for f in os.listdir(path) if t in f[0:28]]
+    if len(fname) > 1:
+        logger.warning('Multiple VIIRS AOD files found.  Need to add geolocation check to find right one')
+        print fname
+        return ''
+    elif len(fname) == 1:
+        return fname[0]
+    else:
+        return ''
 
 
 def read_myd(f):
@@ -295,17 +320,28 @@ def main():
         if image_seen(myd021km_fname):
             continue
 
-        myd14_fname = get_fname(filepaths.path_to_modis_frp, timestamp_myd, myd021km_fname)
-        myd04_3K_fname = get_fname(filepaths.path_to_modis_aod_3k, timestamp_myd, myd021km_fname)
+        myd14_fname = get_modis_fname(filepaths.path_to_modis_frp, timestamp_myd, myd021km_fname)
+        myd04_3K_fname = get_modis_fname(filepaths.path_to_modis_aod_3k, timestamp_myd, myd021km_fname)
+        orac_fname = get_orac_fname(filepaths.path_to_orac_aod, timestamp_myd)
+        viirs_aod_fname = get_viirs_fname(filepaths.path_to_viirs_aod, timestamp_myd)
+        viirs_geo_fname = get_viirs_fname(filepaths.path_to_viirs_geo, timestamp_myd)
 
         try:
-            myd14 = read_myd(os.path.join(filepaths.path_to_modis_frp, myd14_fname))
-            myd04_3K = read_myd(os.path.join(filepaths.path_to_modis_aod_3k, myd04_3K_fname))
             myd021km = read_myd(os.path.join(filepaths.path_to_modis_l1b, myd021km_fname))
         except Exception, e:
-            logger.warning('Could not read the input files for ' + myd021km_fname + ' and failed with ' + str(e))
+            logger.warning('Could not read the input file: ' + myd021km_fname + '. Failed with ' + str(e))
             continue
 
+        # if filenames load in other data
+        myd_14, myd04_3K, orac_aod, viirs_aod = None, None, None, None
+        if myd14_fname:
+            myd14 = read_myd(os.path.join(filepaths.path_to_modis_frp, myd14_fname))
+        if myd04_3K_fname:
+            myd04_3K = read_myd(os.path.join(filepaths.path_to_modis_aod_3k, myd04_3K_fname))
+        if orac_fname:
+            orac_aod = read_orac()
+        if viirs_aod_fname & viirs_geo_fname:
+            viirs_aod = read_viirs()
 
         # do the digitising
         try:
@@ -342,9 +378,5 @@ if __name__ == '__main__':
 
     # not used in this stub but often useful for finding various files
     project_dir = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)
-
-    # find .env automagically by walking up directories until it's found, then
-    # load up the .env entries as environment variables
-    load_dotenv(find_dotenv())
 
     main()
