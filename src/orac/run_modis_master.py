@@ -9,7 +9,8 @@ from datetime import datetime
 class ProcParams(object):
     def __init__(self):
         self.filelist_name = 'indonesia_filepaths.txt'
-        self.filelist_dir = '/home/users/dnfisher/nceo_aerosolfire/data/filelists/'
+        self.processing_filelist_dir = '/home/users/dnfisher/nceo_aerosolfire/data/filelists/processing/'
+        self.transfer_filelist_dir = '/home/users/dnfisher/nceo_aerosolfire/data/filelists/transfer/'
         self.data_dir = '/group_workspaces/cems2/nceo_generic/satellite_data/modis_c6/myd021km/'
         self.geo_dir = '/group_workspaces/cems2/nceo_generic/satellite_data/modis_c6/myd03/'
         self.output_dir = '/group_workspaces/cems/nceo_aerosolfire/data/orac_proc/myd/'
@@ -18,13 +19,15 @@ class ProcParams(object):
         self.cldsaddir = '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/sad_dir/modis_WAT'
         self.cldphs = ['WAT']
         self.aersaddir = '/group_workspaces/cems/nceo_aerosolfire/luts/sad'
-        self.aerphs = ['AMZ', 'AFR', 'CER', 'BOR', 'CEW', 'BOW', 'AMW', 'AFW']
+        self.aerphs = ['AMW']
 
 
 def run_pre(proc_params):
     # get list of files which we are processing
-    with open(os.path.join(proc_params.filelist_dir, proc_params.filelist_name), 'rb') as f:
+    with open(os.path.join(proc_params.processing_filelist_dir, proc_params.filelist_name), 'rb') as f:
         file_list = f.readlines()
+    file_list = [f.rstrip() for f in file_list]
+    print file_list
 
     # iterate over mod files in proc filelisr
     for root, dirs, files in os.walk(proc_params.data_dir):
@@ -35,6 +38,7 @@ def run_pre(proc_params):
             #    input_file_path = os.path.join(root, f)
             else:
                 continue
+            print f            
 
             split_root = root.split('/')
             year = split_root[-2]
@@ -58,45 +62,48 @@ def run_pre(proc_params):
 def run_pro(proc_params):
 
     # get list of files which we are processing
-    with open(os.path.join(proc_params.filelist_dir, proc_params.filelist_name), 'rb') as f:
+    with open(os.path.join(proc_params.processing_filelist_dir, proc_params.filelist_name), 'rb') as f:
         file_list = f.readlines()
 
-    # iterate over mod files in data dir
-    for root, dirs, files in os.walk(proc_params.output_dir):
+    with open(os.path.join(proc_params.transfer_filelist_dir, proc_params.filelist_name), 'wb') as transfer_filelist:
 
-        if 'pre' not in root:  # we only want the pre proc dirs
-            continue
+        # iterate over mod files in data dir
+        for root, dirs, files in os.walk(proc_params.output_dir):
 
-        # find preproc naming in current root dir
-        try:
-            msi_roots = glob.glob(root + '/*.msi.nc')
-        except:
-            continue
-
-        for msi_root in msi_roots:
-            msi_root = os.path.basename(msi_root)[:-7]
-
-            # check if msi_root is one of the files to be processed in the file list
-            msi_time = datetime.strptime(msi_root.split('_')[-2], '%Y%m%%d%H%M')
-            msi_str_time = datetime.strftime(msi_time, '%Y%j.%H%M')
-            if not any(msi_str_time in f for f in file_list):
+            if 'pre' not in root:  # we only want the pre proc dirs
                 continue
 
-            print 'processing file for time:', msi_str_time
+            # find preproc naming in current root dir
+            try:
+                msi_roots = glob.glob(root + '/*.msi.nc')
+            except:
+                continue
 
-            pro_dir = root.replace('pre', 'main')
+            for msi_root in msi_roots:
+                msi_root = os.path.basename(msi_root)[:-7]
 
-            # Set up and call ORAC for the defined phases --ret_class ClsAerOx
-            proc_cmd = '-i ' + root \
-                       + ' -o ' + pro_dir \
-                       + ' --sad_dir ' + proc_params.aersaddir \
-                       + ' --use_channel 1 1 0 1 1 0 0 0 -a AppCld1L --ret_class ClsAerOx ' \
-                       + ' --keep_driver ' \
-                       + ' --batch ' \
-                       + ' --phase '
+                # check if msi_root is one of the files to be processed in the file list
+                msi_time = datetime.strptime(msi_root.split('_')[-2], '%Y%m%d%H%M')
+                msi_str_time = datetime.strftime(msi_time, '%Y%j.%H%M')
+                if not any(msi_str_time in f for f in file_list):
+                    continue
 
-            for phs in proc_params.aerphs:
-                os.system('./orac_main.py ' + proc_cmd + phs + ' ' + msi_root)
+                pro_dir = root.replace('pre', 'main')
+
+                # Set up and call ORAC for the defined phases --ret_class ClsAerOx
+                proc_cmd = '-i ' + root \
+                           + ' -o ' + pro_dir \
+                           + ' --sad_dir ' + proc_params.aersaddir \
+                           + ' --use_channel 1 1 0 1 1 0 0 0 -a AppCld1L --ret_class ClsAerOx ' \
+                           + ' --keep_driver ' \
+                           + ' --batch ' \
+                           + ' --phase '
+
+                for phs in proc_params.aerphs:
+                    # write out processed filenames for transfer
+                    transfer_filelist.write(os.path.join(pro_dir, msi_root + phs + ".primary.nc") + '\n')                  
+                    # call orac
+                    #os.system('./orac_main.py ' + proc_cmd + phs + ' ' + msi_root)
 
 
 def main():
