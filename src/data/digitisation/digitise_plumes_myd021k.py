@@ -140,11 +140,6 @@ def aod_viirs(viirs_aod_data, viirs_geo_data, myd021km):
                                                       radius_of_influence=1000,
                                                       epsilon=0.5,
                                                       fill_value=0)
-
-    plt.imshow(resampled_viirs_aod)
-    cbar = plt.colorbar()
-    plt.show()
-
     return resampled_viirs_aod
 
 
@@ -368,6 +363,8 @@ def main():
 
         try:
             myd021km = read_hdf(os.path.join(filepaths.path_to_modis_l1b, myd021km_fname))
+            fcc = fcc_myd021km(myd021km)
+            tcc = tcc_myd021km(myd021km)
         except Exception, e:
             logger.warning('Could not read the input file: ' + myd021km_fname + '. Failed with ' + str(e))
             continue
@@ -388,17 +385,8 @@ def main():
 
         if viirs_aod_fname and viirs_geo_fname:
             viirs_aod_data = read_hdf(os.path.join(filepaths.path_to_viirs_aod, viirs_aod_fname))
-            try:
-                viirs_geo_data = read_hdf(os.path.join(filepaths.path_to_viirs_geo, viirs_geo_fname))
-            except:
-                continue
+            viirs_geo_data = read_hdf(os.path.join(filepaths.path_to_viirs_geo, viirs_geo_fname))
             viirs_aod = aod_viirs(viirs_aod_data, viirs_geo_data, myd021km)
-
-        continue
-
-        #TODO move this to line 330
-        fcc = fcc_myd021km(myd021km)
-        tcc = tcc_myd021km(myd021km)
 
         # do the digitising
         smoke_polygons = digitise(fcc, tcc, aod, fires)
