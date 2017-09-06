@@ -219,13 +219,17 @@ def fcc_myd021km(mod_data):
 
 
 class Annotate(object):
-    def __init__(self, fcc, tcc, aod, fires, ax, polygons):
+    def __init__(self, fcc, tcc, mod_aod, viirs_aod, orac_aod, orac_cost, fires, ax, polygons):
         self.ax = ax
         self.fcc = fcc
         self.tcc = tcc
-        self.aod = aod
+        self.mod_aod = mod_aod
+        self.viirs_aod = viirs_aod
+        self.orac_aod = orac_aod
+        self.orac_cost = orac_cost
         self.im = self.ax.imshow(self.aod, interpolation='none')
-        self.plot = self.ax.plot(fires[1], fires[0], 'r.')
+        if fires is not None:
+            self.plot = self.ax.plot(fires[1], fires[0], 'r.')
         patches = [Polygon(verts, True) for verts in polygons]
         p = PatchCollection(patches, cmap='Oranges', alpha=0.8)
         self.polygons = self.ax.add_collection(p)
@@ -263,8 +267,41 @@ class Annotate(object):
         self.radio_discard.on_clicked(self.discard_func)
 
         self.rax_image = plt.axes([0.05, 0.1, 0.15, 0.15], facecolor=self.axcolor)
-        self.radio_image = RadioButtons(self.rax_image, ('AOD', 'FCC', 'TCC'))
+        self.radio_image = RadioButtons(self.rax_image, self._radio_labels())
         self.radio_image.on_clicked(self.image_func)
+
+    def _radio_labels(self):
+
+        labels = []
+        if self.mod_aod is not None:
+            labels.append('MOD_AOD')
+        if self.viirs_aod is not None:
+            labels.append('VIIRS_AOD')
+        if self.orac_aod is not None:
+            labels.append('ORAC_AOD')
+            labels.append('ORAC_COST')
+
+        # FCC and TCC always present
+        labels.append('FCC')
+        labels.append('TCC')
+
+        return tuple(labels)
+
+    def _radio_label_mapping(self):
+
+        label_mapping = {}
+        if self.mod_aod is not None:
+            label_mapping['MOD_AOD'] = self.mod_aod
+        if self.viirs_aod is not None:
+            label_mapping['VIIRS_AOD'] = self.viirs_aod
+        if self.orac_aod is not None:
+            label_mapping['ORAC_AOD'] = self.orac_aod
+            label_mapping['ORAC_COST'] = self.orac_cost
+
+        # FCC and TCC always present
+        label_mapping['FCC'] = self.fcc
+        label_mapping['TCC'] = self.tcc
+        return label_mapping
 
     def annotation_func(self, label):
         anno_dict = {'Digitise': True, 'Stop': False}
@@ -277,11 +314,10 @@ class Annotate(object):
             self.y = []
 
     def image_func(self, label):
-        image_dict = {'AOD': self.aod, 'FCC': self.fcc, 'TCC': self.tcc, }
+        image_dict = self._radio_label_mapping()
         im_data = image_dict[label]
         self.im.set_data(im_data)
         plt.draw()
-
 
     def click(self, event):
         if event.button == 3:
@@ -297,7 +333,7 @@ class Annotate(object):
             self.ax.figure.canvas.draw()
 
 
-def digitise(fcc, tcc, aod, fires):
+def digitise(fcc, tcc, mod_aod, viirs_aod, orac_aod, orac_cost, fires):
 
     smoke_polygons = []
 
@@ -309,7 +345,7 @@ def digitise(fcc, tcc, aod, fires):
         ax.yaxis.set_visible(False)
 
         # first set up the annotator
-        annotator = Annotate(fcc, tcc, aod, fires, ax, smoke_polygons)
+        annotator = Annotate(fcc, tcc, mod_aod, viirs_aod, orac_aod, orac_cost, fires, ax, smoke_polygons)
 
         # then show the image
         plt.show()
@@ -371,25 +407,22 @@ def main():
 
         # if filenames load in data
         fires, mod_aod, orac_aod, orac_cost, viirs_aod = None, None, None, None, None
-        # if myd14_fname:
-        #     myd14 = read_hdf(os.path.join(filepaths.path_to_modis_frp, myd14_fname))
-        #     fires = fires_myd14(myd14)
-        #
-        # if myd04_3K_fname:
-        #     myd04_3K = read_hdf(os.path.join(filepaths.path_to_modis_aod_3k, myd04_3K_fname))
-        #     mod_aod = aod_myd04_3K(myd04_3K)
-
-        # if orac_fname:
-        #     orac_data = read_orac(os.path.join(filepaths.path_to_orac_aod, orac_fname))
-        #     orac_aod, orac_cost = aod_orac(orac_data)
-
+        if myd14_fname:
+            myd14 = read_hdf(os.path.join(filepaths.path_to_modis_frp, myd14_fname))
+            fires = fires_myd14(myd14)
+        if myd04_3K_fname:
+            myd04_3K = read_hdf(os.path.join(filepaths.path_to_modis_aod_3k, myd04_3K_fname))
+            mod_aod = aod_myd04_3K(myd04_3K)
+        if orac_fname:
+            orac_data = read_orac(os.path.join(filepaths.path_to_orac_aod, orac_fname))
+            orac_aod, orac_cost = aod_orac(orac_data)
         if viirs_aod_fname and viirs_geo_fname:
             viirs_aod_data = read_hdf(os.path.join(filepaths.path_to_viirs_aod, viirs_aod_fname))
             viirs_geo_data = read_hdf(os.path.join(filepaths.path_to_viirs_geo, viirs_geo_fname))
             viirs_aod = aod_viirs(viirs_aod_data, viirs_geo_data, myd021km)
 
         # do the digitising
-        smoke_polygons = digitise(fcc, tcc, aod, fires)
+        smoke_polygons = digitise(fcc, tcc, mod_aod, viirs_aod, orac_aod, orac_cost, fires)
         if smoke_polygons is None:
             continue
 
