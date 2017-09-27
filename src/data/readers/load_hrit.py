@@ -126,7 +126,7 @@ def geo_read(f, verbose=False):
     read in the static data like view angle, landcover
     put them in a data dictionary
     """
-    dim = 22000  # hard coded for Himawari8 possible it is 5500 in which case we need to zoom
+    dim = 5500  # hard coded for Himawari8 possible it is 5500 in which case we need to zoom
     if verbose:
         print 'reading file %s' % f
     dtype = np.float32
