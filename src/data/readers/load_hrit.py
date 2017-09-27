@@ -345,13 +345,13 @@ def H8_file_read(file, verbose=False):
         BT = Cal_info[2] + Cal_info[3] * temperature + Cal_info[4] * \
                                                        temperature * temperature
     else:
-        if samps > 12000:  # hard coded should find a better way later
-            # Resampled by a factor of 0.25 with bilinear interpolation
-            # sub = radiance[4300*4:4700*4,2500*4:2900*4]
-            # d['vis_full'] = sub
-            radiance = rebin(radiance, (lines / 4, samps / 4))
-        elif samps > 5500:
-            radiance = rebin(radiance, (lines / 2, samps / 2))
+        # if samps > 12000:  # hard coded should find a better way later
+        #     # Resampled by a factor of 0.25 with bilinear interpolation
+        #     # sub = radiance[4300*4:4700*4,2500*4:2900*4]
+        #     # d['vis_full'] = sub
+        #     radiance = rebin(radiance, (lines / 4, samps / 4))
+        # elif samps > 5500:
+        #     radiance = rebin(radiance, (lines / 2, samps / 2))
 
         # for visible band this is Albedo
         BT = radiance * Cal_info[2]

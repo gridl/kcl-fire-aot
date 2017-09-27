@@ -112,7 +112,7 @@ def aod_myd04_3K(myd04_3K):
 
 
 def aod_orac(orac_ds):
-    return orac_ds.variables['cot'], orac_ds.variables['costjm']
+    return orac_ds.variables['cot'][:], orac_ds.variables['costjm'][:]
 
 
 def aod_viirs(viirs_aod_data, viirs_geo_data, myd021km):
@@ -227,7 +227,7 @@ class Annotate(object):
         self.viirs_aod = viirs_aod
         self.orac_aod = orac_aod
         self.orac_cost = orac_cost
-        self.im = self.ax.imshow(self.aod, interpolation='none')
+        self.im = self.ax.imshow(self.orac_aod, interpolation='none', cmap='viridis')
         if fires is not None:
             self.plot = self.ax.plot(fires[1], fires[0], 'r.')
         patches = [Polygon(verts, True) for verts in polygons]
@@ -270,16 +270,20 @@ class Annotate(object):
         self.radio_image = RadioButtons(self.rax_image, self._radio_labels())
         self.radio_image.on_clicked(self.image_func)
 
+        self.cax = plt.axes([0.8, 0.1, 0.05, 0.8])
+        self.cbar = plt.colorbar(self.im, self.cax)
+
     def _radio_labels(self):
 
         labels = []
-        if self.mod_aod is not None:
-            labels.append('MOD_AOD')
-        if self.viirs_aod is not None:
-            labels.append('VIIRS_AOD')
         if self.orac_aod is not None:
             labels.append('ORAC_AOD')
             labels.append('ORAC_COST')
+        if self.mod_aod is not None:
+            labels.append('MOD_AOD')
+        if (self.viirs_aod is not None) and (np.max(self.viirs_aod) != 0):
+            labels.append('VIIRS_AOD')
+
 
         # FCC and TCC always present
         labels.append('FCC')
@@ -290,13 +294,14 @@ class Annotate(object):
     def _radio_label_mapping(self):
 
         label_mapping = {}
-        if self.mod_aod is not None:
-            label_mapping['MOD_AOD'] = self.mod_aod
-        if self.viirs_aod is not None:
-            label_mapping['VIIRS_AOD'] = self.viirs_aod
         if self.orac_aod is not None:
             label_mapping['ORAC_AOD'] = self.orac_aod
             label_mapping['ORAC_COST'] = self.orac_cost
+        if self.mod_aod is not None:
+            label_mapping['MOD_AOD'] = self.mod_aod
+        if (self.viirs_aod is not None) and (np.max(self.viirs_aod) != 0):
+            label_mapping['VIIRS_AOD'] = self.viirs_aod
+
 
         # FCC and TCC always present
         label_mapping['FCC'] = self.fcc
@@ -314,9 +319,24 @@ class Annotate(object):
             self.y = []
 
     def image_func(self, label):
+
         image_dict = self._radio_label_mapping()
         im_data = image_dict[label]
         self.im.set_data(im_data)
+
+        if label == "ORAC_AOD":
+            self.im.set_clim(vmax=5, vmin=0)
+            self.im.set_cmap('viridis')
+        if label == "ORAC_COST":
+            self.im.set_clim(vmax=20, vmin=0)
+            self.im.set_cmap('inferno_r')
+        if label == "MOD_AOD":
+            self.im.set_clim(vmax=5, vmin=0)
+            self.im.set_cmap('viridis')
+        if label == "VIIRS_AOD":
+            self.im.set_clim(vmax=2, vmin=0)
+            self.im.set_cmap('viridis')
+
         plt.draw()
 
     def click(self, event):
@@ -340,7 +360,7 @@ def digitise(fcc, tcc, mod_aod, viirs_aod, orac_aod, orac_cost, fires):
     do_annotation = True
     while do_annotation:
 
-        fig, ax = plt.subplots(1, figsize=(12,20))
+        fig, ax = plt.subplots(1, figsize=(11,8))
         ax.xaxis.set_visible(False)
         ax.yaxis.set_visible(False)
 
