@@ -121,6 +121,22 @@ def water_mask(data):
     return data
 
 
+def geo_read(f, verbose=False):
+    """
+    read in the static data like view angle, landcover
+    put them in a data dictionary
+    """
+    dim = 22000  # hard coded for Himawari8 possible it is 5500 in which case we need to zoom
+    if verbose:
+        print 'reading file %s' % f
+    dtype = np.float32
+    shape = (2, dim, dim)
+    data = np.fromfile(f, dtype=dtype).reshape(shape)
+    lat = data[0, :, :].astype(dtype)
+    lon = data[1, :, :].astype(dtype)
+    return lat, lon
+
+
 def static_read(file_dict, verbose=False):
     """
     read in the static data like view angle, landcover
