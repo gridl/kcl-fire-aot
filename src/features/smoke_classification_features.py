@@ -20,11 +20,9 @@ import logging
 
 import matplotlib.pyplot as plt
 
-import resampling
 import src.config.filepaths as filepaths
 import src.config.features as features_settings
 import src.data.readers as readers
-import GLCM.Textures as textures
 
 __author__ = "Daniel Fisher"
 __email__ = "daniel.fisher@kcl.ac.uk"
