@@ -2,13 +2,14 @@
 Contains the various file paths for the Python scripts
 '''
 
-sensor = 'himawari'
+sensor = 'himawari'  # goes
 
 # set region based on sensor
 if sensor.sensor == 'goes':
     region = 'Americas'
 elif sensor.sensor == 'himawari':
     region = 'Asia'
+
 
 # root path to data folder
 #root_path = '/Users/dnf/Projects/kcl-fire-aot/data/{0}/'.format(region)
@@ -47,15 +48,9 @@ path_to_VMAE_L1 = 'allData/3110/NPP_VMAE_L1/'  # VIIRS 750m GEO for AOD
 path_to_class_https_a = 'https://download.class.ncdc.noaa.gov/download/'
 path_to_class_https_b = 'https://download.class.ngdc.noaa.gov/download/'
 
-# temporary file paths
+# temporary file paths for data downloads
 path_to_goes_tmp = root_path + 'tmp/goes/'
 path_to_modis_tmp = root_path + 'tmp/modis/'
-
-# paths to frp
-if sensor.sensor == 'goes':
-    path_to_goes_frp = root_path + 'processed/goes_frp/'
-elif sensor.sensor == 'himawari':
-    path_to_himawari_frp = root_path + 'processed/himawari/'
 
 # features filepaths
 path_to_plume_classification_features = root_path + 'interim/classification_features.pickle'
@@ -69,3 +64,11 @@ path_to_orac_visuals = root_path + 'visualisations/orac/'
 
 # filelist paths
 path_to_filelists = root_path + 'filelists/'
+
+# paths to frp
+if sensor.sensor == 'goes':
+    path_to_goes_frp = root_path + 'processed/goes_frp/'
+elif sensor.sensor == 'himawari':
+    path_to_himawari_frp = root_path + 'processed/himawari/'
+
+
