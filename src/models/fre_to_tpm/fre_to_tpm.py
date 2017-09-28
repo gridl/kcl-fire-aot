@@ -38,44 +38,40 @@ import scipy.ndimage as ndimage
 
 
 def load_frp():
-    if sensor.sensor == 'himawari':
 
-        try:
-            frp_df = pd.read_pickle(filepaths.path_to_himawari_frp + 'himawari_df.p')
-        except Exception, e:
-            logger.info('could not load frp dataframe, failed with error ' + str(e) + ' building anew')
-            frp_files = os.listdir(filepaths.path_to_himawari_frp)
-            df_from_each_file = (pd.read_csv(os.path.join(filepaths.path_to_himawari_frp, f)) for f in frp_files)
-            frp_df = pd.concat(df_from_each_file, ignore_index=True)
+    try:
+        frp_df = pd.read_pickle(filepaths.path_to_himawari_frp + 'himawari_df.p')
+    except Exception, e:
+        logger.info('could not load frp dataframe, failed with error ' + str(e) + ' building anew')
+        frp_files = os.listdir(filepaths.path_to_himawari_frp)
+        df_from_each_file = (pd.read_csv(os.path.join(filepaths.path_to_himawari_frp, f)) for f in frp_files)
+        frp_df = pd.concat(df_from_each_file, ignore_index=True)
 
-            # lets dump the columns we don't want
-            frp_df = frp_df[['FIRE_CONFIDENCE', 'FRP_0', 'LATITUDE', 'LONGITUDE', 'year','month','day','time']]
+        # lets dump the columns we don't want
+        frp_df = frp_df[['FIRE_CONFIDENCE', 'FRP_0', 'LATITUDE', 'LONGITUDE', 'year','month','day','time']]
 
-            # make geocoords into shapely points
-            points = [Point(p[0], p[1]) for p in zip(frp_df['LONGITUDE'].values, frp_df['LATITUDE'].values)]
-            frp_df['points'] = points
-            frp_df.drop(['LONGITUDE', 'LATITUDE'], axis=1, inplace=True)
+        # make geocoords into shapely points
+        points = [Point(p[0], p[1]) for p in zip(frp_df['LONGITUDE'].values, frp_df['LATITUDE'].values)]
+        frp_df['points'] = points
+        frp_df.drop(['LONGITUDE', 'LATITUDE'], axis=1, inplace=True)
 
-            # reindex onto date
-            for k in ['year', 'month', 'day', 'time']:
-                frp_df[k] = frp_df[k].astype(int).astype(str)
-                if k == 'time':
-                    frp_df[k] = frp_df[k].str.zfill(4)
-                if k in ['month', 'day']:
-                    frp_df[k] = frp_df[k].str.zfill(2)
+        # reindex onto date
+        for k in ['year', 'month', 'day', 'time']:
+            frp_df[k] = frp_df[k].astype(int).astype(str)
+            if k == 'time':
+                frp_df[k] = frp_df[k].str.zfill(4)
+            if k in ['month', 'day']:
+                frp_df[k] = frp_df[k].str.zfill(2)
 
-            format = '%Y%m%d%H%M'
-            frp_df['datetime'] = pd.to_datetime(frp_df['year'] +
-                                                frp_df['month'] +
-                                                frp_df['day'] +
-                                                frp_df['time'], format=format)
-            frp_df.drop(['year','month','day','time'], axis=1, inplace=True)
+        format = '%Y%m%d%H%M'
+        frp_df['datetime'] = pd.to_datetime(frp_df['year'] +
+                                            frp_df['month'] +
+                                            frp_df['day'] +
+                                            frp_df['time'], format=format)
+        frp_df.drop(['year','month','day','time'], axis=1, inplace=True)
 
-            frp_df = frp_df.set_index('datetime')
-            frp_df.to_pickle(filepaths.path_to_himawari_frp + 'himawari_df.p')
-
-    elif sensor.sensor == 'goes':
-        pass
+        frp_df = frp_df.set_index('datetime')
+        frp_df.to_pickle(filepaths.path_to_himawari_frp + 'himawari_df.p')
 
     return frp_df
 
