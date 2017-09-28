@@ -32,29 +32,6 @@ def read_myd021km(local_filename):
     return SD(local_filename, SDC.READ)
 
 
-def generate_textures(mod_chan_data, plume, i):
-    r = features_settings.glcm_window_radius
-    min_y = plume.sample_bounds[2] - r
-    max_y = plume.sample_bounds[3] + r
-    min_x = plume.sample_bounds[0] - r
-    max_x = plume.sample_bounds[1] + r
-
-    image = mod_chan_data[i, min_y:max_y, min_x:max_x]
-    texture_generator = textures.CooccurenceMatrixTextures(image, windowRadius=r)
-
-    measures = []
-    names = ['glcm_dissimilarity', 'glcm_correlation', 'glcm_variance', 'glcm_mean']
-
-    diss = texture_generator.getDissimlarity()
-    corr, var, mean = texture_generator.getCorrVarMean()
-
-    for measure in [diss, corr, var, mean]:
-        measure = measure[r:-r, r:-r]
-        measures.append(measure.flatten())
-
-    return measures, names
-
-
 def fill_dict(plume, flag, fill_dict, fp, modis_fname):
     path_to_data = os.path.join(fp, modis_fname)
     modis_data = read_myd021km(path_to_data)
@@ -75,22 +52,6 @@ def fill_dict(plume, flag, fill_dict, fp, modis_fname):
                     per = np.percentile(data, features_settings.reduce_percentile)
                     mask = (data >= per).flatten()
 
-                # now lets generate GLCM texture measures for MODIS band 3
-                if band == 3:
-
-                    texture_measure, keys = generate_textures(mod_chan_data, plume, i)
-
-                    for i, k in enumerate(keys):
-                        if k in fill_dict:
-                            if features_settings.reduce_features & flag:
-                                fill_dict[k].extend(list(texture_measure[i][mask]))
-                            else:
-                                fill_dict[k].extend(list(texture_measure[i]))
-                        else:
-                            if features_settings.reduce_features & flag:
-                                fill_dict[k] = list(texture_measure[i][mask])
-                            else:
-                                fill_dict[k] = list(texture_measure[i])
 
                 data_for_band = mod_chan_data[i, plume.sample_bounds[2]:plume.sample_bounds[3],
                                 plume.sample_bounds[0]:plume.sample_bounds[1]]
