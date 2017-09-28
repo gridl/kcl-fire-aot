@@ -6,7 +6,6 @@ import re
 import time
 
 import numpy as np
-from dotenv import find_dotenv, load_dotenv
 from pyhdf.SD import SD, SDC
 
 import src.config.data as data_settings
@@ -87,20 +86,6 @@ def matchup_files(l1_filenames, frp_filenames):
     return l1_matching, frp_matching
 
 
-def in_geo_footprint(lon, lat):
-
-    # use law of cosines to check if point inside geostationary footprint radius
-    dist_to_nadir = np.arccos(np.sin(np.deg2rad(0)) * np.sin(np.deg2rad(lat)) +
-                              np.cos(np.deg2rad(0)) * np.cos(np.deg2rad(lat)) *
-                              np.cos(np.deg2rad(lon) - np.deg2rad(data_settings.lon_0))) * data_settings.earth_rad
-
-
-    if dist_to_nadir < data_settings.footprint_radius:
-        return True
-    else:
-        return False
-
-
 def assess_fires_present_inbounds(ftp_laads, doy, local_filename, filename_frp):
 
     # see if data exists in frp dir, if not then dl it
@@ -133,12 +118,6 @@ def assess_fires_present_inbounds(ftp_laads, doy, local_filename, filename_frp):
     # check we have daylight data
     szn = frp_data.select('FP_SolZenAng').get()
     if np.mean(szn) > data_settings.myd_min_szn:
-        return False
-
-    # check the data are in bounds
-    lat = np.mean(frp_data.select('FP_latitude').get())
-    lon = np.mean(frp_data.select('FP_longitude').get())
-    if not in_geo_footprint(lon, lat):
         return False
 
     # check we have enough fires and power
@@ -253,6 +232,5 @@ if __name__ == "__main__":
 
     # find .env automagically by walking up directories until it's found, then
     # load up the .env entries as environment variables
-    load_dotenv(find_dotenv())
 
     main()

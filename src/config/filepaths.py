@@ -2,7 +2,7 @@
 Contains the various file paths for the Python scripts
 '''
 
-import sensor
+sensor = 'himawari'
 
 # set region based on sensor
 if sensor.sensor == 'goes':
@@ -19,9 +19,6 @@ path_to_processed_orac = root_path + 'processed/orac_proc/'
 path_to_goes_frp = root_path + 'processed/goes_frp/goes13_2014_fire_frp_atm.csv'
 path_to_smoke_plume_masks = root_path + 'processed/plume_masks/myd021km_plumes_df.pickle'
 path_to_smoke_plume_masks_csv = root_path + 'processed/plume_masks/myd021km_plumes_df.csv'
-path_to_ml_smoke_plume_masks = root_path + 'processed/plume_masks/myd021km_plumes_ml_df.pickle'
-path_to_ml_smoke_free_masks = root_path + 'processed/plume_masks/myd021km_smoke_free_ml_df.pickle'
-path_to_background_masks = root_path + 'processed/plume_masks/myd021km_bg_df.pickle'
 path_to_processed_filelist = root_path + 'processed/plume_masks/processed_filelist.txt'
 
 # raw data and data transfer paths
@@ -45,7 +42,6 @@ path_to_myd04_3K = 'allData/6/MYD04_3K/'
 path_to_myd04 = 'allData/6/MYD04_L2/'
 path_to_VAOTIP_L2 = 'allData/3110/NPP_VAOTIP_L2/'  # VIIRS 750m IP AOD
 path_to_VMAE_L1 = 'allData/3110/NPP_VMAE_L1/'  # VIIRS 750m GEO for AOD
-
 
 # HTTPS paths (GOES / class)
 path_to_class_https_a = 'https://download.class.ncdc.noaa.gov/download/'

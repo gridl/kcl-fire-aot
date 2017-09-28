@@ -31,9 +31,6 @@ from scipy import stats
 from shapely.geometry import Polygon, Point
 
 import src.config.filepaths as filepaths
-import src.config.sensor as sensor
-
-import matplotlib.pyplot as plt
 import scipy.ndimage as ndimage
 
 
