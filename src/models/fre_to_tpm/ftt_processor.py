@@ -5,7 +5,7 @@ import src.config.filepaths as fp
 def main():
 
     # load in static data
-    frp_df = ut.read_frp_df(fp.path_to_himawari_frp)
+    #frp_df = ut.read_frp_df(fp.path_to_himawari_frp)
     plume_df = ut.read_plume_polygons(fp.path_to_smoke_plume_polygons_csv)
     lc_data = []
 

@@ -5,15 +5,14 @@ Contains the various file paths for the Python scripts
 sensor = 'himawari'  # goes
 
 # set region based on sensor
-if sensor.sensor == 'goes':
+if sensor == 'goes':
     region = 'Americas'
-elif sensor.sensor == 'himawari':
+elif sensor == 'himawari':
     region = 'Asia'
 
-
 # root path to data folder
-#root_path = '/Users/dnf/Projects/kcl-fire-aot/data/{0}/'.format(region)
-root_path = '/Users/danielfisher/Projects/kcl-fire-aot/data/{0}/'.format(region)
+root_path = '/Users/dnf/Projects/kcl-fire-aot/data/{0}/'.format(region)
+#root_path = '/Users/danielfisher/Projects/kcl-fire-aot/data/{0}/'.format(region)
 
 # processed data paths
 path_to_processed_orac = root_path + 'processed/orac_proc/'
@@ -27,12 +26,9 @@ path_to_transfer_file = root_path + 'raw/rsync_file_list/files_to_transfer.txt'
 path_to_modis_l1b = root_path + 'raw/modis/l1b/'
 path_to_modis_geo = root_path + 'raw/modis/geo'
 path_to_modis_frp = root_path + 'raw/modis/frp/'
-path_to_modis_aod_3k = root_path + 'raw/modis/MYD04_3K/'
-path_to_modis_aod = root_path + 'raw/modis/MYD04/'
+path_to_modis_aod = root_path + 'raw/modis/aod/'
 path_to_orac_aod = root_path + 'processed/orac/'
 path_to_goes_l1b = root_path + 'raw/goes/'
-path_to_viirs_aod = root_path + 'raw/viirs/VAOTIP_L2/'
-path_to_viirs_geo = root_path + 'raw/viirs/VMAE_L1/'
 
 # FTP paths (MODIS / Ladsweb)
 path_to_ladsweb_ftp = "ladsweb.nascom.nasa.gov"
@@ -66,9 +62,9 @@ path_to_orac_visuals = root_path + 'visualisations/orac/'
 path_to_filelists = root_path + 'filelists/'
 
 # paths to frp
-if sensor.sensor == 'goes':
+if sensor == 'goes':
     path_to_goes_frp = root_path + 'processed/goes_frp/'
-elif sensor.sensor == 'himawari':
+elif sensor == 'himawari':
     path_to_himawari_frp = root_path + 'processed/himawari/'
 
 
