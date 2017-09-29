@@ -6,7 +6,7 @@ import pandas as pd
 import datetime
 import src.config.filepaths as filepaths
 
-myd021km_plume_df = pd.read_pickle(filepaths.path_to_smoke_plume_masks)
+myd021km_plume_df = pd.read_pickle(filepaths.path_to_smoke_plume_polygons)
 
 dates = []
 files = []

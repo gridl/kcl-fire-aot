@@ -53,30 +53,10 @@ def read_plume_polygons(path):
 
 
 def read_geo(path, plume):
-    # TODO replace with ORAC data coords, so not using MYD stuff as not required
     myd = SD(os.path.join(path, plume.filename), SDC.READ)
     lats = ndimage.zoom(myd.select('Latitude').get(), 5)
     lons = ndimage.zoom(myd.select('Longitude').get(), 5)
     return lats, lons
-
-
-def bounding_pixel_coords(plume):
-    padding = 3  # pixels
-    x, y = zip(*plume.plume_extent)
-    min_x, max_x = np.min(x) - padding, np.max(x) + padding
-    min_y, max_y = np.min(y) - padding, np.max(y) + padding
-    return {'max_x': max_x, 'min_x': min_x, 'max_y': max_y, 'min_y': min_y}
-
-
-def define_plume_mask(plume, bounds):
-    extent = [[x - bounds['min_x'], y - bounds['min_y']] for x, y in plume.plume_extent]
-
-    size_x = bounds['max_x'] - bounds['min_x']
-    size_y = bounds['max_y'] - bounds['min_y']
-    x, y = np.meshgrid(np.arange(size_x), np.arange(size_y))
-    x, y = x.flatten(), y.flatten()
-    points = np.vstack((x, y)).T
-    return points
 
 
 def _build_frp_df(path):
@@ -120,7 +100,7 @@ def _build_frp_df(path):
     return frp_df
 
 
-def load_frp_df(path):
+def read_frp_df(path):
     '''
 
     :param path: path to frp csv files and dataframe
@@ -174,7 +154,7 @@ def find_landcover_class(plume, myd14_path, landcover_ds):
     return stats.mode(lc_list).mode[0]
 
 
-def build_polygon(plume, lats, lons):
+def construct_polygon(plume, lats, lons):
     '''
 
     :param plume: plume polygon points
@@ -189,6 +169,25 @@ def build_polygon(plume, lats, lons):
     bounding_lons = [lons[point[1], point[0]] for point in plume.plume_extent]
 
     return Polygon(zip(bounding_lons, bounding_lats))
+
+
+def construct_bounding_box(plume):
+    padding = 3  # pixels
+    x, y = zip(*plume.plume_extent)
+    min_x, max_x = np.min(x) - padding, np.max(x) + padding
+    min_y, max_y = np.min(y) - padding, np.max(y) + padding
+    return {'max_x': max_x, 'min_x': min_x, 'max_y': max_y, 'min_y': min_y}
+
+
+def construct_plume_mask(plume, bounds):
+    extent = [[x - bounds['min_x'], y - bounds['min_y']] for x, y in plume.plume_extent]
+
+    size_x = bounds['max_x'] - bounds['min_x']
+    size_y = bounds['max_y'] - bounds['min_y']
+    x, y = np.meshgrid(np.arange(size_x), np.arange(size_y))
+    x, y = x.flatten(), y.flatten()
+    points = np.vstack((x, y)).T
+    return points
 
 
 class _utm_resampler(object):
@@ -241,8 +240,6 @@ class _utm_resampler(object):
                                            self.map_def,
                                            radius_of_influence=75000,
                                            fill_value=-999)
-
-
 
 
 #########################    FRE UTILS    #########################
@@ -303,9 +300,7 @@ def compute_fre(plume_polygon, frp_df, start_time, stop_time):
     return fre
 
 
-
 #########################    TPM    #########################
-
 
 # TODO still need to make sure area is being calculated correctly
 def compute_plume_area(plume_polygon, lons):

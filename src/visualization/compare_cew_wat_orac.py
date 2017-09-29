@@ -78,7 +78,7 @@ def main():
         cew_dd = {'cot': [], 'cer': [], 'costjm': []}
 
         # read in the masks
-        mask_df = pd.read_pickle(filepaths.path_to_smoke_plume_masks)
+        mask_df = pd.read_pickle(filepaths.path_to_smoke_plume_polygons)
 
         # get wat and dew files
         wat_files = glob.glob(filepaths.path_to_processed_orac + '*/*/*/*WAT.primary*')

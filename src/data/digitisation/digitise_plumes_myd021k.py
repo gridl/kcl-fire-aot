@@ -398,7 +398,7 @@ def main():
         timeframe, and time stamps.  The user can then process these
         images and extract smoke plumes.
     """
-    myd021km_plume_df = load_df(filepaths.path_to_smoke_plume_masks)
+    myd021km_plume_df = load_df(filepaths.path_to_smoke_plume_polygons)
 
     for myd021km_fname in os.listdir(filepaths.path_to_modis_l1b):
 
@@ -454,7 +454,7 @@ def main():
         # covert pixel/background lists to dataframes and concatenate to main dataframes
         temp_plume_df = pd.DataFrame(plumes_list)
         myd021km_plume_df = pd.concat([myd021km_plume_df, temp_plume_df])
-        myd021km_plume_df.to_pickle(filepaths.path_to_smoke_plume_masks)
+        myd021km_plume_df.to_pickle(filepaths.path_to_smoke_plume_polygons)
 
 
 if __name__ == '__main__':
