@@ -64,8 +64,8 @@ def get_filename(ftp_laads, doy, path, myd021km_file):
 
                 # find the right file
                 file_list = [f.split(None, 8)[-1].lstrip() for f in file_list]
-                myd04_file = [f for f in file_list if myd021km_file[10:23] in f][0]
-                return myd04_file
+                myd_file = [f for f in file_list if myd021km_file[10:23] in f][0]
+                return myd_file
             except:
                 attempt += 1
                 logger.info('Could not access file list for DOY: ' + doy + " on attempt " + str(attempt) +
@@ -85,14 +85,28 @@ def retrieve(ftp_laads, doy, path, local_filename, filename):
     # try accessing ftp, if fail then reconnect
     try:
         ftp_cd(ftp_laads, doy, path)
-    except:
-        ftp_laads = ftp_connect_laads()
-        ftp_cd(ftp_laads, doy, path)
 
-    lf = open(local_filename, "wb")
-    ftp_laads.retrbinary("RETR " + filename, lf.write, 8 * 1024)
-    lf.close()
-    ftp_laads.close()
+        lf = open(local_filename, "wb")
+        ftp_laads.retrbinary("RETR " + filename, lf.write, 8 * 1024)
+        lf.close()
+
+    except:
+        attempt = 1
+        run = True
+        while run:
+            try:
+                lf = open(local_filename, "wb")
+                ftp_laads = ftp_connect_laads()
+                ftp_cd(ftp_laads, doy, path)
+                ftp_laads.retrbinary("RETR " + filename, lf.write, 8 * 1024)
+                lf.close()
+                ftp_laads.close()
+                run = False
+            except Exception, e:
+                attempt += 1
+                logger.info('Could not download ' + filename + " on attempt " + str(attempt) +
+                            " Failed with error: "+ str(e) + "Reattempting...")
+                time.sleep(5)
 
 
 def check_downloading_status(temp_path, mod_doy):
