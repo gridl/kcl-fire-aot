@@ -4,10 +4,13 @@ ftt (fre-to_tpm) processor.  These can be broken down as follows:
 '''
 
 
+# load in required packages
 import ast
-import logging
 import glob
 import os
+import re
+from datetime import datetime, timedelta
+import logging
 
 import pandas as pd
 import numpy as np
@@ -15,17 +18,42 @@ from netCDF4 import Dataset
 from pyhdf.SD import SD, SDC
 from matplotlib.path import Path
 from scipy import stats
+from scipy import integrate
+from scipy import ndimage
 from shapely.geometry import Polygon, Point
-
-import src.config.filepaths as filepaths
-import scipy.ndimage as ndimage
-
-
-#########################    FRE    #########################
+from shapely.ops import transform
+from mpl_toolkits.basemap import Basemap
+import pyresample as pr
+import pyproj
 
 
-def _build_frp_def(filepath):
-    frp_csv_files = glob.glob(filepath + '*.csv')
+log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+logging.basicConfig(level=logging.INFO, format=log_fmt)
+logger = logging.getLogger(__name__)
+
+
+#########################    SETUP UTILS    #########################
+
+
+def read_plume_polygons(path):
+    try:
+        df = pd.read_pickle(path)
+    except Exception, e:
+        logger.warning('Could not load pickle with error:' + str(e) + ' ...attempting to load csv')
+        df = pd.read_csv(path, quotechar='"', sep=',', converters={'plume_extent': ast.literal_eval})
+    return df
+
+
+#########################    FRE UTILS    #########################
+
+
+def _build_frp_df(path):
+    '''
+
+    :param path: path to the frp csv files and dataframe
+    :return: dataframe holding frp
+    '''
+    frp_csv_files = glob.glob(path + '*.csv')
     df_from_each_file = (pd.read_csv(f) for f in frp_csv_files)
     frp_df = pd.concat(df_from_each_file, ignore_index=True)
 
@@ -55,24 +83,111 @@ def _build_frp_def(filepath):
     frp_df.drop(['LONGITUDE', 'LATITUDE'], axis=1, inplace=True)
     frp_df.drop(['year', 'month', 'day', 'time'], axis=1, inplace=True)
 
-    frp_df.to_pickle(filepath + 'frp_df.p')
+    frp_df.to_pickle(path + 'frp_df.p')
 
     return frp_df
 
 
-def load_frp_df(filepath):
+def load_frp_df(path):
+    '''
+
+    :param path: path to frp csv files and dataframe
+    :return: the frp holding dataframe
+    '''
     try:
-        df_path = glob.glob(filepath + 'frp_df.p')
+        df_path = glob.glob(path + 'frp_df.p')
         frp_df = pd.read_pickle(df_path)
     except Exception, e:
         print('could not load frp dataframe, failed with error ' + str(e) + ' building anew')
-        frp_df = _build_frp_def(filepath)
+        frp_df = _build_frp_df(path)
     return frp_df
 
 
+def build_polygon(plume, lats, lons):
+    '''
+
+    :param plume: plume polygon points
+    :param lats:
+    :param lons:
+    :return: polygon defining the plume
+    '''
+
+    # when digitising points are appended (x,y).  However, arrays are accessed
+    # in numpy as row, col which is y, x.  So we need to switch
+    bounding_lats = [lats[point[1], point[0]] for point in plume.plume_extent]
+    bounding_lons = [lons[point[1], point[0]] for point in plume.plume_extent]
+
+    return Polygon(zip(bounding_lons, bounding_lats))
+
+
+def read_geo(path, plume):
+    # TODO replace with ORAC data coords, so not using MYD stuff as not required
+    myd = SD(os.path.join(path, plume.filename), SDC.READ)
+    lats = ndimage.zoom(myd.select('Latitude').get(), 5)
+    lons = ndimage.zoom(myd.select('Longitude').get(), 5)
+    return lats, lons
+
+
+def compute_fre(frp_subset):
+    try:
+        t0 = frp_subset.index[0]
+        sample_times = (frp_subset.index - t0).total_seconds()
+    except Exception, e:
+        print 'Could not extract spatial subset, failed with error:', str(e)
+        return None
+
+    # now integrate
+    return integrate.trapz(frp_subset['FRP_0'], sample_times)
 
 
 
+def compute_fre(path, plume, frp_df):
+    # load in lats and lons for plume polygon
+    lats, lons = read_geo(path, plume)
+
+    # calculate integration times
+    start_time, stop_time = []  # TODO implement functions to find integration times
+
+    # subset df by time
+    try:
+        frp_subset = frp_df.loc[(frp_df['obs_date'] == stop_time) |
+                                (frp_df['obs_date'] == start_time)]
+    except Exception, e:
+        print 'Could not extract time subset, failed with error:', str(e)
+        return None
+
+    # Subset by space
+    #
+    # subset spatially finding only those fires within the bounds of the plume
+    # note Matplotlib path might be a better option to check with bounds
+    # see here: https://goo.gl/Cevi1u.  Also, do we need to project first to
+    # determine if the points are inside the polygon?  I think not as everything
+    # is in, in effect, geographic projection.  So should be fine.
+    plume_polygon = build_polygon(plume, lats, lons)
+
+    inbounds = []
+    try:
+        for i, (index, frp_pixel) in enumerate(frp_subset.iterrows()):
+            if frp_pixel['point'].within(plume_polygon):  # TODO THIS IS WRONG, NEED TO TRANSFORM
+                inbounds.append(i)
+        if inbounds:
+            frp_subset = frp_subset.iloc[inbounds]
+    except Exception, e:
+        print 'Could not extract spatial subset, failed with error:', str(e)
+        return None
+
+    # group by time and aggregate the FRP variables
+    frp_subset['FIRE_CONFIDENCE_mean'] = frp_subset['FIRE_CONFIDENCE']
+    frp_subset['FIRE_CONFIDENCE_std'] = frp_subset['FIRE_CONFIDENCE']
+    frp_subset = frp_subset.groupby('obs_time').agg({'FRP_0': np.sum,
+                                                     'FIRE_CONFIDENCE_mean': np.mean,
+                                                     'FIRE_CONFIDENCE_std': np.std})[['FRP_0',
+                                                                                      'FIRE_CONFIDENCE_mean',
+                                                                                      'FIRE_CONFIDENCE_std']]
+
+    # integrate to get the fre
+    fre = compute_fre(frp_subset)
+    return fre
 
 
 
@@ -126,19 +241,6 @@ def get_orac_data(plume, orac_file_path):
     orac_file = glob.glob(os.path.join(orac_file_path, y, doy, 'main', '*' + time + '*.primary.nc'))[0]
     return Dataset(orac_file)
 
-
-def build_polygon(plume, orac_data):
-
-    # TODO replace this with ORAC data, not using L1B data
-    # get geographic coordinates of plume bounds (first test with l2 data)
-    myd_data = SD(os.path.join(filepaths.path_to_modis_l1b, plume.filename), SDC.READ)
-    lats = ndimage.zoom(myd_data.select('Latitude').get(), 5)
-    lons = ndimage.zoom(myd_data.select('Longitude').get(), 5)
-
-    bounding_lats = [lats[point[0], point[1]] for point in plume.plume_extent]
-    bounding_lons = [lons[point[0], point[1]] for point in plume.plume_extent]
-
-    return Polygon(zip(bounding_lons, bounding_lats))
 
 
 def compute_fre(plume_polygon, frp_data):
