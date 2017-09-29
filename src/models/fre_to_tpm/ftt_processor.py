@@ -16,6 +16,15 @@ def main():
         lats, lons = []
         start_time, stop_time = []
 
+        # get the variables of interest
+        fre =
+        tpm =
+        lc =
+
+    # split data based on lc type
+
+    # compute models
+
 
 
 

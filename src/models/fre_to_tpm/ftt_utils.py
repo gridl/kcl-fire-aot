@@ -192,18 +192,12 @@ def build_polygon(plume, lats, lons):
 
 
 class _utm_resampler(object):
-    def __init__(self, lats, lons, pixel_size):
+    def __init__(self, lats, lons, pixel_size, resolution=0.01):
         self.lats = lats
         self.lons = lons
         self.pixel_size = pixel_size
+        self.resolution = resolution
         self.map_def = self.__utm_map()
-
-    def __geographic_map(self):
-        lat_range = np.arange(np.min(self.lats), np.max(self.lats),
-                              0.01)  # lets reproject to 0.01 degree geographic grid
-        lon_range = np.arange(np.min(self.lons), np.max(self.lons), 0.01)
-        lon_grid, lat_grid = np.meshgrid(lon_range, lat_range)
-        return pr.geometry.SwathDefinition(lons=lon_grid, lats=lat_grid)
 
     def __utm_zone(self):
         '''
@@ -217,31 +211,28 @@ class _utm_resampler(object):
 
     def __utm_boundaries(self, zone):
         p = pyproj.Proj(proj='utm', zone=zone, ellps='WGS84', datum='WGS84')
-        x, y = p(self.lons, self.lats)
-        min_x, max_x = np.min(x), np.max(x)
-        min_y, max_y = np.min(y), np.max(y)
+        x_ll, y_ll = p(self.lons[-1, 0], self.lats[-1, 0])
+        x_ur, y_ur = p(self.lons[0, -1], self.lats[0, -1])
+        return {"x_ll": x_ll, "y_ll": y_ll, "x_ur" :x_ur, "y_ur" :y_ur}
 
-        return {'max_x': max_x, 'min_x': min_x, 'max_y': max_y, 'min_y': min_y}
-
-    def __utm_grid_size(self, utm_boundaries):
-        x_size = int(np.ceil((utm_boundaries['max_x'] - utm_boundaries['min_x']) / self.pixel_size))
-        y_size = int(np.ceil((utm_boundaries['max_y'] - utm_boundaries['min_y']) / self.pixel_size))
+    def __utm_grid_size(self, area_extent):
+        x_size = (np.abs(area_extent['x_ur'] - area_extent['x_ll']) / self.pixel_size).astype(int)
+        y_size = (np.abs(area_extent['y_ur'] - area_extent['y_ll']) / self.pixel_size).astype(int)
         return x_size, y_size
 
-    def __utm_proj(self, zone, utm_boundaries, x_size, y_size):
+    def __utm_proj(self, zone, area_extent, x_size, y_size):
         area_id = 'utm'
         description = 'utm_grid'
         proj_id = 'utm'
-        area_extent = (utm_boundaries['min_x'], utm_boundaries['min_y'],
-                       utm_boundaries['max_x'], utm_boundaries['max_y'])
+        extent = (area_extent['x_ll'], area_extent['y_ll'], area_extent['x_ur'], area_extent['y_ur'])
         proj_dict = {'units': 'm', 'proj': 'utm', 'zone': str(zone), 'ellps': 'WGS84', 'datum': 'WGS84'}
-        return pr.geometry.AreaDefinition(area_id, description, proj_id, proj_dict, x_size, y_size, area_extent)
+        return pr.geometry.AreaDefinition(area_id, description, proj_id, proj_dict, x_size, y_size, extent)
 
-    def __utm_map(self):
+    def utm_area_def(self):
         zone = self.__utm_zone()
-        utm_boundaries = self.__utm_boundaries(zone)
-        x_size, y_size = self.__utm_grid_size(utm_boundaries)
-        return self.__utm_proj(zone, utm_boundaries, x_size, y_size)
+        area_extent = self.__utm_boundaries(zone)
+        x_size, y_size = self.__utm_grid_size(area_extent)
+        return self.__utm_proj(zone, area_extent, x_size, y_size)
 
     def resample_image(self, image, image_lats, image_lons):
         image_def = pr.geometry.SwathDefinition(lons=image_lons, lats=image_lats)
@@ -356,7 +347,7 @@ def compute_aod(plume_bounding_pixels, plume_mask, lats, lons):
                 plume_bounding_pixels['min_x']:plume_bounding_pixels['max_x']]
     lons = lons[plume_bounding_pixels['min_y']:plume_bounding_pixels['max_y'],
                 plume_bounding_pixels['min_x']:plume_bounding_pixels['max_x']]
-    im_resampler = _utm_resampler(lats, lons)
+    im_resampler = _utm_resampler(lats, lons, 1000)
 
     # resample the datasets (mask, orac_aod, MYD04)
     resampled_plume_mask = im_resampler.resample_image(plume_mask, lats, lons)
