@@ -32,7 +32,15 @@ logging.basicConfig(level=logging.INFO, format=log_fmt)
 logger = logging.getLogger(__name__)
 
 
-#########################    SETUP UTILS    #########################
+#########################    GENERAL UTILS    #########################
+
+
+def read_orac_data(plume, orac_file_path):
+    y = plume.filename[10:14]
+    doy = plume.filename[14:17]
+    time = plume.filename[18:22]
+    orac_file = glob.glob(os.path.join(orac_file_path, y, doy, 'main', '*' + time + '*.primary.nc'))[0]
+    return Dataset(orac_file)
 
 
 def read_plume_polygons(path):
@@ -42,6 +50,106 @@ def read_plume_polygons(path):
         logger.warning('Could not load pickle with error:' + str(e) + ' ...attempting to load csv')
         df = pd.read_csv(path, quotechar='"', sep=',', converters={'plume_extent': ast.literal_eval})
     return df
+
+
+def find_landcover_class(plume, myd14_path, landcover_ds):
+    y = plume.filename[10:14]
+    doy = plume.filename[14:17]
+    time = plume.filename[18:22]
+
+    myd14 = glob.glob(os.path.join(myd14_path, '*A' + y + doy + '.' + time + '*.hdf'))[0]  # path to modis FRP
+    myd14 = SD(myd14, SDC.READ)
+
+    lines = myd14.select('FP_line').get()
+    samples = myd14.select('FP_sample').get()
+    lats = myd14.select('FP_latitude').get()
+    lons = myd14.select('FP_longitude').get()
+
+    poly_verts = plume['plume_extent']
+    bb_path = Path(poly_verts)
+
+    # find the geographic coordinates of fires inside the plume mask # TODO need to project here too?
+    lat_list = []
+    lon_list = []
+    for l, s, lat, lon in zip(lines, samples, lats, lons):
+        if bb_path.contains_point((s, l)):
+            lat_list.append(lat)
+            lon_list.append(lon)
+
+    # now get the landcover points
+    lc_list = []
+    for lat, lon in zip(lat_list, lon_list):
+        s = int((lon - (-180)) / 360 * landcover_ds['lon'].size)  # lon index
+        l = int((lat - 90) * -1 / 180 * landcover_ds['lat'].size)  # lat index
+
+        # image is flipped, so we need to reverse the lat coordinate
+        l = -(l + 1)
+
+        lc_list.append(np.array(landcover_ds['Band1'][(l - 1):l, s:s + 1][0])[0])
+
+    # return the most common landcover class for the fire contined in the ROI
+    return stats.mode(lc_list).mode[0]
+
+
+class _utm_resampler(object):
+    def __init__(self, lats, lons, pixel_size):
+        self.lats = lats
+        self.lons = lons
+        self.pixel_size = pixel_size
+        self.map_def = self.__utm_map()
+
+    def __geographic_map(self):
+        lat_range = np.arange(np.min(self.lats), np.max(self.lats),
+                              0.01)  # lets reproject to 0.01 degree geographic grid
+        lon_range = np.arange(np.min(self.lons), np.max(self.lons), 0.01)
+        lon_grid, lat_grid = np.meshgrid(lon_range, lat_range)
+        return pr.geometry.SwathDefinition(lons=lon_grid, lats=lat_grid)
+
+    def __utm_zone(self):
+        '''
+        Some of the plumes will cross UTM zones.  This is not problematic
+        as the plumes are quite small and so, we can just use the zone
+        in which most of the data falls: https://goo.gl/3QY2Re
+        see also: http://www.igorexchange.com/node/927 for if we need over Svalbard (highly unlikely)
+        '''
+        lons = (self.lons + 180) - np.floor((self.lons + 180) / 360) * 360 - 180;
+        return stats.mode(np.floor((lons + 180) / 6) + 1, axis=None)[0][0]
+
+    def __utm_boundaries(self, zone):
+        p = pyproj.Proj(proj='utm', zone=zone, ellps='WGS84', datum='WGS84')
+        x, y = p(self.lons, self.lats)
+        min_x, max_x = np.min(x), np.max(x)
+        min_y, max_y = np.min(y), np.max(y)
+
+        return {'max_x': max_x, 'min_x': min_x, 'max_y': max_y, 'min_y': min_y}
+
+    def __utm_grid_size(self, utm_boundaries):
+        x_size = int(np.ceil((utm_boundaries['max_x'] - utm_boundaries['min_x']) / self.pixel_size))
+        y_size = int(np.ceil((utm_boundaries['max_y'] - utm_boundaries['min_y']) / self.pixel_size))
+        return x_size, y_size
+
+    def __utm_proj(self, zone, utm_boundaries, x_size, y_size):
+        area_id = 'utm'
+        description = 'utm_grid'
+        proj_id = 'utm'
+        area_extent = (utm_boundaries['min_x'], utm_boundaries['min_y'],
+                       utm_boundaries['max_x'], utm_boundaries['max_y'])
+        proj_dict = {'units': 'm', 'proj': 'utm', 'zone': str(zone), 'ellps': 'WGS84', 'datum': 'WGS84'}
+        return pr.geometry.AreaDefinition(area_id, description, proj_id, proj_dict, x_size, y_size, area_extent)
+
+    def __utm_map(self):
+        zone = self.__utm_zone()
+        utm_boundaries = self.__utm_boundaries(zone)
+        x_size, y_size = self.__utm_grid_size(utm_boundaries)
+        return self.__utm_proj(zone, utm_boundaries, x_size, y_size)
+
+    def resample_image(self, image, image_lats, image_lons):
+        image_def = pr.geometry.SwathDefinition(lons=image_lons, lats=image_lats)
+        return pr.kd_tree.resample_nearest(image_def,
+                                           image,
+                                           self.map_def,
+                                           radius_of_influence=75000,
+                                           fill_value=-999)
 
 
 #########################    FRE UTILS    #########################
@@ -128,7 +236,7 @@ def read_geo(path, plume):
     return lats, lons
 
 
-def compute_fre(frp_subset):
+def integrate_frp(frp_subset):
     try:
         t0 = frp_subset.index[0]
         sample_times = (frp_subset.index - t0).total_seconds()
@@ -186,67 +294,8 @@ def compute_fre(path, plume, frp_df):
                                                                                       'FIRE_CONFIDENCE_std']]
 
     # integrate to get the fre
-    fre = compute_fre(frp_subset)
+    fre = integrate_frp(frp_subset)
     return fre
-
-
-
-
-
-
-
-def find_landcover_class(plume, landcover):
-    y = plume.filename[10:14]
-    doy = plume.filename[14:17]
-    time = plume.filename[18:22]
-
-    myd14 = glob.glob(os.path.join(filepaths.path_to_modis_frp, '*A' + y + doy + '.' + time + '*.hdf'))[0]
-    myd14 = SD(myd14, SDC.READ)
-
-    lines = myd14.select('FP_line').get()
-    samples = myd14.select('FP_sample').get()
-    lats = myd14.select('FP_latitude').get()
-    lons = myd14.select('FP_longitude').get()
-
-    poly_verts = plume['plume_extent']
-    bb_path = Path(poly_verts)
-
-    # find the geographic coordinates of fires inside the plume mask
-    lat_list = []
-    lon_list = []
-    for l, s, lat, lon in zip(lines, samples, lats, lons):
-        if bb_path.contains_point((s, l)):
-            lat_list.append(lat)
-            lon_list.append(lon)
-
-    # now get the landcover points
-    lc_list = []
-    for lat, lon in zip(lat_list, lon_list):
-        s = int((lon - (-180)) / 360 * landcover['lon'].size)  # lon index
-        l = int((lat - 90) * -1 / 180 * landcover['lat'].size)  # lat index
-
-        # image is flipped, so we need to reverse the lat coordinate
-        l = -(l + 1)
-
-        lc_list.append(np.array(landcover['Band1'][(l - 1):l, s:s + 1][0])[0])
-
-    # return the most common landcover class for the fire contined in the ROI
-    return stats.mode(lc_list).mode[0]
-
-
-def get_orac_data(plume, orac_file_path):
-    y = plume.filename[10:14]
-    doy = plume.filename[14:17]
-    time = plume.filename[18:22]
-    orac_file = glob.glob(os.path.join(orac_file_path, y, doy, 'main', '*' + time + '*.primary.nc'))[0]
-    return Dataset(orac_file)
-
-
-
-def compute_fre(plume_polygon, frp_data):
-    pass
-
-
 
 
 
