@@ -18,8 +18,8 @@ root_path = '/Users/danielfisher/Projects/kcl-fire-aot/data/{0}/'.format(region)
 # processed data paths
 path_to_processed_orac = root_path + 'processed/orac_proc/'
 path_to_goes_frp = root_path + 'processed/goes_frp/goes13_2014_fire_frp_atm.csv'
-path_to_smoke_plume_masks = root_path + 'processed/plume_masks/myd021km_plumes_df.pickle'
-path_to_smoke_plume_masks_csv = root_path + 'processed/plume_masks/myd021km_plumes_df.csv'
+path_to_smoke_plume_polygons = root_path + 'processed/plume_masks/myd021km_plumes_df.pickle'
+path_to_smoke_plume_polygons_csv = root_path + 'processed/plume_masks/myd021km_plumes_df.csv'
 path_to_processed_filelist = root_path + 'processed/plume_masks/processed_filelist.txt'
 
 # raw data and data transfer paths
