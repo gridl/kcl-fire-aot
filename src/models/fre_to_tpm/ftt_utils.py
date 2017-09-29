@@ -60,6 +60,81 @@ def read_geo(path, plume):
     return lats, lons
 
 
+def bounding_pixel_coords(plume):
+    padding = 3  # pixels
+    x, y = zip(*plume.plume_extent)
+    min_x, max_x = np.min(x) - padding, np.max(x) + padding
+    min_y, max_y = np.min(y) - padding, np.max(y) + padding
+    return {'max_x': max_x, 'min_x': min_x, 'max_y': max_y, 'min_y': min_y}
+
+
+def define_plume_mask(plume, bounds):
+    extent = [[x - bounds['min_x'], y - bounds['min_y']] for x, y in plume.plume_extent]
+
+    size_x = bounds['max_x'] - bounds['min_x']
+    size_y = bounds['max_y'] - bounds['min_y']
+    x, y = np.meshgrid(np.arange(size_x), np.arange(size_y))
+    x, y = x.flatten(), y.flatten()
+    points = np.vstack((x, y)).T
+    return points
+
+
+def _build_frp_df(path):
+    '''
+
+    :param path: path to the frp csv files and dataframe
+    :return: dataframe holding frp
+    '''
+    frp_csv_files = glob.glob(path + '*.csv')
+    df_from_each_file = (pd.read_csv(f) for f in frp_csv_files)
+    frp_df = pd.concat(df_from_each_file, ignore_index=True)
+
+    # keep only columns on interest
+    frp_df = frp_df[['FIRE_CONFIDENCE', 'FRP_0', 'LATITUDE', 'LONGITUDE', 'year', 'month', 'day', 'time']]
+
+    # make geocoords into shapely points
+    points = [Point(p[0], p[1]) for p in zip(frp_df['LONGITUDE'].values, frp_df['LATITUDE'].values)]
+    frp_df['point'] = points
+
+    # reindex onto date
+    for k in ['year', 'month', 'day', 'time']:
+        frp_df[k] = frp_df[k].astype(int).astype(str)
+        if k == 'time':
+            frp_df[k] = frp_df[k].str.zfill(4)
+        if k in ['month', 'day']:
+            frp_df[k] = frp_df[k].str.zfill(2)
+
+    format = '%Y%m%d%H%M'
+    frp_df['obs_time'] = pd.to_datetime(frp_df['year'] +
+                                        frp_df['month'] +
+                                        frp_df['day'] +
+                                        frp_df['time'], format=format)
+    frp_df['obs_date'] = frp_df['obs_time'].dt.date
+
+    # drop columns we dont needs
+    frp_df.drop(['LONGITUDE', 'LATITUDE'], axis=1, inplace=True)
+    frp_df.drop(['year', 'month', 'day', 'time'], axis=1, inplace=True)
+
+    frp_df.to_pickle(path + 'frp_df.p')
+
+    return frp_df
+
+
+def load_frp_df(path):
+    '''
+
+    :param path: path to frp csv files and dataframe
+    :return: the frp holding dataframe
+    '''
+    try:
+        df_path = glob.glob(path + 'frp_df.p')
+        frp_df = pd.read_pickle(df_path)
+    except Exception, e:
+        print('could not load frp dataframe, failed with error ' + str(e) + ' building anew')
+        frp_df = _build_frp_df(path)
+    return frp_df
+
+
 def find_landcover_class(plume, myd14_path, landcover_ds):
     y = plume.filename[10:14]
     doy = plume.filename[14:17]
@@ -97,6 +172,23 @@ def find_landcover_class(plume, myd14_path, landcover_ds):
 
     # return the most common landcover class for the fire contined in the ROI
     return stats.mode(lc_list).mode[0]
+
+
+def build_polygon(plume, lats, lons):
+    '''
+
+    :param plume: plume polygon points
+    :param lats:
+    :param lons:
+    :return: polygon defining the plume
+    '''
+
+    # when digitising points are appended (x,y).  However, arrays are accessed
+    # in numpy as row, col which is y, x.  So we need to switch
+    bounding_lats = [lats[point[1], point[0]] for point in plume.plume_extent]
+    bounding_lons = [lons[point[1], point[0]] for point in plume.plume_extent]
+
+    return Polygon(zip(bounding_lons, bounding_lats))
 
 
 class _utm_resampler(object):
@@ -160,81 +252,9 @@ class _utm_resampler(object):
                                            fill_value=-999)
 
 
+
+
 #########################    FRE UTILS    #########################
-
-
-def _build_frp_df(path):
-    '''
-
-    :param path: path to the frp csv files and dataframe
-    :return: dataframe holding frp
-    '''
-    frp_csv_files = glob.glob(path + '*.csv')
-    df_from_each_file = (pd.read_csv(f) for f in frp_csv_files)
-    frp_df = pd.concat(df_from_each_file, ignore_index=True)
-
-    # keep only columns on interest
-    frp_df = frp_df[['FIRE_CONFIDENCE', 'FRP_0', 'LATITUDE', 'LONGITUDE', 'year', 'month', 'day', 'time']]
-
-    # make geocoords into shapely points
-    points = [Point(p[0], p[1]) for p in zip(frp_df['LONGITUDE'].values, frp_df['LATITUDE'].values)]
-    frp_df['point'] = points
-
-    # reindex onto date
-    for k in ['year', 'month', 'day', 'time']:
-        frp_df[k] = frp_df[k].astype(int).astype(str)
-        if k == 'time':
-            frp_df[k] = frp_df[k].str.zfill(4)
-        if k in ['month', 'day']:
-            frp_df[k] = frp_df[k].str.zfill(2)
-
-    format = '%Y%m%d%H%M'
-    frp_df['obs_time'] = pd.to_datetime(frp_df['year'] +
-                                        frp_df['month'] +
-                                        frp_df['day'] +
-                                        frp_df['time'], format=format)
-    frp_df['obs_date'] = frp_df['obs_time'].dt.date
-
-    # drop columns we dont needs
-    frp_df.drop(['LONGITUDE', 'LATITUDE'], axis=1, inplace=True)
-    frp_df.drop(['year', 'month', 'day', 'time'], axis=1, inplace=True)
-
-    frp_df.to_pickle(path + 'frp_df.p')
-
-    return frp_df
-
-
-def load_frp_df(path):
-    '''
-
-    :param path: path to frp csv files and dataframe
-    :return: the frp holding dataframe
-    '''
-    try:
-        df_path = glob.glob(path + 'frp_df.p')
-        frp_df = pd.read_pickle(df_path)
-    except Exception, e:
-        print('could not load frp dataframe, failed with error ' + str(e) + ' building anew')
-        frp_df = _build_frp_df(path)
-    return frp_df
-
-
-def build_polygon(plume, lats, lons):
-    '''
-
-    :param plume: plume polygon points
-    :param lats:
-    :param lons:
-    :return: polygon defining the plume
-    '''
-
-    # when digitising points are appended (x,y).  However, arrays are accessed
-    # in numpy as row, col which is y, x.  So we need to switch
-    bounding_lats = [lats[point[1], point[0]] for point in plume.plume_extent]
-    bounding_lons = [lons[point[1], point[0]] for point in plume.plume_extent]
-
-    return Polygon(zip(bounding_lons, bounding_lats))
-
 
 def integrate_frp(frp_subset):
     try:
@@ -249,7 +269,7 @@ def integrate_frp(frp_subset):
 
 
 
-def compute_fre(plume_polygon, frp_df, lats, lons, start_time, stop_time):
+def compute_fre(plume_polygon, frp_df, start_time, stop_time):
 
     # subset df by time
     try:
@@ -296,39 +316,9 @@ def compute_fre(plume_polygon, frp_df, lats, lons, start_time, stop_time):
 #########################    TPM    #########################
 
 
-def bounding_pixel_coords(plume):
-    padding = 3  # pixels
-    x, y = zip(*plume.plume_extent)
-    min_x, max_x = np.min(x)-padding, np.max(x)+padding
-    min_y, max_y = np.min(y)-padding, np.max(y)+padding
-    return {'max_x': max_x, 'min_x': min_x, 'max_y': max_y, 'min_y': min_y}
-
-
-def define_plume_mask(plume, bounds):
-    extent = [[x - bounds['min_x'], y - bounds['min_y']] for x, y in plume.plume_extent]
-
-    size_x = bounds['max_x'] - bounds['min_x']
-    size_y = bounds['max_y'] - bounds['min_y']
-    x, y = np.meshgrid(np.arange(size_x), np.arange(size_y))
-    x, y = x.flatten(), y.flatten()
-    points = np.vstack((x, y)).T
-
-    # create mask
-    path = Path(extent)
-    mask = path.contains_points(points)
-    mask = mask.reshape((size_y, size_x))
-
-    print 'mask ratio', np.sum(mask) / float(mask.size)
-
-    return mask
-
-
 # TODO still need to make sure area is being calculated correctly
-def compute_plume_area(path, plume):
-    lats, lons = read_geo(path, plume)
+def compute_plume_area(plume_polygon, lons):
 
-    # build shapely polygon
-    plume_polygon = build_polygon(plume, lats, lons)
 
     # TODO is sinusoidal proj good enough?  Yes it is: https://goo.gl/KE3tuY
     # get extra accuracy by selecting an appropriate lon_0
@@ -346,7 +336,7 @@ def compute_plume_area(path, plume):
     return projected_plume_polygon_m.area, projected_plume_polygon_p.area
 
 
-def compute_aod(plume, path):
+def compute_aod(plume_bounding_pixels, plume_mask, lats, lons):
     '''
     Resampling of the ORAC AOD data is required to remove the bowtie effect from the data.  We can then
     sum over the AODs contained with the plume.
@@ -361,14 +351,7 @@ def compute_aod(plume, path):
     vertices, getting the lat lons of the vertices, creating a shapely polygon from them and then computing the area.
     '''
 
-    # get bounds (plume bounding rectanble, buffered by a certain extent)
-    plume_bounding_pixels = bounding_pixel_coords(plume)
-
-    # get the plume mask
-    plume_mask = define_plume_mask(plume, plume_bounding_pixels)
-
     # get the resampler
-    lats, lons = read_geo(path, plume)
     lats = lats[plume_bounding_pixels['min_y']:plume_bounding_pixels['max_y'],
                 plume_bounding_pixels['min_x']:plume_bounding_pixels['max_x']]
     lons = lons[plume_bounding_pixels['min_y']:plume_bounding_pixels['max_y'],
