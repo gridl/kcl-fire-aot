@@ -249,12 +249,7 @@ def integrate_frp(frp_subset):
 
 
 
-def compute_fre(path, plume, frp_df):
-    # load in lats and lons for plume polygon
-    lats, lons = read_geo(path, plume)
-
-    # calculate integration times
-    start_time, stop_time = []  #TODO implement functions to find integration times
+def compute_fre(plume_polygon, frp_df, lats, lons, start_time, stop_time):
 
     # subset df by time
     try:
@@ -271,7 +266,6 @@ def compute_fre(path, plume, frp_df):
     # see here: https://goo.gl/Cevi1u.  Also, do we need to project first to
     # determine if the points are inside the polygon?  I think not as everything
     # is in, in effect, geographic projection.  So should be fine.
-    plume_polygon = build_polygon(plume, lats, lons)
 
     inbounds = []
     try:
