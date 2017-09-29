@@ -52,6 +52,14 @@ def read_plume_polygons(path):
     return df
 
 
+def read_geo(path, plume):
+    # TODO replace with ORAC data coords, so not using MYD stuff as not required
+    myd = SD(os.path.join(path, plume.filename), SDC.READ)
+    lats = ndimage.zoom(myd.select('Latitude').get(), 5)
+    lons = ndimage.zoom(myd.select('Longitude').get(), 5)
+    return lats, lons
+
+
 def find_landcover_class(plume, myd14_path, landcover_ds):
     y = plume.filename[10:14]
     doy = plume.filename[14:17]
@@ -228,14 +236,6 @@ def build_polygon(plume, lats, lons):
     return Polygon(zip(bounding_lons, bounding_lats))
 
 
-def read_geo(path, plume):
-    # TODO replace with ORAC data coords, so not using MYD stuff as not required
-    myd = SD(os.path.join(path, plume.filename), SDC.READ)
-    lats = ndimage.zoom(myd.select('Latitude').get(), 5)
-    lons = ndimage.zoom(myd.select('Longitude').get(), 5)
-    return lats, lons
-
-
 def integrate_frp(frp_subset):
     try:
         t0 = frp_subset.index[0]
@@ -254,7 +254,7 @@ def compute_fre(path, plume, frp_df):
     lats, lons = read_geo(path, plume)
 
     # calculate integration times
-    start_time, stop_time = []  # TODO implement functions to find integration times
+    start_time, stop_time = []  #TODO implement functions to find integration times
 
     # subset df by time
     try:
@@ -300,3 +300,99 @@ def compute_fre(path, plume, frp_df):
 
 
 #########################    TPM    #########################
+
+
+def bounding_pixel_coords(plume):
+    padding = 3  # pixels
+    x, y = zip(*plume.plume_extent)
+    min_x, max_x = np.min(x)-padding, np.max(x)+padding
+    min_y, max_y = np.min(y)-padding, np.max(y)+padding
+    return {'max_x': max_x, 'min_x': min_x, 'max_y': max_y, 'min_y': min_y}
+
+
+def define_plume_mask(plume, bounds):
+    extent = [[x - bounds['min_x'], y - bounds['min_y']] for x, y in plume.plume_extent]
+
+    size_x = bounds['max_x'] - bounds['min_x']
+    size_y = bounds['max_y'] - bounds['min_y']
+    x, y = np.meshgrid(np.arange(size_x), np.arange(size_y))
+    x, y = x.flatten(), y.flatten()
+    points = np.vstack((x, y)).T
+
+    # create mask
+    path = Path(extent)
+    mask = path.contains_points(points)
+    mask = mask.reshape((size_y, size_x))
+
+    print 'mask ratio', np.sum(mask) / float(mask.size)
+
+    return mask
+
+
+# TODO still need to make sure area is being calculated correctly
+def compute_plume_area(path, plume):
+    lats, lons = read_geo(path, plume)
+
+    # build shapely polygon
+    plume_polygon = build_polygon(plume, lats, lons)
+
+    # TODO is sinusoidal proj good enough?  Yes it is: https://goo.gl/KE3tuY
+    # get extra accuracy by selecting an appropriate lon_0
+    m = Basemap(projection='sinu', lon_0=140, resolution='c')
+
+    lons = (lons + 180) - np.floor((lons + 180) / 360) * 360 - 180;
+    zone = stats.mode(np.floor((lons + 180) / 6) + 1, axis=None)[0][0]
+    p = pyproj.Proj(proj='utm', zone=zone, ellps='WGS84', datum='WGS84')
+
+    # apply to shapely polygon
+    projected_plume_polygon_m = transform(m, plume_polygon)
+    projected_plume_polygon_p = transform(p, plume_polygon)
+
+    # compute projected polygon area in m2
+    return projected_plume_polygon_m.area, projected_plume_polygon_p.area
+
+
+def compute_aod(plume, path):
+    '''
+    Resampling of the ORAC AOD data is required to remove the bowtie effect from the data.  We can then
+    sum over the AODs contained with the plume.
+
+    Resampling of the MODIS AOD data is required so that it is in the same projection as the ORAC AOD.
+    With it being in the same projection we can replace low quality ORAC AODs with those from MXD04 products.
+    We also need to get the background AOD data from MXD04 products as ORAC does not do optically thin
+    retrievals well.
+
+    Also, we need to check that the pixel area estimates being computed by compute_plume_area are reasonable.
+    That can be done in this function, we just produce another area estimate from the resampled mask by getting
+    vertices, getting the lat lons of the vertices, creating a shapely polygon from them and then computing the area.
+    '''
+
+    # get bounds (plume bounding rectanble, buffered by a certain extent)
+    plume_bounding_pixels = bounding_pixel_coords(plume)
+
+    # get the plume mask
+    plume_mask = define_plume_mask(plume, plume_bounding_pixels)
+
+    # get the resampler
+    lats, lons = read_geo(path, plume)
+    lats = lats[plume_bounding_pixels['min_y']:plume_bounding_pixels['max_y'],
+                plume_bounding_pixels['min_x']:plume_bounding_pixels['max_x']]
+    lons = lons[plume_bounding_pixels['min_y']:plume_bounding_pixels['max_y'],
+                plume_bounding_pixels['min_x']:plume_bounding_pixels['max_x']]
+    im_resampler = _utm_resampler(lats, lons)
+
+    # resample the datasets (mask, orac_aod, MYD04)
+    resampled_plume_mask = im_resampler.resample_image(plume_mask, lats, lons)
+
+    print np.sum(resampled_plume_mask)
+
+    # create best AOD map from ORAC and MYD04 AOD
+
+    # extract best AOD using plume mask
+
+    # split into background and plume AODs
+
+    # subtract background from plume
+
+    # return plume AOD
+
