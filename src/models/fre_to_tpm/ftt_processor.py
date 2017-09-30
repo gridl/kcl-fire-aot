@@ -18,7 +18,10 @@ def main():
     for i, plume in plume_df.iterrows():
 
         # load plume datasets
-        lats, lons = ut.read_geo(fp.path_to_modis_l1b, plume)
+        try:
+            lats, lons = ut.read_geo(fp.path_to_modis_l1b, plume)
+        except:
+            continue
         orac_aod = []
         myd04_aod = []
 

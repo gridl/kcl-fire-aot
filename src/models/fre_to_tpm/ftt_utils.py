@@ -187,7 +187,15 @@ def construct_plume_mask(plume, bounds):
     x, y = np.meshgrid(np.arange(size_x), np.arange(size_y))
     x, y = x.flatten(), y.flatten()
     points = np.vstack((x, y)).T
-    return points
+
+    # create mask
+    path = Path(extent)
+    mask = path.contains_points(points)
+    mask = mask.reshape((size_y, size_x))
+
+    print 'mask ratio', np.sum(mask) / float(mask.size)
+
+    return mask
 
 
 class _utm_resampler(object):
