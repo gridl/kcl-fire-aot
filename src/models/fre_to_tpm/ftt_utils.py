@@ -52,13 +52,6 @@ def read_plume_polygons(path):
     return df
 
 
-def read_geo(path, plume):
-    myd = SD(os.path.join(path, plume.filename), SDC.READ)
-    lats = ndimage.zoom(myd.select('Latitude').get(), 5)
-    lons = ndimage.zoom(myd.select('Longitude').get(), 5)
-    return lats, lons
-
-
 def _build_frp_df(path):
     '''
 
@@ -154,7 +147,24 @@ def find_landcover_class(plume, myd14_path, landcover_ds):
     return stats.mode(lc_list).mode[0]
 
 
-def construct_polygon(plume, lats, lons):
+def construct_bounding_box(plume):
+    padding = 3  # pixels
+    x, y = zip(*plume.plume_extent)
+    min_x, max_x = np.min(x) - padding, np.max(x) + padding
+    min_y, max_y = np.min(y) - padding, np.max(y) + padding
+    return {'max_x': max_x, 'min_x': min_x, 'max_y': max_y, 'min_y': min_y}
+
+
+def read_geo(path, plume, bounds):
+    myd = SD(os.path.join(path, plume.filename), SDC.READ)
+    lats = ndimage.zoom(myd.select('Latitude').get(), 5)[bounds['min_y']:bounds['max_y'],
+                                                         bounds['min_x']:bounds['max_x']]
+    lons = ndimage.zoom(myd.select('Longitude').get(), 5)[bounds['min_y']:bounds['max_y'],
+                                                          bounds['min_x']:bounds['max_x']]
+    return lats, lons
+
+
+def construct_polygon(plume, bounds, lats, lons):
     '''
 
     :param plume: plume polygon points
@@ -163,20 +173,15 @@ def construct_polygon(plume, lats, lons):
     :return: polygon defining the plume
     '''
 
+    # adjust plume extent for the subset
+    extent = [[x - bounds['min_x'], y - bounds['min_y']] for x, y in plume.plume_extent]
+
     # when digitising points are appended (x,y).  However, arrays are accessed
     # in numpy as row, col which is y, x.  So we need to switch
-    bounding_lats = [lats[point[1], point[0]] for point in plume.plume_extent]
-    bounding_lons = [lons[point[1], point[0]] for point in plume.plume_extent]
+    bounding_lats = [lats[point[1], point[0]] for point in extent]
+    bounding_lons = [lons[point[1], point[0]] for point in extent]
 
     return Polygon(zip(bounding_lons, bounding_lats))
-
-
-def construct_bounding_box(plume):
-    padding = 3  # pixels
-    x, y = zip(*plume.plume_extent)
-    min_x, max_x = np.min(x) - padding, np.max(x) + padding
-    min_y, max_y = np.min(y) - padding, np.max(y) + padding
-    return {'max_x': max_x, 'min_x': min_x, 'max_y': max_y, 'min_y': min_y}
 
 
 def construct_plume_mask(plume, bounds):
@@ -196,6 +201,19 @@ def construct_plume_mask(plume, bounds):
     print 'mask ratio', np.sum(mask) / float(mask.size)
 
     return mask
+
+
+def hist_eq(im,nbr_bins=256):
+
+    #get image histogram
+    imhist,bins = np.histogram(im.flatten(),nbr_bins,normed=True)
+    cdf = imhist.cumsum() #cumulative distribution function
+    cdf = 255 * cdf / cdf[-1] #normalize
+
+    #use linear interpolation of cdf to find new pixel values
+    im2 = np.interp(im.flatten(),bins[:-1],cdf)
+
+    return im2.reshape(im.shape).astype('uint8')
 
 
 class _utm_resampler(object):
@@ -306,6 +324,48 @@ def compute_fre(plume_polygon, frp_df, start_time, stop_time):
     # integrate to get the fre
     fre = integrate_frp(frp_subset)
     return fre
+
+
+#########################    INTEGRATION TIME   #########################
+
+'''
+def find_integration_start_stop_times():
+
+    # find distance in plume polygon from fire head to tail
+    find_plume_length()  # THIS NEEDS TO BE REPROJECTED TO UTM TO GET DISTANCE
+
+    # find the geostationary plume subset using lat lon data
+    lat_subset, lon_subset = get_geographic_subset()
+
+    # get the geostationary filenames for temporally collocated data
+
+    # set up stopping condition
+
+    # iterate over geostationary files
+
+        # set up image reprojection object for lat lon subset
+        image_resampler = _utm_resampler(lat_subset, lon_subset, pixel_size=500)
+
+        # reproject geostationary files to UTM
+
+        # compute optical flow between two images
+
+        # compute distance using magnitude
+
+        # sum distance with total distance
+
+        # check if plume distance has been exceeeded
+
+            # if plume distance has been exceeded return time of second file (CHECK LOGIC FOR THIS)
+
+            # else update geostationary files
+'''
+
+
+
+
+
+
 
 
 #########################    TPM    #########################
