@@ -327,14 +327,23 @@ def compute_fre(plume_polygon, frp_df, start_time, stop_time):
 
 #########################    INTEGRATION TIME   #########################
 
-'''
+
+def compute_plume_length():
+    pass
+
+
 def find_integration_start_stop_times():
 
     # find distance in plume polygon from fire head to tail
-    find_plume_length()  # THIS NEEDS TO BE REPROJECTED TO UTM TO GET DISTANCE
+    plume_length = compute_plume_length()  # THIS NEEDS TO BE REPROJECTED TO UTM TO GET DISTANCE
 
-    # find the geostationary plume subset using lat lon data
-    lat_subset, lon_subset = get_geographic_subset()
+    # find geostationary bounding box for plume lats and lons
+    geo_bounding_box = get_geographic_subset(plume_lats, plume_lons, geostationary_lats, geostationary_lons)
+
+    # set up image reprojection object for geostationary imager using bounded lats and lons
+    image_resampler = utm_resampler(geostationary_lats[geo_bounding_box],
+                                    geostationary_lons[geo_bounding_box],
+                                    pixel_size=500)
 
     # get the geostationary filenames for temporally collocated data
 
@@ -342,10 +351,9 @@ def find_integration_start_stop_times():
 
     # iterate over geostationary files
 
-        # set up image reprojection object for lat lon subset
-        image_resampler = _utm_resampler(lat_subset, lon_subset, pixel_size=500)
+        # extract geostationary image subset using bounding box
 
-        # reproject geostationary files to UTM
+        # reproject image subset to UTM using resampler
 
         # compute optical flow between two images
 
@@ -358,12 +366,6 @@ def find_integration_start_stop_times():
             # if plume distance has been exceeded return time of second file (CHECK LOGIC FOR THIS)
 
             # else update geostationary files
-'''
-
-
-
-
-
 
 
 

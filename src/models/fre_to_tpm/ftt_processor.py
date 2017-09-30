@@ -10,7 +10,7 @@ def main():
     #frp_df = ut.read_frp_df(fp.path_to_himawari_frp)
     plume_df = ut.read_plume_polygons(fp.path_to_smoke_plume_polygons_csv)
     lc_data = []
-    geo_lat, geo_lon = [], [] # the geostationary lats and lons
+    geostationary_lats, geostationary_lons = [], [] # the geostationary lats and lons
 
     # set up arrays to hold data
     fre = []
@@ -39,20 +39,16 @@ def main():
 
         # resample the datasets (mask, orac_aod, MYD04)
         resampled_plume_mask = plume_resampler.resample(plume_mask, plume_lats, plume_lons)
-
-        plt.imshow(resampled_plume_mask, cmap='gray')
-        plt.colorbar()
-        plt.show()
-
-        continue
-
-        plt.imshow(plume_lons, cmap='gray')
-        plt.colorbar()
-        plt.show()
-
+        resampled_orac_aod = []
+        resampled_modis_aod = []
 
         # get FRP integration start and stop times
-        start_time, stop_time = ut.find_integration_start_stop_times(resampled_plume_mask)
+        start_time, stop_time = ut.find_integration_start_stop_times(resampled_plume_mask,
+                                                                     fp.path_to_himwawari_l1b,
+                                                                     geostationary_lats,
+                                                                     geostationary_lons,
+                                                                     plume_lats,
+                                                                     plume_lons)
 
         # get the variables of interest
         fre.append(ut.compute_fre(plume_polygon, frp_df, start_time, stop_time))
