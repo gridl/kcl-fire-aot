@@ -27,7 +27,7 @@ def main():
         # construct plume coordinate data
         try:
             plume_bounding_box = ut.construct_bounding_box(plume)
-            plume_lats, plume_lons = ut.read_geo(fp.path_to_modis_l1b, plume, plume_bounding_box)
+            plume_lats, plume_lons = ut.read_modis_geo_subset(fp.path_to_modis_l1b, plume, plume_bounding_box)
             plume_polygon = ut.construct_polygon(plume, plume_bounding_box, plume_lats, plume_lons)
             plume_mask = ut.construct_plume_mask(plume, plume_bounding_box)
         except Exception, e:
@@ -35,10 +35,21 @@ def main():
             continue
 
         # reproject plume mask to UTM
-        plume_resampler = ut._utm_resampler(plume_lats, plume_lons)
+        plume_resampler = ut.utm_resampler(plume_lats, plume_lons, 1000)
 
         # resample the datasets (mask, orac_aod, MYD04)
-        resampled_plume_mask = plume_resampler.resample_image(plume_mask, plume_lats, plume_lons)
+        resampled_plume_mask = plume_resampler.resample(plume_mask, plume_lats, plume_lons)
+
+        plt.imshow(resampled_plume_mask, cmap='gray')
+        plt.colorbar()
+        plt.show()
+
+        continue
+
+        plt.imshow(plume_lons, cmap='gray')
+        plt.colorbar()
+        plt.show()
+
 
         # get FRP integration start and stop times
         start_time, stop_time = ut.find_integration_start_stop_times(resampled_plume_mask)
