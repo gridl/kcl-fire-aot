@@ -11,6 +11,7 @@ import os
 import re
 from datetime import datetime, timedelta
 import logging
+from functools import partial
 
 import pandas as pd
 import numpy as np
@@ -20,6 +21,7 @@ from matplotlib.path import Path
 from scipy import stats
 from scipy import integrate
 from scipy import ndimage
+from scipy.spatial import ConvexHull
 from shapely.geometry import Polygon, Point
 from shapely.ops import transform
 from mpl_toolkits.basemap import Basemap
@@ -200,6 +202,16 @@ def construct_polygon(plume, bounds, lats, lons):
     return Polygon(zip(bounding_lons, bounding_lats))
 
 
+def reproject_polygon(plume_polygon, utm_resampler):
+
+    project = partial(
+        pyproj.transform,
+        pyproj.Proj(init='epsg:4326'),  # source coordinate system (geographic coords)
+        utm_resampler.utm_transform)  # destination coordinate system
+
+    return transform(project, plume_polygon)  # apply projection
+
+
 def hist_eq(im,nbr_bins=256):
 
     #get image histogram
@@ -219,6 +231,7 @@ class utm_resampler(object):
         self.lons = lons
         self.pixel_size = pixel_size
         self.resolution = resolution
+        self.utm_transform = self.__utm_transform()
         self.area_def = self.__utm_area_def()
 
     def __utm_zone(self):
@@ -228,11 +241,14 @@ class utm_resampler(object):
         in which most of the data falls: https://goo.gl/3QY2Re
         see also: http://www.igorexchange.com/node/927 for if we need over Svalbard (highly unlikely)
         '''
-        lons = (self.lons + 180) - np.floor((self.lons + 180) / 360) * 360 - 180;
+        lons = (self.lons + 180) - np.floor((self.lons + 180) / 360) * 360 - 180
         return stats.mode(np.floor((lons + 180) / 6) + 1, axis=None)[0][0]
 
-    def __utm_boundaries(self, zone):
-        p = pyproj.Proj(proj='utm', zone=zone, ellps='WGS84', datum='WGS84')
+    def __utm_proj(self, zone):
+        return pyproj.Proj(proj='utm', zone=zone, ellps='WGS84', datum='WGS84')
+
+    def __utm_area_extent(self, zone):
+        p = self.__utm_proj(zone)
         x, y = p(self.lons, self.lats)
         min_x, max_x = np.min(x), np.max(x)
         min_y, max_y = np.min(y), np.max(y)
@@ -243,7 +259,7 @@ class utm_resampler(object):
         y_size = int(np.ceil((utm_boundaries['max_y'] - utm_boundaries['min_y']) / self.pixel_size))
         return x_size, y_size
 
-    def __utm_proj(self, zone, utm_boundaries, x_size, y_size):
+    def __construct_area_def(self, zone, utm_boundaries, x_size, y_size):
         area_id = 'utm'
         description = 'utm_grid'
         proj_id = 'utm'
@@ -254,9 +270,13 @@ class utm_resampler(object):
 
     def __utm_area_def(self):
         zone = self.__utm_zone()
-        area_extent = self.__utm_boundaries(zone)
+        area_extent = self.__utm_area_extent(zone)
         x_size, y_size = self.__utm_grid_size(area_extent)
-        return self.__utm_proj(zone, area_extent, x_size, y_size)
+        return self.__construct_area_def(zone, area_extent, x_size, y_size)
+
+    def __utm_transform(self):
+        zone = self.__utm_zone()
+        return self.__utm_proj(zone)
 
     def resample(self, image, image_lats, image_lons):
         swath_def = pr.geometry.SwathDefinition(lons=image_lons, lats=image_lats)
@@ -328,8 +348,63 @@ def compute_fre(plume_polygon, frp_df, start_time, stop_time):
 #########################    INTEGRATION TIME   #########################
 
 
-def compute_plume_length():
-    pass
+def _minimum_bounding_rectangle(points):
+    """
+    https://goo.gl/vULU76
+    Find the smallest bounding rectangle for a set of points.
+    Returns a set of points representing the corners of the bounding box.
+
+    :param points: an nx2 matrix of coordinates
+    :rval: an nx2 matrix of coordinates
+    """
+    pi2 = np.pi / 2.
+
+    # get the convex hull for the points
+    hull_points = points[ConvexHull(points).vertices]
+
+    # calculate edge angles
+    edges = hull_points[1:] - hull_points[:-1]
+
+    angles = np.arctan2(edges[:, 1], edges[:, 0])
+    angles = np.abs(np.mod(angles, pi2))
+    angles = np.unique(angles)
+
+    # find rotation matrices
+    rotations = np.vstack([ np.cos(angles), np.cos(angles - pi2), np.cos(angles + pi2), np.cos(angles)]).T
+
+    rotations = rotations.reshape((-1, 2, 2))
+
+    # apply rotations to the hull
+    rot_points = np.dot(rotations, hull_points.T)
+
+    # find the bounding points
+    min_x = np.nanmin(rot_points[:, 0], axis=1)
+    max_x = np.nanmax(rot_points[:, 0], axis=1)
+    min_y = np.nanmin(rot_points[:, 1], axis=1)
+    max_y = np.nanmax(rot_points[:, 1], axis=1)
+
+    # find the box with the best area
+    areas = (max_x - min_x) * (max_y - min_y)
+    best_idx = np.argmin(areas)
+
+    # return the best box
+    x1 = max_x[best_idx]
+    x2 = min_x[best_idx]
+    y1 = max_y[best_idx]
+    y2 = min_y[best_idx]
+    r = rotations[best_idx]
+
+    rval = np.zeros((4, 2))
+    rval[0] = np.dot([x1, y2], r)
+    rval[1] = np.dot([x2, y2], r)
+    rval[2] = np.dot([x2, y1], r)
+    rval[3] = np.dot([x1, y1], r)
+
+    return rval
+
+
+def compute_plume_length(plume_polygon):
+    rval = _minimum_bounding_rectangle(plume_polygon)
 
 
 def find_integration_start_stop_times():
@@ -338,12 +413,12 @@ def find_integration_start_stop_times():
     plume_length = compute_plume_length()  # THIS NEEDS TO BE REPROJECTED TO UTM TO GET DISTANCE
 
     # find geostationary bounding box for plume lats and lons
-    geo_bounding_box = get_geographic_subset(plume_lats, plume_lons, geostationary_lats, geostationary_lons)
+    #geo_bounding_box = get_geographic_subset(plume_lats, plume_lons, geostationary_lats, geostationary_lons)
 
     # set up image reprojection object for geostationary imager using bounded lats and lons
-    image_resampler = utm_resampler(geostationary_lats[geo_bounding_box],
-                                    geostationary_lons[geo_bounding_box],
-                                    pixel_size=500)
+    #image_resampler = utm_resampler(geostationary_lats[geo_bounding_box],
+    #                                geostationary_lons[geo_bounding_box],
+    #                                pixel_size=500)
 
     # get the geostationary filenames for temporally collocated data
 

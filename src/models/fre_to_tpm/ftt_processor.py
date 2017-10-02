@@ -34,21 +34,21 @@ def main():
             print e
             continue
 
-        # reproject plume mask to UTM
-        plume_resampler = ut.utm_resampler(plume_lats, plume_lons, 1000)
+        # subset ORAC and MYD04 datasets
+        orac_aod_subset = []
+        myd04_aod_subset = []
+
+        # set up utm resampler that we use to resample all data to utm
+        utm_resampler = ut.utm_resampler(plume_lats, plume_lons, 1000)
 
         # resample the datasets (mask, orac_aod, MYD04)
-        resampled_plume_mask = plume_resampler.resample(plume_mask, plume_lats, plume_lons)
-        resampled_orac_aod = []
-        resampled_modis_aod = []
+        utm_plume_polygon = ut.reproject_polygon(plume_polygon, utm_resampler)
+        utm_plume_mask = utm_resampler.resample(plume_mask, plume_lats, plume_lons)
+        utm_orac_aod_subset = []
+        utm_modis_aod_subset = []
 
         # get FRP integration start and stop times
-        start_time, stop_time = ut.find_integration_start_stop_times(resampled_plume_mask,
-                                                                     fp.path_to_himwawari_l1b,
-                                                                     geostationary_lats,
-                                                                     geostationary_lons,
-                                                                     plume_lats,
-                                                                     plume_lons)
+        start_time, stop_time = ut.find_integration_start_stop_times(plume_polygon)
 
         # get the variables of interest
         fre.append(ut.compute_fre(plume_polygon, frp_df, start_time, stop_time))
