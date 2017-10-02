@@ -402,7 +402,6 @@ def geo_spatial_subset(lats_1, lons_1, lats_2, lons_2):
     min_y = np.min(coords[0])
     max_y = np.max(coords[0])
 
-
     return {'max_x': max_x+padding,
             'min_x': min_x-padding,
             'max_y': max_y+padding,
@@ -416,13 +415,17 @@ def find_integration_start_stop_times(plume_points,
     # find distance in plume polygon from fire head to tail
     plume_length = compute_plume_length(plume_points)
 
-    # find geostationary bounding box for plume lats and lons
-    geo_bounding_box = geo_spatial_subset(plume_lats, plume_lons, geostationary_lats, geostationary_lons)
+    # find geostationary bounding box from plume lats and lons
+    bb = geo_spatial_subset(plume_lats, plume_lons, geostationary_lats, geostationary_lons)
+
+    # extract lats and lons using bounding box
+    geostationary_lats_subset = geostationary_lats[bb['min_y']:bb['max_y'], bb['min_x']:bb['max_x']]
+    geostationary_lons_subset = geostationary_lons[bb['min_y']:bb['max_y'], bb['min_x']:bb['max_x']]
 
     # set up image reprojection object for geostationary imager using bounded lats and lons
-    #image_resampler = utm_resampler(geostationary_lats[geo_bounding_box],
-    #                                geostationary_lons[geo_bounding_box],
-    #                                pixel_size=500)
+    image_resampler = utm_resampler(geostationary_lats_subset,
+                                    geostationary_lons_subset,
+                                    pixel_size=500)
 
     # get the geostationary filenames for temporally collocated data
 
