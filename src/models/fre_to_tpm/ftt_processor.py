@@ -1,6 +1,7 @@
 
 import src.models.fre_to_tpm.ftt_utils as ut
 import src.config.filepaths as fp
+import src.data.readers.load_hrit as load_hrit
 
 import matplotlib.pyplot as plt
 
@@ -10,7 +11,9 @@ def main():
     #frp_df = ut.read_frp_df(fp.path_to_himawari_frp)
     plume_df = ut.read_plume_polygons(fp.path_to_smoke_plume_polygons_csv)
     lc_data = []
-    geostationary_lats, geostationary_lons = [], [] # the geostationary lats and lons
+
+    geo_file = '/Users/dnf/Projects/kcl-fire-aot/data/Asia/processed/himawari/Himawari_lat_lon.img'
+    geostationary_lats, geostationary_lons = load_hrit.geo_read(geo_file)
 
     # set up arrays to hold data
     fre = []
@@ -40,17 +43,19 @@ def main():
         myd04_aod_subset = []
 
         # set up utm resampler that we use to resample all data to utm
-        utm_resampler = ut.utm_resampler(plume_lats, plume_lons, 1000)
 
-        # reproject all the datasets to utm (mask, orac_aod, MYD04)
-        utm_plume_points = ut.reproject_polygon(plume_points, utm_resampler)
-        utm_plume_polygon = ut.reproject_polygon(plume_polygon, utm_resampler)
-        utm_plume_mask = utm_resampler.resample(plume_mask, plume_lats, plume_lons)
+        # reproject all modis datasets to utm (mask, orac_aod, MYD04)
+        utm_resampler_modis = ut.utm_resampler(plume_lats, plume_lons, 1000)
+        utm_plume_points = ut.reproject_shapely(plume_points, utm_resampler_modis)
+        utm_plume_polygon = ut.reproject_shapely(plume_polygon, utm_resampler_modis)
+        utm_plume_mask = utm_resampler_modis.resample(plume_mask, plume_lats, plume_lons)
         utm_orac_aod_subset = []
         utm_modis_aod_subset = []
 
         # get FRP integration start and stop times
-        start_time, stop_time = ut.find_integration_start_stop_times(utm_plume_polygon)
+        start_time, stop_time = ut.find_integration_start_stop_times(utm_plume_polygon,
+                                                                     plume_lats, plume_lons,
+                                                                     geostationary_lats, geostationary_lons)
 
         # get the variables of interest
         fre.append(ut.compute_fre(plume_polygon, frp_df, start_time, stop_time))

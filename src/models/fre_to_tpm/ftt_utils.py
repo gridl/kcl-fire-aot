@@ -30,6 +30,8 @@ from mpl_toolkits.basemap import Basemap
 import pyresample as pr
 import pyproj
 
+import matplotlib.pyplot as plt
+
 
 log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=log_fmt)
@@ -206,7 +208,7 @@ def construct_polygon(plume, bounds, lats, lons):
     return Polygon(zip(bounding_lons, bounding_lats))
 
 
-def reproject_polygon(plume_polygon, utm_resampler):
+def reproject_shapely(plume_polygon, utm_resampler):
 
     project = partial(
         pyproj.transform,
@@ -372,16 +374,50 @@ def compute_plume_length(plume_points):
     side_a = np.linalg.norm(np.array(verts[0])-np.array(verts[1]))
     side_b = np.linalg.norm(np.array(verts[1])-np.array(verts[2]))
 
-    return max([side_a, side_b])  # return max UTM distance in m
+    return max([side_a, side_b])  # return max UTM distance in (m)
 
 
-def find_integration_start_stop_times(plume_points):
+def geo_spatial_subset(lats_1, lons_1, lats_2, lons_2):
+    '''
+
+    :param lats_1: target lat region
+    :param lons_1: target lon region
+    :param lats_2: extended lat region
+    :param lons_2: extended lon region
+    :return bounds: bounding box locating l1 in l2
+    '''
+
+    padding = 10  # pixels
+
+    min_lat = np.min(lats_1)
+    max_lat = np.max(lats_1)
+    min_lon = np.min(lons_1)
+    max_lon = np.max(lons_1)
+
+    coords = np.where((lats_2 >= min_lat) & (lats_2 <= max_lat) &
+                      (lons_2 >= min_lon) & (lons_2 <= max_lon))
+
+    min_x = np.min(coords[1])
+    max_x = np.max(coords[1])
+    min_y = np.min(coords[0])
+    max_y = np.max(coords[0])
+
+
+    return {'max_x': max_x+padding,
+            'min_x': min_x-padding,
+            'max_y': max_y+padding,
+            'min_y': min_y-padding}
+
+
+def find_integration_start_stop_times(plume_points,
+                                      plume_lats, plume_lons,
+                                      geostationary_lats, geostationary_lons):
 
     # find distance in plume polygon from fire head to tail
     plume_length = compute_plume_length(plume_points)
 
     # find geostationary bounding box for plume lats and lons
-    #geo_bounding_box = get_geographic_subset(plume_lats, plume_lons, geostationary_lats, geostationary_lons)
+    geo_bounding_box = geo_spatial_subset(plume_lats, plume_lons, geostationary_lats, geostationary_lons)
 
     # set up image reprojection object for geostationary imager using bounded lats and lons
     #image_resampler = utm_resampler(geostationary_lats[geo_bounding_box],
