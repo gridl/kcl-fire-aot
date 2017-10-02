@@ -28,6 +28,7 @@ def main():
         try:
             plume_bounding_box = ut.construct_bounding_box(plume)
             plume_lats, plume_lons = ut.read_modis_geo_subset(fp.path_to_modis_l1b, plume, plume_bounding_box)
+            plume_points = ut.construct_points(plume, plume_bounding_box, plume_lats, plume_lons)
             plume_polygon = ut.construct_polygon(plume, plume_bounding_box, plume_lats, plume_lons)
             plume_mask = ut.construct_plume_mask(plume, plume_bounding_box)
         except Exception, e:
@@ -41,14 +42,15 @@ def main():
         # set up utm resampler that we use to resample all data to utm
         utm_resampler = ut.utm_resampler(plume_lats, plume_lons, 1000)
 
-        # resample the datasets (mask, orac_aod, MYD04)
+        # reproject all the datasets to utm (mask, orac_aod, MYD04)
+        utm_plume_points = ut.reproject_polygon(plume_points, utm_resampler)
         utm_plume_polygon = ut.reproject_polygon(plume_polygon, utm_resampler)
         utm_plume_mask = utm_resampler.resample(plume_mask, plume_lats, plume_lons)
         utm_orac_aod_subset = []
         utm_modis_aod_subset = []
 
         # get FRP integration start and stop times
-        start_time, stop_time = ut.find_integration_start_stop_times(plume_polygon)
+        start_time, stop_time = ut.find_integration_start_stop_times(utm_plume_polygon)
 
         # get the variables of interest
         fre.append(ut.compute_fre(plume_polygon, frp_df, start_time, stop_time))

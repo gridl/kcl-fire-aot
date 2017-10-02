@@ -12,6 +12,7 @@ import re
 from datetime import datetime, timedelta
 import logging
 from functools import partial
+import math
 
 import pandas as pd
 import numpy as np
@@ -21,9 +22,10 @@ from matplotlib.path import Path
 from scipy import stats
 from scipy import integrate
 from scipy import ndimage
-from scipy.spatial import ConvexHull
-from shapely.geometry import Polygon, Point
+from shapely.geometry import Polygon, Point, MultiPoint
 from shapely.ops import transform
+from shapely.affinity import affine_transform
+from itertools import islice
 from mpl_toolkits.basemap import Basemap
 import pyresample as pr
 import pyproj
@@ -182,14 +184,7 @@ def construct_plume_mask(plume, bounds):
     return mask
 
 
-def construct_polygon(plume, bounds, lats, lons):
-    '''
-
-    :param plume: plume polygon points
-    :param lats:
-    :param lons:
-    :return: polygon defining the plume
-    '''
+def _extract_geo_from_bounds(plume, bounds, lats, lons):
 
     # adjust plume extent for the subset
     extent = [[x - bounds['min_x'], y - bounds['min_y']] for x, y in plume.plume_extent]
@@ -198,7 +193,16 @@ def construct_polygon(plume, bounds, lats, lons):
     # in numpy as row, col which is y, x.  So we need to switch
     bounding_lats = [lats[point[1], point[0]] for point in extent]
     bounding_lons = [lons[point[1], point[0]] for point in extent]
+    return bounding_lats, bounding_lons
 
+
+def construct_points(plume, bounds, lats, lons):
+    bounding_lats, bounding_lons = _extract_geo_from_bounds(plume, bounds, lats, lons)
+    return MultiPoint(zip(bounding_lons, bounding_lats))
+
+
+def construct_polygon(plume, bounds, lats, lons):
+    bounding_lats, bounding_lons = _extract_geo_from_bounds(plume, bounds, lats, lons)
     return Polygon(zip(bounding_lons, bounding_lats))
 
 
@@ -348,69 +352,33 @@ def compute_fre(plume_polygon, frp_df, start_time, stop_time):
 #########################    INTEGRATION TIME   #########################
 
 
-def _minimum_bounding_rectangle(points):
-    """
-    https://goo.gl/vULU76
-    Find the smallest bounding rectangle for a set of points.
-    Returns a set of points representing the corners of the bounding box.
+def compute_plume_length(plume_points):
 
-    :param points: an nx2 matrix of coordinates
-    :rval: an nx2 matrix of coordinates
-    """
-    pi2 = np.pi / 2.
+    '''
+    From the minimum rotated rectangle that encloses the digitised points
+    we can compute the plumes length from its vertices.  This simply
+    involves computing the euclidean distance between the verticies, which
+    is possible as we are working with projected data.
 
-    # get the convex hull for the points
-    hull_points = points[ConvexHull(points).vertices]
+    Also, this means that we need to digitise plumes that are longer than wide
 
-    # calculate edge angles
-    edges = hull_points[1:] - hull_points[:-1]
+    :param plume_points: the set of points that comprise the plume polygon
+    :return: length of the longest side
+    '''
 
-    angles = np.arctan2(edges[:, 1], edges[:, 0])
-    angles = np.abs(np.mod(angles, pi2))
-    angles = np.unique(angles)
+    x, y = plume_points.minimum_rotated_rectangle.exterior.xy
+    verts = zip(x, y)
 
-    # find rotation matrices
-    rotations = np.vstack([ np.cos(angles), np.cos(angles - pi2), np.cos(angles + pi2), np.cos(angles)]).T
+    side_a = np.linalg.norm(np.array(verts[0])-np.array(verts[1]))
+    side_b = np.linalg.norm(np.array(verts[1])-np.array(verts[2]))
 
-    rotations = rotations.reshape((-1, 2, 2))
-
-    # apply rotations to the hull
-    rot_points = np.dot(rotations, hull_points.T)
-
-    # find the bounding points
-    min_x = np.nanmin(rot_points[:, 0], axis=1)
-    max_x = np.nanmax(rot_points[:, 0], axis=1)
-    min_y = np.nanmin(rot_points[:, 1], axis=1)
-    max_y = np.nanmax(rot_points[:, 1], axis=1)
-
-    # find the box with the best area
-    areas = (max_x - min_x) * (max_y - min_y)
-    best_idx = np.argmin(areas)
-
-    # return the best box
-    x1 = max_x[best_idx]
-    x2 = min_x[best_idx]
-    y1 = max_y[best_idx]
-    y2 = min_y[best_idx]
-    r = rotations[best_idx]
-
-    rval = np.zeros((4, 2))
-    rval[0] = np.dot([x1, y2], r)
-    rval[1] = np.dot([x2, y2], r)
-    rval[2] = np.dot([x2, y1], r)
-    rval[3] = np.dot([x1, y1], r)
-
-    return rval
+    return max([side_a, side_b])  # return max UTM distance in m
 
 
-def compute_plume_length(plume_polygon):
-    rval = _minimum_bounding_rectangle(plume_polygon)
-
-
-def find_integration_start_stop_times():
+def find_integration_start_stop_times(plume_points):
 
     # find distance in plume polygon from fire head to tail
-    plume_length = compute_plume_length()  # THIS NEEDS TO BE REPROJECTED TO UTM TO GET DISTANCE
+    plume_length = compute_plume_length(plume_points)
 
     # find geostationary bounding box for plume lats and lons
     #geo_bounding_box = get_geographic_subset(plume_lats, plume_lons, geostationary_lats, geostationary_lons)
@@ -447,23 +415,26 @@ def find_integration_start_stop_times():
 #########################    TPM    #########################
 
 # TODO still need to make sure area is being calculated correctly
-def compute_plume_area(plume_polygon, lons):
+def compute_plume_area(utm_plume_polygon):
 
 
-    # TODO is sinusoidal proj good enough?  Yes it is: https://goo.gl/KE3tuY
-    # get extra accuracy by selecting an appropriate lon_0
-    m = Basemap(projection='sinu', lon_0=140, resolution='c')
-
-    lons = (lons + 180) - np.floor((lons + 180) / 360) * 360 - 180;
-    zone = stats.mode(np.floor((lons + 180) / 6) + 1, axis=None)[0][0]
-    p = pyproj.Proj(proj='utm', zone=zone, ellps='WGS84', datum='WGS84')
-
-    # apply to shapely polygon
-    projected_plume_polygon_m = transform(m, plume_polygon)
-    projected_plume_polygon_p = transform(p, plume_polygon)
+    # # TODO is sinusoidal proj good enough?  Yes it is: https://goo.gl/KE3tuY
+    # # get extra accuracy by selecting an appropriate lon_0
+    # m = Basemap(projection='sinu', lon_0=140, resolution='c')
+    #
+    # lons = (lons + 180) - np.floor((lons + 180) / 360) * 360 - 180;
+    # zone = stats.mode(np.floor((lons + 180) / 6) + 1, axis=None)[0][0]
+    # p = pyproj.Proj(proj='utm', zone=zone, ellps='WGS84', datum='WGS84')
+    #
+    # # apply to shapely polygon
+    # projected_plume_polygon_m = transform(m, plume_polygon)
+    # projected_plume_polygon_p = transform(p, plume_polygon)
 
     # compute projected polygon area in m2
-    return projected_plume_polygon_m.area, projected_plume_polygon_p.area
+    # return projected_plume_polygon_m.area, projected_plume_polygon_p.area
+
+    # we already have the plume polygon area
+    return utm_plume_polygon.area
 
 
 def compute_aod(plume_bounding_pixels, plume_mask, lats, lons):
