@@ -24,13 +24,11 @@ from scipy import integrate
 from scipy import ndimage
 from shapely.geometry import Polygon, Point, MultiPoint
 from shapely.ops import transform
-from shapely.affinity import affine_transform
-from itertools import islice
-from mpl_toolkits.basemap import Basemap
 import pyresample as pr
 import pyproj
+import cv2
 
-import matplotlib.pyplot as plt
+import src.data.readers.load_hrit as load_hrit
 
 
 log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -387,7 +385,7 @@ def geo_spatial_subset(lats_1, lons_1, lats_2, lons_2):
     :return bounds: bounding box locating l1 in l2
     '''
 
-    padding = 10  # pixels
+    padding = 250  # pixels
 
     min_lat = np.min(lats_1)
     max_lat = np.max(lats_1)
@@ -408,12 +406,33 @@ def geo_spatial_subset(lats_1, lons_1, lats_2, lons_2):
             'min_y': min_y-padding}
 
 
-def find_integration_start_stop_times(plume_points,
+def find_image_segment(bb):
+
+    # there are ten 2200 pixel segments in himawari
+    seg_size = 2200
+    segment_min = bb['min_y'] / seg_size
+    segment_max = bb['max_y'] / seg_size
+
+    if segment_min == segment_max:
+        return segment_min
+    else:
+        logger.critical('Plumes crossing multiple himawari image segments not yet implemented')
+        return None
+
+
+def adjust_bb_for_segment(bb, segment):
+    seg_size = 2200
+    bb['min_y'] -= (segment * seg_size)
+    bb['max_y'] -= (segment * seg_size)
+
+
+def find_integration_start_stop_times(plume_points, plume_mask,
                                       plume_lats, plume_lons,
-                                      geostationary_lats, geostationary_lons):
+                                      geostationary_lats, geostationary_lons,
+                                      utm_resampler_modis):
 
     # find distance in plume polygon from fire head to tail
-    plume_length = compute_plume_length(plume_points)
+    total_plume_length = compute_plume_length(plume_points)
 
     # find geostationary bounding box from plume lats and lons
     bb = geo_spatial_subset(plume_lats, plume_lons, geostationary_lats, geostationary_lons)
@@ -422,32 +441,80 @@ def find_integration_start_stop_times(plume_points,
     geostationary_lats_subset = geostationary_lats[bb['min_y']:bb['max_y'], bb['min_x']:bb['max_x']]
     geostationary_lons_subset = geostationary_lons[bb['min_y']:bb['max_y'], bb['min_x']:bb['max_x']]
 
+    # adjust pixel resolution of bouding box so that lats/lons, bb have the same size as the image for channel
+    zoom = 4
+    geostationary_lats_subset = ndimage.zoom(geostationary_lats_subset, zoom)
+    geostationary_lons_subset = ndimage.zoom(geostationary_lons_subset, zoom)
+    bb.update((x, y * zoom) for x, y in bb.items())  # enlarge bounding box by factor of zoom also
+
+    # find the image segment related to the bb
+    image_segment = find_image_segment(bb)
+
+    # adjust the bb for the image segment
+    adjust_bb_for_segment(bb, image_segment)
+
     # set up image reprojection object for geostationary imager using bounded lats and lons
-    image_resampler = utm_resampler(geostationary_lats_subset,
-                                    geostationary_lons_subset,
-                                    pixel_size=500)
+    utm_resampler_geos = utm_resampler(geostationary_lats_subset,
+                                       geostationary_lons_subset,
+                                       pixel_size=500)
 
-    # get the geostationary filenames for temporally collocated data
+    # get the geographic coordinates for the utm geostationry grid
+    utm_lons, utm_lats = utm_resampler_geos.area_def.get_lonlats()
 
-    # set up stopping condition
+    # get the geostationary filenames for the given plume time and image segment
+    geostationary_fnames = []
 
-    # iterate over geostationary files
+    # set up stopping condition which is the current estimate of the plume length
+    current_plume_length = 0
+    while current_plume_length < total_plume_length:
 
-        # extract geostationary image subset using bounding box
+        # iterate over geostationary files
+        for f1, f2 in zip(geostationary_fnames[:-1], geostationary_fnames[1:]):
 
-        # reproject image subset to UTM using resampler
+            # load geostationary files
+            f1_radiances = load_hrit.H8_file_read(f1)
+            f2_radiances = load_hrit.H8_file_read(f2)
 
-        # compute optical flow between two images
+            # extract geostationary image subset using adjusted bb
+            f1_radiances_subset = f1_radiances[bb['min_y']:bb['max_y'], bb['min_x']:bb['max_x']]
+            f2_radiances_subset = f2_radiances[bb['min_y']:bb['max_y'], bb['min_x']:bb['max_x']]
 
-        # compute distance using magnitude
+            # equalise the image
+            f1_radiances_subset = hist_eq(f1_radiances_subset)
+            f2_radiances_subset = hist_eq(f2_radiances_subset)
 
-        # sum distance with total distance
+            # reproject image subset to UTM using resampler
+            f1_radiances_subset_reproj = utm_resampler_geos.resample(f1_radiances_subset,
+                                                                     geostationary_lats_subset,
+                                                                     geostationary_lons_subset)
+            f2_radiances_subset_reproj = utm_resampler_geos.resample(f2_radiances_subset,
+                                                                     geostationary_lats_subset,
+                                                                     geostationary_lons_subset)
 
-        # check if plume distance has been exceeeded
+            # compute optical flow between two images
+            flow_image = np.zeros(f1_radiances_subset_reproj.shape).astype('uint8')
+            flow = cv2.calcOpticalFlowFarneback(f1_radiances_subset_reproj,
+                                                f2_radiances_subset_reproj,
+                                                flow_image,
+                                                0.5, 4, 50, 10, 7, 1.5,
+                                                cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
 
-            # if plume distance has been exceeded return time of second file (CHECK LOGIC FOR THIS)
 
-            # else update geostationary files
+            # compute distances using magnitude
+            flow_x = flow[:, :, 0]
+            flow_y = flow[:, :, 1]
+            distances = np.sqrt(flow_x ** 2 + flow_y ** 2)
+
+            # now resample distances onto plume
+            distances_in_modis_proj = utm_resampler_modis.resample(distances, utm_lats, utm_lons)
+
+            # extract median distance travelled for plume using plume mask
+            median_distance = np.median(distances[plume_mask])
+
+            # sum distance with total distance
+            current_plume_length += median_distance
+
+    return f2[0:]  # return time of the second file
 
 
 

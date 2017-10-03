@@ -53,9 +53,10 @@ def main():
         utm_modis_aod_subset = []
 
         # get FRP integration start and stop times
-        start_time, stop_time = ut.find_integration_start_stop_times(utm_plume_polygon,
+        start_time, stop_time = ut.find_integration_start_stop_times(utm_plume_polygon, utm_plume_mask,
                                                                      plume_lats, plume_lons,
-                                                                     geostationary_lats, geostationary_lons)
+                                                                     geostationary_lats, geostationary_lons,
+                                                                     utm_resampler_modis)
 
         # get the variables of interest
         fre.append(ut.compute_fre(plume_polygon, frp_df, start_time, stop_time))
