@@ -386,7 +386,7 @@ def geo_spatial_subset(lats_1, lons_1, lats_2, lons_2):
     :return bounds: bounding box locating l1 in l2
     '''
 
-    padding = 250  # pixels
+    padding = 25  # pixels
 
     min_lat = np.min(lats_1)
     max_lat = np.max(lats_1)
@@ -427,9 +427,9 @@ def adjust_bb_for_segment(bb, segment):
     bb['max_y'] -= (segment * seg_size)
 
 
-def get_geostationary_fnames(plume_fname):
+def get_geostationary_fnames(plume_fname, image_segment):
     # TODO finish this function
-    return os.listdir(fp.path_to_himawari_l1b)
+    return [f for f in os.listdir(fp.path_to_himawari_l1b) if str(image_segment) in f.split('_')[-1][0:3]]
 
 
 def find_integration_start_stop_times(plume_fname,
@@ -469,7 +469,7 @@ def find_integration_start_stop_times(plume_fname,
     utm_lons, utm_lats = utm_resampler_geos.area_def.get_lonlats()
 
     # get the geostationary filenames for the given plume time and image segment
-    geostationary_fnames = get_geostationary_fnames(plume_fname)
+    geostationary_fnames = get_geostationary_fnames(plume_fname, image_segment)
 
     # set up stopping condition which is the current estimate of the plume length
     current_plume_length = 0
@@ -479,8 +479,8 @@ def find_integration_start_stop_times(plume_fname,
         for f1, f2 in zip(geostationary_fnames[:-1], geostationary_fnames[1:]):
 
             # load geostationary files
-            f1_radiances = load_hrit.H8_file_read(f1)
-            f2_radiances = load_hrit.H8_file_read(f2)
+            f1_radiances, _ = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_l1b, f1))
+            f2_radiances, _ = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_l1b, f2))
 
             # extract geostationary image subset using adjusted bb
             f1_radiances_subset = f1_radiances[bb['min_y']:bb['max_y'], bb['min_x']:bb['max_x']]
@@ -510,10 +510,11 @@ def find_integration_start_stop_times(plume_fname,
             # compute distances using magnitude
             flow_x = flow[:, :, 0]
             flow_y = flow[:, :, 1]
-            distances = np.sqrt(flow_x ** 2 + flow_y ** 2)
+            pixel_distances = np.sqrt(flow_x ** 2 + flow_y ** 2)
+            utm_distances = pixel_distances * 500  # 500m imager resolution
 
             # now resample distances onto plume
-            distances_in_modis_proj = utm_resampler_modis.resample(distances, utm_lats, utm_lons)
+            distances_in_modis_proj = utm_resampler_modis.resample(utm_distances, utm_lats, utm_lons)
 
             # smoke mask needs to be applied to distances, else we might get non plume features contributing
 
