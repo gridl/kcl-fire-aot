@@ -12,7 +12,7 @@ def main():
     plume_df = ut.read_plume_polygons(fp.path_to_smoke_plume_polygons_csv)
     lc_data = []
 
-    geo_file = '/Users/dnf/Projects/kcl-fire-aot/data/Asia/processed/himawari/Himawari_lat_lon.img'
+    geo_file = fp.root_path + '/processed/himawari/Himawari_lat_lon.img'
     geostationary_lats, geostationary_lons = load_hrit.geo_read(geo_file)
 
     # set up arrays to hold data
@@ -38,6 +38,8 @@ def main():
             print e
             continue
 
+        print plume.filename
+
         # subset ORAC and MYD04 datasets
         orac_aod_subset = []
         myd04_aod_subset = []
@@ -53,7 +55,8 @@ def main():
         utm_modis_aod_subset = []
 
         # get FRP integration start and stop times
-        start_time, stop_time = ut.find_integration_start_stop_times(utm_plume_polygon, utm_plume_mask,
+        start_time, stop_time = ut.find_integration_start_stop_times(plume.filename,
+                                                                     utm_plume_points, utm_plume_mask,
                                                                      plume_lats, plume_lons,
                                                                      geostationary_lats, geostationary_lons,
                                                                      utm_resampler_modis)

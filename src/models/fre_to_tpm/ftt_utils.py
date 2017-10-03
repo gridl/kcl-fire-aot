@@ -29,6 +29,7 @@ import pyproj
 import cv2
 
 import src.data.readers.load_hrit as load_hrit
+import src.config.filepaths as fp
 
 
 log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -426,7 +427,13 @@ def adjust_bb_for_segment(bb, segment):
     bb['max_y'] -= (segment * seg_size)
 
 
-def find_integration_start_stop_times(plume_points, plume_mask,
+def get_geostationary_fnames(plume_fname):
+    # TODO finish this function
+    return os.listdir(fp.path_to_himawari_l1b)
+
+
+def find_integration_start_stop_times(plume_fname,
+                                      plume_points, plume_mask,
                                       plume_lats, plume_lons,
                                       geostationary_lats, geostationary_lons,
                                       utm_resampler_modis):
@@ -462,7 +469,7 @@ def find_integration_start_stop_times(plume_points, plume_mask,
     utm_lons, utm_lats = utm_resampler_geos.area_def.get_lonlats()
 
     # get the geostationary filenames for the given plume time and image segment
-    geostationary_fnames = []
+    geostationary_fnames = get_geostationary_fnames(plume_fname)
 
     # set up stopping condition which is the current estimate of the plume length
     current_plume_length = 0
@@ -508,8 +515,10 @@ def find_integration_start_stop_times(plume_points, plume_mask,
             # now resample distances onto plume
             distances_in_modis_proj = utm_resampler_modis.resample(distances, utm_lats, utm_lons)
 
+            # smoke mask needs to be applied to distances, else we might get non plume features contributing
+
             # extract median distance travelled for plume using plume mask
-            median_distance = np.median(distances[plume_mask])
+            median_distance = np.median(distances_in_modis_proj[plume_mask])
 
             # sum distance with total distance
             current_plume_length += median_distance

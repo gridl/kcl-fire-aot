@@ -11,9 +11,9 @@ elif sensor == 'himawari':
     region = 'Asia'
 
 # root path to data folder
-root_path = '/Users/dnf/Projects/kcl-fire-aot/data/{0}/'.format(region)
+#root_path = '/Users/dnf/Projects/kcl-fire-aot/data/{0}/'.format(region)
 #root_path = '/Users/danielfisher/Projects/kcl-fire-aot/data/{0}/'.format(region)
-#root_path = '/Volumes/dfisher/data/{0}/'.format(region)
+root_path = '/Volumes/dfisher/data/{0}/'.format(region)
 
 # processed data paths
 path_to_processed_orac = root_path + 'processed/orac_proc/'
@@ -30,6 +30,7 @@ path_to_modis_frp = root_path + 'raw/modis/frp/'
 path_to_modis_aod = root_path + 'raw/modis/aod/'
 path_to_orac_aod = root_path + 'processed/orac/'
 path_to_goes_l1b = root_path + 'raw/goes/'
+path_to_himawari_l1b = root_path + 'raw/himawari/'
 
 # FTP paths (MODIS / Ladsweb)
 path_to_ladsweb_ftp = "ladsweb.nascom.nasa.gov"
