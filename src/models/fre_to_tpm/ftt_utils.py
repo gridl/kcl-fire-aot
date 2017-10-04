@@ -236,7 +236,7 @@ class utm_resampler(object):
         self.proj = self.__utm_proj()
         self.extent = self.__utm_extent()
         self.x_size, self.y_size = self.__utm_grid_size()
-        self.area_def = self.__utm_area_def()
+        self.area_def = self.__construct_area_def()
 
     def __utm_zone(self):
         '''
@@ -269,9 +269,6 @@ class utm_resampler(object):
         proj_dict = {'units': 'm', 'proj': 'utm', 'zone': str(self.zone), 'ellps': 'WGS84', 'datum': 'WGS84'}
         return pr.geometry.AreaDefinition(area_id, description, proj_id, proj_dict,
                                           self.x_size, self.y_size, self.extent)
-
-    def __utm_area_def(self):
-        return self.__construct_area_def(self.zone, self.extent, self.x_size, self.y_size)
 
     def resample(self, image, image_lats, image_lons):
         swath_def = pr.geometry.SwathDefinition(lons=image_lons, lats=image_lats)
@@ -514,8 +511,7 @@ def find_integration_start_stop_times(plume_fname,
                                                                  geostationary_lons_subset)
         if plot:
             vis.display_map(f1_radiances_subset_reproj,
-                            utm_lats,
-                            utm_lons,
+                            utm_resampler_geos,
                             f1 + 'subset.png')
 
         # compute optical flow between two images
