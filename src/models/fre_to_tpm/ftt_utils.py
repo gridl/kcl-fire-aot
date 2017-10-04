@@ -3,7 +3,6 @@ Contains the various functions and classes that are used in the
 ftt (fre-to_tpm) processor.  These can be broken down as follows:
 '''
 
-
 # load in required packages
 import ast
 import glob
@@ -30,7 +29,7 @@ import cv2
 
 import src.data.readers.load_hrit as load_hrit
 import src.config.filepaths as fp
-
+import src.visualization.fft_visualiser as vis
 
 log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=log_fmt)
@@ -163,9 +162,9 @@ def construct_bounding_box(plume):
 def read_modis_geo_subset(path, plume, bounds):
     myd = SD(os.path.join(path, plume.filename), SDC.READ)
     lats = ndimage.zoom(myd.select('Latitude').get(), 5)[bounds['min_y']:bounds['max_y'],
-                                                         bounds['min_x']:bounds['max_x']]
+           bounds['min_x']:bounds['max_x']]
     lons = ndimage.zoom(myd.select('Longitude').get(), 5)[bounds['min_y']:bounds['max_y'],
-                                                          bounds['min_x']:bounds['max_x']]
+           bounds['min_x']:bounds['max_x']]
     return lats, lons
 
 
@@ -186,7 +185,6 @@ def construct_plume_mask(plume, bounds):
 
 
 def _extract_geo_from_bounds(plume, bounds, lats, lons):
-
     # adjust plume extent for the subset
     extent = [[x - bounds['min_x'], y - bounds['min_y']] for x, y in plume.plume_extent]
 
@@ -208,24 +206,22 @@ def construct_polygon(plume, bounds, lats, lons):
 
 
 def reproject_shapely(plume_polygon, utm_resampler):
-
     project = partial(
         pyproj.transform,
         pyproj.Proj(init='epsg:4326'),  # source coordinate system (geographic coords)
-        utm_resampler.utm_transform)  # destination coordinate system
+        utm_resampler.proj)  # destination coordinate system
 
     return transform(project, plume_polygon)  # apply projection
 
 
-def hist_eq(im,nbr_bins=256):
+def hist_eq(im, nbr_bins=256):
+    # get image histogram
+    imhist, bins = np.histogram(im.flatten(), nbr_bins, normed=True)
+    cdf = imhist.cumsum()  # cumulative distribution function
+    cdf = 255 * cdf / cdf[-1]  # normalize
 
-    #get image histogram
-    imhist,bins = np.histogram(im.flatten(),nbr_bins,normed=True)
-    cdf = imhist.cumsum() #cumulative distribution function
-    cdf = 255 * cdf / cdf[-1] #normalize
-
-    #use linear interpolation of cdf to find new pixel values
-    im2 = np.interp(im.flatten(),bins[:-1],cdf)
+    # use linear interpolation of cdf to find new pixel values
+    im2 = np.interp(im.flatten(), bins[:-1], cdf)
 
     return im2.reshape(im.shape).astype('uint8')
 
@@ -236,7 +232,10 @@ class utm_resampler(object):
         self.lons = lons
         self.pixel_size = pixel_size
         self.resolution = resolution
-        self.utm_transform = self.__utm_transform()
+        self.zone = self.__utm_zone()
+        self.proj = self.__utm_proj()
+        self.extent = self.__utm_extent()
+        self.x_size, self.y_size = self.__utm_grid_size()
         self.area_def = self.__utm_area_def()
 
     def __utm_zone(self):
@@ -249,39 +248,30 @@ class utm_resampler(object):
         lons = (self.lons + 180) - np.floor((self.lons + 180) / 360) * 360 - 180
         return stats.mode(np.floor((lons + 180) / 6) + 1, axis=None)[0][0]
 
-    def __utm_proj(self, zone):
-        return pyproj.Proj(proj='utm', zone=zone, ellps='WGS84', datum='WGS84')
+    def __utm_proj(self):
+        return pyproj.Proj(proj='utm', zone=self.zone, ellps='WGS84', datum='WGS84')
 
-    def __utm_area_extent(self, zone):
-        p = self.__utm_proj(zone)
-        x, y = p(self.lons, self.lats)
+    def __utm_extent(self):
+        x, y = self.proj(self.lons, self.lats)
         min_x, max_x = np.min(x), np.max(x)
         min_y, max_y = np.min(y), np.max(y)
-        return {'max_x': max_x, 'min_x': min_x, 'max_y': max_y, 'min_y': min_y}
+        return (min_x, min_y, max_x, max_y)
 
-    def __utm_grid_size(self, utm_boundaries):
-        x_size = int(np.ceil((utm_boundaries['max_x'] - utm_boundaries['min_x']) / self.pixel_size))
-        y_size = int(np.ceil((utm_boundaries['max_y'] - utm_boundaries['min_y']) / self.pixel_size))
+    def __utm_grid_size(self):
+        x_size = int(np.ceil((self.extent[2] - self.extent[0]) / self.pixel_size))
+        y_size = int(np.ceil((self.extent[3] - self.extent[1]) / self.pixel_size))
         return x_size, y_size
 
-    def __construct_area_def(self, zone, utm_boundaries, x_size, y_size):
+    def __construct_area_def(self):
         area_id = 'utm'
         description = 'utm_grid'
         proj_id = 'utm'
-        area_extent = (utm_boundaries['min_x'], utm_boundaries['min_y'],
-                       utm_boundaries['max_x'], utm_boundaries['max_y'])
-        proj_dict = {'units': 'm', 'proj': 'utm', 'zone': str(zone), 'ellps': 'WGS84', 'datum': 'WGS84'}
-        return pr.geometry.AreaDefinition(area_id, description, proj_id, proj_dict, x_size, y_size, area_extent)
+        proj_dict = {'units': 'm', 'proj': 'utm', 'zone': str(self.zone), 'ellps': 'WGS84', 'datum': 'WGS84'}
+        return pr.geometry.AreaDefinition(area_id, description, proj_id, proj_dict,
+                                          self.x_size, self.y_size, self.extent)
 
     def __utm_area_def(self):
-        zone = self.__utm_zone()
-        area_extent = self.__utm_area_extent(zone)
-        x_size, y_size = self.__utm_grid_size(area_extent)
-        return self.__construct_area_def(zone, area_extent, x_size, y_size)
-
-    def __utm_transform(self):
-        zone = self.__utm_zone()
-        return self.__utm_proj(zone)
+        return self.__construct_area_def(self.zone, self.extent, self.x_size, self.y_size)
 
     def resample(self, image, image_lats, image_lons):
         swath_def = pr.geometry.SwathDefinition(lons=image_lons, lats=image_lats)
@@ -306,9 +296,7 @@ def integrate_frp(frp_subset):
     return integrate.trapz(frp_subset['FRP_0'], sample_times)
 
 
-
 def compute_fre(plume_polygon, frp_df, start_time, stop_time):
-
     # subset df by time
     try:
         frp_subset = frp_df.loc[(frp_df['obs_date'] == stop_time) |
@@ -354,7 +342,6 @@ def compute_fre(plume_polygon, frp_df, start_time, stop_time):
 
 
 def compute_plume_length(plume_points):
-
     '''
     From the minimum rotated rectangle that encloses the digitised points
     we can compute the plumes length from its vertices.  This simply
@@ -370,8 +357,8 @@ def compute_plume_length(plume_points):
     x, y = plume_points.minimum_rotated_rectangle.exterior.xy
     verts = zip(x, y)
 
-    side_a = np.linalg.norm(np.array(verts[0])-np.array(verts[1]))
-    side_b = np.linalg.norm(np.array(verts[1])-np.array(verts[2]))
+    side_a = np.linalg.norm(np.array(verts[0]) - np.array(verts[1]))
+    side_b = np.linalg.norm(np.array(verts[1]) - np.array(verts[2]))
 
     return max([side_a, side_b])  # return max UTM distance in (m)
 
@@ -401,14 +388,13 @@ def geo_spatial_subset(lats_1, lons_1, lats_2, lons_2):
     min_y = np.min(coords[0])
     max_y = np.max(coords[0])
 
-    return {'max_x': max_x+padding,
-            'min_x': min_x-padding,
-            'max_y': max_y+padding,
-            'min_y': min_y-padding}
+    return {'max_x': max_x + padding,
+            'min_x': min_x - padding,
+            'max_y': max_y + padding,
+            'min_y': min_y - padding}
 
 
 def find_image_segment(bb):
-
     # there are ten 2200 pixel segments in himawari
     seg_size = 2200
     segment_min = bb['min_y'] / seg_size
@@ -432,7 +418,6 @@ def get_plume_time(plume_fname):
 
 
 def get_geostationary_fnames(plume_time, image_segment):
-
     ym = str(plume_time.year) + str(plume_time.month).zfill(2)
     day = str(plume_time.day).zfill(2)
 
@@ -458,8 +443,8 @@ def find_integration_start_stop_times(plume_fname,
                                       plume_points, plume_mask,
                                       plume_lats, plume_lons,
                                       geostationary_lats, geostationary_lons,
-                                      utm_resampler_modis):
-
+                                      utm_resampler_modis,
+                                      plot=True):
     # get plume observation time
     plume_time = get_plume_time(plume_fname)
 
@@ -527,6 +512,11 @@ def find_integration_start_stop_times(plume_fname,
         f2_radiances_subset_reproj = utm_resampler_geos.resample(f2_radiances_subset,
                                                                  geostationary_lats_subset,
                                                                  geostationary_lons_subset)
+        if plot:
+            vis.display_map(f1_radiances_subset_reproj,
+                            utm_lats,
+                            utm_lons,
+                            f1 + 'subset.png')
 
         # compute optical flow between two images
         flow_image = np.zeros(f1_radiances_subset_reproj.shape).astype('uint8')
@@ -535,6 +525,12 @@ def find_integration_start_stop_times(plume_fname,
                                             flow_image,
                                             0.5, 4, 50, 10, 7, 1.5,
                                             cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
+        if plot:
+            vis.display_flow(flow,
+                             f1_radiances_subset_reproj,
+                             utm_lats,
+                             utm_lons,
+                             f1 + 'subset.png')
 
         # compute distances using magnitude
         flow_x = flow[:, :, 0]
@@ -550,6 +546,17 @@ def find_integration_start_stop_times(plume_fname,
         # extract median distance travelled for plume using plume mask
         median_distance = np.median(distances_in_modis_proj[plume_mask])
 
+        # plot masked plume
+        if plot:
+            geostationary_in_modis_proj = utm_resampler_modis.resample(f1_radiances_subset,
+                                                                       geostationary_lats_subset,
+                                                                       geostationary_lons_subset)
+            vis.display_masked_map(geostationary_in_modis_proj,
+                                   plume_mask,
+                                   utm_lats,
+                                   utm_lons,
+                                   f1 + 'subset.png')
+
         # sum distance with total distance
         current_plume_length += median_distance
         if current_plume_length > total_plume_length:
@@ -562,8 +569,6 @@ def find_integration_start_stop_times(plume_fname,
 
 # TODO still need to make sure area is being calculated correctly
 def compute_plume_area(utm_plume_polygon):
-
-
     # # TODO is sinusoidal proj good enough?  Yes it is: https://goo.gl/KE3tuY
     # # get extra accuracy by selecting an appropriate lon_0
     # m = Basemap(projection='sinu', lon_0=140, resolution='c')
@@ -607,4 +612,3 @@ def compute_aod(plume_bounding_pixels, plume_mask, lats, lons):
     # subtract background from plume
 
     # return plume AOD
-
