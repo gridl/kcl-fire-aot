@@ -427,9 +427,31 @@ def adjust_bb_for_segment(bb, segment):
     bb['max_y'] -= (segment * seg_size)
 
 
-def get_geostationary_fnames(plume_fname, image_segment):
-    # TODO finish this function
-    return [f for f in os.listdir(fp.path_to_himawari_l1b) if str(image_segment) in f.split('_')[-1][0:3]]
+def get_plume_time(plume_fname):
+    return datetime.strptime(plume_fname[10:21], '%Y%j.%H%M')
+
+
+def get_geostationary_fnames(plume_time, image_segment):
+
+    ym = str(plume_time.year) + str(plume_time.month).zfill(2)
+    day = str(plume_time.day).zfill(2)
+
+    # get all files in the directory using glob with band 3 for main segment
+    p = os.path.join(fp.path_to_himawari_l1b, ym, day)
+    fp_1 = glob.glob(p + '/*/*/B03/*S' + str(image_segment).zfill(2) + '*')
+
+    # get the day before also
+    day = str(plume_time.day - 1).zfill(2)
+    p = os.path.join(fp.path_to_himawari_l1b, ym, day)
+    fp_2 = glob.glob(p + '/*/*/B03/*S' + str(image_segment).zfill(2) + '*')
+
+    files = fp_1 + fp_2
+
+    return files
+
+
+def restrict_geostationary_times(plume_time, geostationary_fnames):
+    return [f for f in geostationary_fnames if datetime.strptime(f.split('/')[-1][7:20], '%Y%m%d_%H%M') < plume_time]
 
 
 def find_integration_start_stop_times(plume_fname,
@@ -437,6 +459,9 @@ def find_integration_start_stop_times(plume_fname,
                                       plume_lats, plume_lons,
                                       geostationary_lats, geostationary_lons,
                                       utm_resampler_modis):
+
+    # get plume observation time
+    plume_time = get_plume_time(plume_fname)
 
     # find distance in plume polygon from fire head to tail
     total_plume_length = compute_plume_length(plume_points)
@@ -469,63 +494,68 @@ def find_integration_start_stop_times(plume_fname,
     utm_lons, utm_lats = utm_resampler_geos.area_def.get_lonlats()
 
     # get the geostationary filenames for the given plume time and image segment
-    geostationary_fnames = get_geostationary_fnames(plume_fname, image_segment)
+    geostationary_fnames = get_geostationary_fnames(plume_time, image_segment)
+
+    # reduce geostationary filenames to only those prior to plume observation
+    geostationary_fnames = restrict_geostationary_times(plume_time, geostationary_fnames)
+
+    # reverse the filename list
+    geostationary_fnames.reverse()
 
     # set up stopping condition which is the current estimate of the plume length
     current_plume_length = 0
-    while current_plume_length < total_plume_length:
 
-        # iterate over geostationary files
-        for f1, f2 in zip(geostationary_fnames[:-1], geostationary_fnames[1:]):
+    # iterate over geostationary files
+    for f1, f2 in zip(geostationary_fnames[:-1], geostationary_fnames[1:]):
 
-            # load geostationary files
-            f1_radiances, _ = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_l1b, f1))
-            f2_radiances, _ = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_l1b, f2))
+        # load geostationary files
+        f1_radiances, _ = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_l1b, f1))
+        f2_radiances, _ = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_l1b, f2))
 
-            # extract geostationary image subset using adjusted bb
-            f1_radiances_subset = f1_radiances[bb['min_y']:bb['max_y'], bb['min_x']:bb['max_x']]
-            f2_radiances_subset = f2_radiances[bb['min_y']:bb['max_y'], bb['min_x']:bb['max_x']]
+        # extract geostationary image subset using adjusted bb
+        f1_radiances_subset = f1_radiances[bb['min_y']:bb['max_y'], bb['min_x']:bb['max_x']]
+        f2_radiances_subset = f2_radiances[bb['min_y']:bb['max_y'], bb['min_x']:bb['max_x']]
 
-            # equalise the image
-            f1_radiances_subset = hist_eq(f1_radiances_subset)
-            f2_radiances_subset = hist_eq(f2_radiances_subset)
+        # equalise the image
+        f1_radiances_subset = hist_eq(f1_radiances_subset)
+        f2_radiances_subset = hist_eq(f2_radiances_subset)
 
-            # reproject image subset to UTM using resampler
-            f1_radiances_subset_reproj = utm_resampler_geos.resample(f1_radiances_subset,
-                                                                     geostationary_lats_subset,
-                                                                     geostationary_lons_subset)
-            f2_radiances_subset_reproj = utm_resampler_geos.resample(f2_radiances_subset,
-                                                                     geostationary_lats_subset,
-                                                                     geostationary_lons_subset)
+        # reproject image subset to UTM using resampler
+        f1_radiances_subset_reproj = utm_resampler_geos.resample(f1_radiances_subset,
+                                                                 geostationary_lats_subset,
+                                                                 geostationary_lons_subset)
+        f2_radiances_subset_reproj = utm_resampler_geos.resample(f2_radiances_subset,
+                                                                 geostationary_lats_subset,
+                                                                 geostationary_lons_subset)
 
-            # compute optical flow between two images
-            flow_image = np.zeros(f1_radiances_subset_reproj.shape).astype('uint8')
-            flow = cv2.calcOpticalFlowFarneback(f1_radiances_subset_reproj,
-                                                f2_radiances_subset_reproj,
-                                                flow_image,
-                                                0.5, 4, 50, 10, 7, 1.5,
-                                                cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
+        # compute optical flow between two images
+        flow_image = np.zeros(f1_radiances_subset_reproj.shape).astype('uint8')
+        flow = cv2.calcOpticalFlowFarneback(f1_radiances_subset_reproj,
+                                            f2_radiances_subset_reproj,
+                                            flow_image,
+                                            0.5, 4, 50, 10, 7, 1.5,
+                                            cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
 
+        # compute distances using magnitude
+        flow_x = flow[:, :, 0]
+        flow_y = flow[:, :, 1]
+        pixel_distances = np.sqrt(flow_x ** 2 + flow_y ** 2)
+        utm_distances = pixel_distances * 500  # 500m imager resolution
 
-            # compute distances using magnitude
-            flow_x = flow[:, :, 0]
-            flow_y = flow[:, :, 1]
-            pixel_distances = np.sqrt(flow_x ** 2 + flow_y ** 2)
-            utm_distances = pixel_distances * 500  # 500m imager resolution
+        # now resample distances onto plume
+        distances_in_modis_proj = utm_resampler_modis.resample(utm_distances, utm_lats, utm_lons)
 
-            # now resample distances onto plume
-            distances_in_modis_proj = utm_resampler_modis.resample(utm_distances, utm_lats, utm_lons)
+        # smoke mask needs to be applied to distances, else we might get non plume features contributing
 
-            # smoke mask needs to be applied to distances, else we might get non plume features contributing
+        # extract median distance travelled for plume using plume mask
+        median_distance = np.median(distances_in_modis_proj[plume_mask])
 
-            # extract median distance travelled for plume using plume mask
-            median_distance = np.median(distances_in_modis_proj[plume_mask])
+        # sum distance with total distance
+        current_plume_length += median_distance
+        if current_plume_length > total_plume_length:
+            return datetime.strptime(f2.split('/')[-1][7:20], '%Y%m%d_%H%M')  # return time of the second file
 
-            # sum distance with total distance
-            current_plume_length += median_distance
-
-    return f2[0:]  # return time of the second file
-
+    return None
 
 
 #########################    TPM    #########################
