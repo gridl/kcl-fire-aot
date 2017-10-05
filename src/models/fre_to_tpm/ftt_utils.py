@@ -548,8 +548,7 @@ def find_integration_start_stop_times(plume_fname,
                                                                        geostationary_lons_subset)
             vis.display_masked_map(geostationary_in_modis_proj,
                                    plume_mask,
-                                   utm_lats,
-                                   utm_lons,
+                                   utm_resampler_modis,
                                    f1 + 'subset.png')
 
         # sum distance with total distance
