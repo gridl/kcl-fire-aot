@@ -509,10 +509,10 @@ def find_integration_start_stop_times(plume_fname,
         f2_radiances_subset_reproj = utm_resampler_geos.resample(f2_radiances_subset,
                                                                  geostationary_lats_subset,
                                                                  geostationary_lons_subset)
-        if plot:
-            vis.display_map(f1_radiances_subset_reproj,
-                            utm_resampler_geos,
-                            f1 + 'subset.png')
+        # if plot:
+        #     vis.display_map(f1_radiances_subset_reproj,
+        #                     utm_resampler_geos,
+        #                     f1 + 'subset.png')
 
         # compute optical flow between two images
         flow_image = np.zeros(f1_radiances_subset_reproj.shape).astype('uint8')
@@ -524,8 +524,7 @@ def find_integration_start_stop_times(plume_fname,
         if plot:
             vis.display_flow(flow,
                              f1_radiances_subset_reproj,
-                             utm_lats,
-                             utm_lons,
+                             utm_resampler_geos,
                              f1 + 'subset.png')
 
         # compute distances using magnitude
