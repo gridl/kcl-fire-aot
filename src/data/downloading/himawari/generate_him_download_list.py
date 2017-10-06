@@ -12,10 +12,10 @@ import src.config.filepaths as fp
 
 
 with open(os.path.join(fp.path_to_filelists, 'indonesia_filepaths.txt'), 'rb') as f:
-    plumes_files = f.readlines()
+     plumes_files = f.readlines()
 
 
-band = 'B03'
+band = 'B01'
 minutes = ['00', '10', '20', '30', '40', '50']
 segments = ['05', '06', '07']
 
@@ -23,7 +23,7 @@ with open(os.path.join(fp.path_to_filelists, 'him_file_list.txt'), 'wb') as f:
 
     for plume_fname in plumes_files:
 
-        dt = datetime.strptime(plume_fname[10:21], '%Y%j.%H%M')
+        dt = datetime.strptime(plume_fname[10:22], '%Y%j.%H%M')
         ym = str(dt.year) + str(dt.month).zfill(2)
 
 
@@ -43,7 +43,7 @@ with open(os.path.join(fp.path_to_filelists, 'him_file_list.txt'), 'wb') as f:
                 for seg in segments:
 
                     # constuct himawair filename
-                    fname = 'HS_H08_' + ym + day + '_' + hour + m + '_' + band + '_FLDK_R05_S' + seg + '10.DAT.bz2' + '\n'
+                    fname = 'HS_H08_' + ym + day + '_' + hour + m + '_' + band + '_FLDK_R10_S' + seg + '10.DAT.bz2' + '\n'
 
                     # write to filelist
                     full_path = os.path.join('/', path, m, band, fname)
