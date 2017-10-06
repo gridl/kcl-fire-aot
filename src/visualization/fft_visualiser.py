@@ -6,6 +6,9 @@ import numpy as np
 from matplotlib.patheffects import Stroke
 import cv2
 
+import os
+
+import src.config.filepaths as fp
 
 
 def display_map(f1_radiances_subset_reproj, utm_resampler, fname):
@@ -43,7 +46,8 @@ def display_map(f1_radiances_subset_reproj, utm_resampler, fname):
     sub_ax.add_geometries([extent_box], ccrs.PlateCarree(), color='none',
                           edgecolor='blue', linewidth=2)
 
-    plt.show()
+    plt.savefig(os.path.join(fp.path_to_him_visualisations, 'maps', fname), bbox_inches='tight', dpi=300)
+    plt.close()
 
 
 def display_masked_map(f1_radiances_subset_reproj, mask, utm_resampler, fname):
@@ -65,7 +69,7 @@ def display_masked_map(f1_radiances_subset_reproj, mask, utm_resampler, fname):
     ax.coastlines(resolution='50m', color='black', linewidth=1)
 
     gridlines = ax.gridlines(draw_labels=True)
-    ax.imshow(f1_radiances_subset_reproj_masked, transform=crs, extent=extent, origin='upper', cmap='gray')
+    plt.imshow(f1_radiances_subset_reproj_masked, transform=crs, extent=extent, origin='upper', cmap='gray')
 
 
     # Create an inset GeoAxes showing the location
@@ -83,19 +87,20 @@ def display_masked_map(f1_radiances_subset_reproj, mask, utm_resampler, fname):
     sub_ax.add_geometries([extent_box], ccrs.PlateCarree(), color='none',
                           edgecolor='blue', linewidth=2)
 
-    plt.show()
+    plt.savefig(os.path.join(fp.path_to_him_visualisations, 'plumes', fname), bbox_inches='tight', dpi=300)
+    plt.close()
 
 
-def draw_flow(img, flow, step=16):
+def draw_flow(img, flow, step=8):
     h, w = img.shape[:2]
     y, x = np.mgrid[step/2:h:step, step/2:w:step].reshape(2,-1)
     fx, fy = flow[y,x].T
     lines = np.vstack([x, y, x+fx, y+fy]).T.reshape(-1, 2, 2)
     lines = np.int32(lines + 0.5)
     vis = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-    cv2.polylines(vis, lines, 0, (0, 0, 0))
+    cv2.polylines(vis, lines, 0, (0, 255, 0))
     for (x1, y1), (x2, y2) in lines:
-        cv2.circle(vis, (x1, y1), 1, (0, 0, 0), -1)
+        cv2.circle(vis, (x1, y1), 1, (0, 255, 0), -1)
     return vis
 
 
@@ -114,7 +119,7 @@ def display_flow(flow, f1_radiances_subset_reproj, utm_resampler, fname):
 
     ax.coastlines(resolution='50m', color='black', linewidth=1)
 
-    gridlines = ax.gridlines(draw_labels=True)
+    #gridlines = ax.gridlines(draw_labels=True)
 
     # Create an inset GeoAxes showing the location
     sub_ax = plt.axes([0.5, 0.66, 0.2, 0.2], projection=ccrs.PlateCarree())
@@ -133,5 +138,7 @@ def display_flow(flow, f1_radiances_subset_reproj, utm_resampler, fname):
 
 
     ax.imshow(draw_flow(f1_radiances_subset_reproj, flow), transform=crs, extent=extent, origin='upper', cmap='gray')
-    plt.show()
+
+    plt.savefig(os.path.join(fp.path_to_him_visualisations, 'flows', fname), bbox_inches='tight', dpi=600)
+    plt.close()
 

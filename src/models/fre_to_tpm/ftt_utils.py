@@ -411,7 +411,7 @@ def adjust_bb_for_segment(bb, segment):
 
 
 def get_plume_time(plume_fname):
-    return datetime.strptime(plume_fname[10:21], '%Y%j.%H%M')
+    return datetime.strptime(plume_fname[10:22], '%Y%j.%H%M')
 
 
 def get_geostationary_fnames(plume_time, image_segment):
@@ -433,7 +433,7 @@ def get_geostationary_fnames(plume_time, image_segment):
 
 
 def restrict_geostationary_times(plume_time, geostationary_fnames):
-    return [f for f in geostationary_fnames if datetime.strptime(f.split('/')[-1][7:20], '%Y%m%d_%H%M') < plume_time]
+    return [f for f in geostationary_fnames if datetime.strptime(f.split('/')[-1][7:20], '%Y%m%d_%H%M') <= plume_time]
 
 
 def find_integration_start_stop_times(plume_fname,
@@ -499,33 +499,33 @@ def find_integration_start_stop_times(plume_fname,
         f2_radiances_subset = f2_radiances[bb['min_y']:bb['max_y'], bb['min_x']:bb['max_x']]
 
         # equalise the image
-        f1_radiances_subset = hist_eq(f1_radiances_subset)
-        f2_radiances_subset = hist_eq(f2_radiances_subset)
+        f1_radiances_subset_he = hist_eq(f1_radiances_subset, nbr_bins=64)
+        f2_radiances_subset_he = hist_eq(f2_radiances_subset, nbr_bins=64)
 
         # reproject image subset to UTM using resampler
-        f1_radiances_subset_reproj = utm_resampler_geos.resample(f1_radiances_subset,
+        f1_radiances_subset_reproj_he = utm_resampler_geos.resample(f1_radiances_subset_he,
                                                                  geostationary_lats_subset,
                                                                  geostationary_lons_subset)
-        f2_radiances_subset_reproj = utm_resampler_geos.resample(f2_radiances_subset,
+        f2_radiances_subset_reproj_he = utm_resampler_geos.resample(f2_radiances_subset_he,
                                                                  geostationary_lats_subset,
                                                                  geostationary_lons_subset)
         # if plot:
-        #     vis.display_map(f1_radiances_subset_reproj,
+        #     vis.display_map(f1_radiances_subset_reproj_he,
         #                     utm_resampler_geos,
-        #                     f1 + 'subset.png')
+        #                     f1.split('/')[-1] + '_subset.png')
 
         # compute optical flow between two images
-        flow_image = np.zeros(f1_radiances_subset_reproj.shape).astype('uint8')
-        flow = cv2.calcOpticalFlowFarneback(f1_radiances_subset_reproj,
-                                            f2_radiances_subset_reproj,
+        flow_image = np.zeros(f1_radiances_subset_reproj_he.shape).astype('uint8')
+        flow = cv2.calcOpticalFlowFarneback(f1_radiances_subset_reproj_he,
+                                            f2_radiances_subset_reproj_he,
                                             flow_image,
-                                            0.5, 4, 50, 10, 7, 1.5,
+                                            0.5, 4, 25, 10, 7, 1.5,
                                             cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
-        # if plot:
-        #     vis.display_flow(flow,
-        #                      f1_radiances_subset_reproj,
-        #                      utm_resampler_geos,
-        #                      f1 + 'subset.png')
+        if plot:
+            vis.display_flow(flow,
+                             f1_radiances_subset_reproj_he,
+                             utm_resampler_geos,
+                             f1.split('/')[-1] + '_subset.png')
 
         # compute distances using magnitude
         flow_x = flow[:, :, 0]
@@ -549,7 +549,7 @@ def find_integration_start_stop_times(plume_fname,
             vis.display_masked_map(geostationary_in_modis_proj,
                                    plume_mask,
                                    utm_resampler_modis,
-                                   f1 + 'subset.png')
+                                   f1.split('/')[-1] + '_subset.png')
 
         # sum distance with total distance
         current_plume_length += median_distance

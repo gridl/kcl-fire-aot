@@ -252,6 +252,7 @@ def rebin(a, newshape):
 
 
 def H8_file_read(file, verbose=False):
+    # type: (object, object) -> object
     '''
     read in a single Himawari8 file.
     '''

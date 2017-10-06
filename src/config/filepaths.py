@@ -59,6 +59,7 @@ path_to_rf_model = root_path + 'models/rf_model_64_trees.pickle'
 
 # visualisation filepaths
 path_to_orac_visuals = root_path + 'visualisations/orac/'
+path_to_him_visualisations = root_path + 'visualisations/himawari/'
 
 # filelist paths
 path_to_filelists = root_path + 'filelists/'
