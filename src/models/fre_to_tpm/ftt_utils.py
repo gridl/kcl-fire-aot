@@ -29,7 +29,7 @@ import matplotlib.pyplot as plt
 
 import src.data.readers.load_hrit as load_hrit
 import src.config.filepaths as fp
-import src.visualization.fft_visualiser as vis
+import src.visualization.ftt_visualiser as vis
 
 log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=log_fmt)
