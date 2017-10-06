@@ -47,10 +47,10 @@ def main():
         # set up utm resampler that we use to resample all data to utm
 
         # reproject all modis datasets to utm (mask, orac_aod, MYD04)
-        utm_resampler_modis = ut.utm_resampler(plume_lats, plume_lons, 1000)
-        utm_plume_points = ut.reproject_shapely(plume_points, utm_resampler_modis)
-        utm_plume_polygon = ut.reproject_shapely(plume_polygon, utm_resampler_modis)
-        utm_plume_mask = utm_resampler_modis.resample(plume_mask, plume_lats, plume_lons)
+        utm_resampler = ut.utm_resampler(plume_lats, plume_lons, 1000)
+        utm_plume_points = ut.reproject_shapely(plume_points, utm_resampler)
+        utm_plume_polygon = ut.reproject_shapely(plume_polygon, utm_resampler)
+        utm_plume_mask = utm_resampler.resample(plume_mask, plume_lats, plume_lons)
         utm_orac_aod_subset = []
         utm_modis_aod_subset = []
 
@@ -59,7 +59,7 @@ def main():
                                                                      utm_plume_points, utm_plume_mask,
                                                                      plume_lats, plume_lons,
                                                                      geostationary_lats, geostationary_lons,
-                                                                     utm_resampler_modis)
+                                                                     utm_resampler)
 
         # get the variables of interest
         fre.append(ut.compute_fre(plume_polygon, frp_df, start_time, stop_time))
