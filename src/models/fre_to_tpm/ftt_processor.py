@@ -99,7 +99,7 @@ def main():
         utm_plume_points = ut.reproject_shapely(plume_points, utm_resampler)
         utm_plume_polygon = ut.reproject_shapely(plume_polygon, utm_resampler)
         utm_plume_mask = utm_resampler.resample_image(plume_mask, plume_lats, plume_lons)
-        utm_fires = utm_resampler.resample_points(fires_lats, fires_lons)
+        utm_fires = utm_resampler.resample_points_to_utm(fires_lats, fires_lons)
         utm_orac_aod_subset = []
         utm_modis_aod_subset = []
 

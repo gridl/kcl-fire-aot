@@ -50,9 +50,12 @@ def display_map(f1_radiances_subset_reproj, utm_resampler, fname):
     plt.close()
 
 
-def display_masked_map(f1_radiances_subset_reproj, mask, utm_resampler, fname):
+def display_masked_map(f1_radiances_subset_reproj, mask, utm_resampler, plume_head, plume_tail, fname):
 
     f1_radiances_subset_reproj_masked = np.ma.masked_array(f1_radiances_subset_reproj, ~mask)
+
+    plume_head = utm_resampler.resample_point_to_geo(plume_head[1], plume_head[0])
+    plume_tail = utm_resampler.resample_point_to_geo(plume_tail[1], plume_tail[0])
 
     lons, lats = utm_resampler.area_def.get_lonlats()
     crs = ccrs.PlateCarree()
@@ -70,7 +73,8 @@ def display_masked_map(f1_radiances_subset_reproj, mask, utm_resampler, fname):
 
     gridlines = ax.gridlines(draw_labels=True)
     plt.imshow(f1_radiances_subset_reproj_masked, transform=crs, extent=extent, origin='upper', cmap='gray')
-
+    plt.plot(plume_head[0], plume_head[1], 'rx')
+    plt.plot(plume_tail[0], plume_tail[1], 'ro')
 
     # Create an inset GeoAxes showing the location
     sub_ax = plt.axes([0.5, 0.66, 0.2, 0.2], projection=ccrs.PlateCarree())
@@ -87,6 +91,7 @@ def display_masked_map(f1_radiances_subset_reproj, mask, utm_resampler, fname):
     sub_ax.add_geometries([extent_box], ccrs.PlateCarree(), color='none',
                           edgecolor='blue', linewidth=2)
 
+    plt.show()
     plt.savefig(os.path.join(fp.path_to_him_visualisations, 'plumes', fname), bbox_inches='tight', dpi=300)
     plt.close()
 

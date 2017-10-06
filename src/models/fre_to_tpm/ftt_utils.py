@@ -295,8 +295,11 @@ class utm_resampler(object):
                                            radius_of_influence=75000,
                                            fill_value=-999)
 
-    def resample_points(self, point_lats, point_lons):
+    def resample_points_to_utm(self, point_lats, point_lons):
         return [self.proj(lon, lat) for lon, lat in zip(point_lons, point_lats)]
+
+    def resample_point_to_geo(self, point_y, point_x):
+        return self.proj(point_x, point_y, inverse=True)
 
 
 #########################    FRE UTILS    #########################
@@ -368,6 +371,7 @@ def compute_plume_vector(plume_points, fire_positions):
 
     # compute mean fire position
     fire_positions = np.array(fire_positions)
+    # x, y
     fire_pos = np.array([np.mean(fire_positions[:,0]), np.mean(fire_positions[:,1])])
 
     # first find the vertices of the plume polygon
@@ -582,6 +586,8 @@ def find_integration_start_stop_times(plume_fname,
             vis.display_masked_map(f1_radiances_subset_reproj,
                                    plume_mask,
                                    utm_resampler,
+                                   plume_head,
+                                   plume_tail,
                                    f1.split('/')[-1].split('.')[0] + '_subset.jpg')
 
         # sum distance with total distance
