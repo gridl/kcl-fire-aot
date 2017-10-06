@@ -91,7 +91,6 @@ def display_masked_map(f1_radiances_subset_reproj, mask, utm_resampler, plume_he
     sub_ax.add_geometries([extent_box], ccrs.PlateCarree(), color='none',
                           edgecolor='blue', linewidth=2)
 
-    plt.show()
     plt.savefig(os.path.join(fp.path_to_him_visualisations, 'plumes', fname), bbox_inches='tight', dpi=300)
     plt.close()
 

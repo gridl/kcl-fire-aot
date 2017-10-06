@@ -570,16 +570,23 @@ def find_integration_start_stop_times(plume_fname,
                              utm_resampler,
                              f1.split('/')[-1].split('.')[0] + '_subset.jpg')
 
-        # compute distances using magnitude
-        flow_x = flow[:, :, 0]
-        flow_y = flow[:, :, 1]
-        pixel_distances = np.sqrt(flow_x ** 2 + flow_y ** 2)
-        utm_distances = pixel_distances * 1000  # 1000m UTM resolution
+        # get the flow for the plume
+        flow_x = flow[:, :, 0][plume_mask]
+        flow_y = flow[:, :, 1][plume_mask]
 
-        # smoke mask needs to be applied to distances, else we might get non plume features contributing
+        flow_thresh = 0.5
+        flow_mask = (np.abs(flow_x) > flow_thresh) & (np.abs(flow_y) > flow_thresh)
+        flow_x = flow_x[flow_mask]
+        flow_y = flow_y[flow_mask]
+        mean_flow_x = np.mean(flow_x)
+        mean_flow_y = np.mean(flow_y)
 
-        # extract median distance travelled for plume using plume mask
-        median_distance = np.median(utm_distances[plume_mask])
+        pix_size = 1000
+        flow_vector = [mean_flow_x * pix_size, mean_flow_y * pix_size]
+
+        # now project flow vector onto plume vector
+        projected_flow_vector = np.dot(plume_vector, flow_vector) / np.dot(plume_vector, plume_vector) * plume_vector
+        projected_mag = np.linalg.norm(projected_flow_vector)
 
         # plot masked plume
         if plot:
@@ -591,7 +598,8 @@ def find_integration_start_stop_times(plume_fname,
                                    f1.split('/')[-1].split('.')[0] + '_subset.jpg')
 
         # sum distance with total distance
-        current_plume_length += median_distance
+        current_plume_length += projected_mag
+        print projected_mag, current_plume_length
         if current_plume_length > plume_length:
             return datetime.strptime(f2.split('/')[-1][7:20], '%Y%m%d_%H%M')  # return time of the second file
 
