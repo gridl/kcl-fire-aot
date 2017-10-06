@@ -1,9 +1,45 @@
+import re
+import os
+import logging
+
+from pyhdf.SD import SD, SDC
+import numpy as np
 
 import src.models.fre_to_tpm.ftt_utils as ut
 import src.config.filepaths as fp
 import src.data.readers.load_hrit as load_hrit
 
+log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+logging.basicConfig(level=logging.INFO, format=log_fmt)
+logger = logging.getLogger(__name__)
+
 import matplotlib.pyplot as plt
+
+
+def get_timestamp(myd021km_fname):
+    try:
+        return re.search("[0-9]{7}[.][0-9]{4}[.]", myd021km_fname).group()
+    except Exception, e:
+        logger.warning("Could not extract time stamp from: " + myd021km_fname + " with error: " + str(e))
+        return ''
+
+
+def get_modis_fname(path, timestamp_myd, myd021km_fname):
+    fname = [f for f in os.listdir(path) if timestamp_myd in f]
+    if len(fname) > 1:
+        logger.warning("More that one frp granule matched " + myd021km_fname + "selecting 0th option")
+        return fname[0]
+    elif len(fname) == 1:
+        return fname[0]
+    else:
+        return ''
+
+def read_hdf(f):
+    return SD(f, SDC.READ)
+
+def fires_myd14(myd14_data):
+    return np.where(myd14_data.select('fire mask').get() >= 7)
+
 
 def main():
 
@@ -23,6 +59,8 @@ def main():
     # itereate over the plumes
     for i, plume in plume_df.iterrows():
 
+
+
         # load plume datasets
         orac_aod = []
         myd04_aod = []
@@ -34,15 +72,25 @@ def main():
             plume_points = ut.construct_points(plume, plume_bounding_box, plume_lats, plume_lons)
             plume_polygon = ut.construct_polygon(plume, plume_bounding_box, plume_lats, plume_lons)
             plume_mask = ut.construct_plume_mask(plume, plume_bounding_box)
+
+
+
         except Exception, e:
             print e
             continue
 
         print plume.filename
 
-        # subset ORAC and MYD04 datasets
+        # subset ORAC and MYD04, MYD14 datasets
         orac_aod_subset = []
         myd04_aod_subset = []
+
+        timestamp_myd = get_timestamp(plume.filename)
+        myd14_fname = get_modis_fname(fp.path_to_modis_frp, timestamp_myd, plume.filename)
+        myd14 = read_hdf(os.path.join(fp.path_to_modis_frp, myd14_fname))
+        myd14 = fires_myd14(myd14)
+        fires = ut.extract_fires(fp.path_to_modis_l1b, plume, myd14)
+        fires_lats, fires_lons = ut.fires_in_plume(fires, plume_polygon)
 
         # set up utm resampler that we use to resample all data to utm
 
@@ -50,7 +98,8 @@ def main():
         utm_resampler = ut.utm_resampler(plume_lats, plume_lons, 1000)
         utm_plume_points = ut.reproject_shapely(plume_points, utm_resampler)
         utm_plume_polygon = ut.reproject_shapely(plume_polygon, utm_resampler)
-        utm_plume_mask = utm_resampler.resample(plume_mask, plume_lats, plume_lons)
+        utm_plume_mask = utm_resampler.resample_image(plume_mask, plume_lats, plume_lons)
+        utm_fires = utm_resampler.resample_points(fires_lats, fires_lons)
         utm_orac_aod_subset = []
         utm_modis_aod_subset = []
 
@@ -59,6 +108,7 @@ def main():
                                                                      utm_plume_points, utm_plume_mask,
                                                                      plume_lats, plume_lons,
                                                                      geostationary_lats, geostationary_lons,
+                                                                     utm_fires,
                                                                      utm_resampler)
 
         # get the variables of interest

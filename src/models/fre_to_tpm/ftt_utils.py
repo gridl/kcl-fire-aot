@@ -184,6 +184,23 @@ def construct_plume_mask(plume, bounds):
     return mask
 
 
+def extract_fires(path, plume, myd14):
+    myd = SD(os.path.join(path, plume.filename), SDC.READ)
+    lats = ndimage.zoom(myd.select('Latitude').get(), 5)
+    lons = ndimage.zoom(myd.select('Longitude').get(), 5)
+    return lats[myd14[0], myd14[1]], lons[myd14[0], myd14[1]]
+
+
+def fires_in_plume(fires, plume_polygon):
+    inbound_fires_y = []
+    inbound_fires_x = []
+    for pt in zip(fires[0], fires[1]):
+        if plume_polygon.contains(Point(pt[1], pt[0])):
+            inbound_fires_y.append(pt[0])
+            inbound_fires_x.append(pt[1])
+    return inbound_fires_y, inbound_fires_x
+
+
 def _extract_geo_from_bounds(plume, bounds, lats, lons):
     # adjust plume extent for the subset
     extent = [[x - bounds['min_x'], y - bounds['min_y']] for x, y in plume.plume_extent]
@@ -270,13 +287,16 @@ class utm_resampler(object):
         return pr.geometry.AreaDefinition(area_id, description, proj_id, proj_dict,
                                           self.x_size, self.y_size, self.extent)
 
-    def resample(self, image, image_lats, image_lons):
+    def resample_image(self, image, image_lats, image_lons):
         swath_def = pr.geometry.SwathDefinition(lons=image_lons, lats=image_lats)
         return pr.kd_tree.resample_nearest(swath_def,
                                            image,
                                            self.area_def,
                                            radius_of_influence=75000,
                                            fill_value=-999)
+
+    def resample_points(self, point_lats, point_lons):
+        return [self.proj(lon, lat) for lon, lat in zip(point_lons, point_lats)]
 
 
 #########################    FRE UTILS    #########################
@@ -338,26 +358,45 @@ def compute_fre(plume_polygon, frp_df, start_time, stop_time):
 #########################    INTEGRATION TIME   #########################
 
 
-def compute_plume_mag_and_theta(plume_points):
+def compute_plume_vector(plume_points, fire_positions):
     '''
-    From the minimum rotated rectangle that encloses the digitised points
-    we can compute the plumes length from its vertices.  This simply
-    involves computing the euclidean distance between the verticies, which
-    is possible as we are working with projected data.
-
-    Also, this means that we need to digitise plumes that are longer than wide
-
-    :param plume_points: the set of points that comprise the plume polygon
-    :return: length of the longest side
+    Generate the vector in UTM that describes the plume.
+    The head of the vector should be located at the fire end
+    of the plumes (as this is the point we are calculating back towards)
+    The tail of the vector should be at the distal end of the plume (i.e. furthest from the fires)
     '''
 
+    # compute mean fire position
+    fire_positions = np.array(fire_positions)
+    fire_pos = np.array([np.mean(fire_positions[:,0]), np.mean(fire_positions[:,1])])
+
+    # first find the vertices of the plume polygon
     x, y = plume_points.minimum_rotated_rectangle.exterior.xy
     verts = zip(x, y)
 
+    # next find the midpoints of the shortest sides
     side_a = np.linalg.norm(np.array(verts[0]) - np.array(verts[1]))
     side_b = np.linalg.norm(np.array(verts[1]) - np.array(verts[2]))
+    if side_a > side_b:
+        mid_point_a = (np.array(verts[1]) + np.array(verts[2])) / 2.
+        mid_point_b = (np.array(verts[3]) + np.array(verts[4])) / 2.
+    else:
+        mid_point_a = (np.array(verts[0]) + np.array(verts[1])) / 2.
+        mid_point_b = (np.array(verts[2]) + np.array(verts[3])) / 2.
 
-    return max([side_a, side_b])  # return max UTM distance in (m)
+    # determine which mid point is closest to the fire and create vector
+    dist_a = np.linalg.norm(fire_pos - mid_point_a)
+    dist_b = np.linalg.norm(fire_pos - mid_point_b)
+
+    # we want the head of the vector at the fire, and the tail at the origin
+    # if mid_point_a is closest to the fire then we need to subtract b from a (by vector subtraction)
+    # and vice versa if the fire is closest to midpoint b.
+    if dist_a < dist_b:
+        # head location, tail location, relative shift
+        return mid_point_a, mid_point_b, mid_point_a - mid_point_b  # fires closest to a
+    else:
+        # head location, tail location, relative shift
+        return mid_point_b, mid_point_a, mid_point_b - mid_point_a  # fire closest to b
 
 
 def geo_spatial_subset(lats_1, lons_1, lats_2, lons_2):
@@ -445,13 +484,15 @@ def find_integration_start_stop_times(plume_fname,
                                       plume_points, plume_mask,
                                       plume_lats, plume_lons,
                                       geostationary_lats, geostationary_lons,
+                                      utm_fires,
                                       utm_resampler,
                                       plot=True):
     # get plume observation time
     plume_time = get_plume_time(plume_fname)
 
     # find distance in plume polygon from fire head to tail
-    plume_mag, plume_theta = compute_plume_mag_and_theta(plume_points)
+    plume_head, plume_tail, plume_vector = compute_plume_vector(plume_points, utm_fires)
+    plume_length = np.linalg.norm(plume_vector)
 
     # generate bounding box for extract geostationary data
     bb = geo_spatial_subset(plume_lats, plume_lons, geostationary_lats, geostationary_lons)
@@ -495,17 +536,17 @@ def find_integration_start_stop_times(plume_fname,
         f2_radiances_subset_he = hist_eq(f2_radiances_subset, nbr_bins=256)
 
         # reproject image subset to UTM grid
-        f1_radiances_subset_reproj_he = utm_resampler.resample(f1_radiances_subset_he,
-                                                               geostationary_lats_subset,
-                                                               geostationary_lons_subset)
-        f2_radiances_subset_reproj_he = utm_resampler.resample(f2_radiances_subset_he,
-                                                               geostationary_lats_subset,
-                                                               geostationary_lons_subset)
+        f1_radiances_subset_reproj_he = utm_resampler.resample_image(f1_radiances_subset_he,
+                                                                     geostationary_lats_subset,
+                                                                     geostationary_lons_subset)
+        f2_radiances_subset_reproj_he = utm_resampler.resample_image(f2_radiances_subset_he,
+                                                                     geostationary_lats_subset,
+                                                                     geostationary_lons_subset)
 
         if plot:
-            f1_radiances_subset_reproj = utm_resampler.resample(f1_radiances_subset,
-                                                                geostationary_lats_subset,
-                                                                geostationary_lons_subset)
+            f1_radiances_subset_reproj = utm_resampler.resample_image(f1_radiances_subset,
+                                                                      geostationary_lats_subset,
+                                                                      geostationary_lons_subset)
 
         if plot:
             vis.display_map(f1_radiances_subset_reproj,
@@ -521,7 +562,7 @@ def find_integration_start_stop_times(plume_fname,
                                             cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
         if plot:
             vis.display_flow(flow,
-                             f1_radiances_subset_reproj,
+                             f2_radiances_subset_reproj_he,
                              utm_resampler,
                              f1.split('/')[-1].split('.')[0] + '_subset.jpg')
 
@@ -545,7 +586,7 @@ def find_integration_start_stop_times(plume_fname,
 
         # sum distance with total distance
         current_plume_length += median_distance
-        if current_plume_length > plume_mag:
+        if current_plume_length > plume_length:
             return datetime.strptime(f2.split('/')[-1][7:20], '%Y%m%d_%H%M')  # return time of the second file
 
     return None
