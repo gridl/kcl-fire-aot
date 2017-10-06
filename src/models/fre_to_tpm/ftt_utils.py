@@ -392,8 +392,8 @@ def geo_spatial_subset(lats_1, lons_1, lats_2, lons_2):
 
 
 def find_image_segment(bb):
-    # there are ten 2200 pixel segments in himawari
-    seg_size = 2200
+    # there are ten 1100 pixel segments in himawari 1 km data
+    seg_size = 1100
     segment_min = bb['min_y'] / seg_size + 1
     segment_max = bb['max_y'] / seg_size + 1
 
@@ -405,7 +405,7 @@ def find_image_segment(bb):
 
 
 def adjust_bb_for_segment(bb, segment):
-    seg_size = 2200
+    seg_size = 1100
     bb['min_y'] -= (segment * seg_size)
     bb['max_y'] -= (segment * seg_size)
 
@@ -420,12 +420,12 @@ def get_geostationary_fnames(plume_time, image_segment):
 
     # get all files in the directory using glob with band 3 for main segment
     p = os.path.join(fp.path_to_himawari_l1b, ym, day)
-    fp_1 = glob.glob(p + '/*/*/B03/*S' + str(image_segment).zfill(2) + '*')
+    fp_1 = glob.glob(p + '/*/*/B01/*S' + str(image_segment).zfill(2) + '*')
 
     # get the day before also
     day = str(plume_time.day - 1).zfill(2)
     p = os.path.join(fp.path_to_himawari_l1b, ym, day)
-    fp_2 = glob.glob(p + '/*/*/B03/*S' + str(image_segment).zfill(2) + '*')
+    fp_2 = glob.glob(p + '/*/*/B01/*S' + str(image_segment).zfill(2) + '*')
 
     files = fp_1 + fp_2
 
@@ -434,6 +434,11 @@ def get_geostationary_fnames(plume_time, image_segment):
 
 def restrict_geostationary_times(plume_time, geostationary_fnames):
     return [f for f in geostationary_fnames if datetime.strptime(f.split('/')[-1][7:20], '%Y%m%d_%H%M') <= plume_time]
+
+
+def sort_geostationary_by_time(geostationary_fnames):
+    times = [datetime.strptime(f.split('/')[-1][7:20], '%Y%m%d_%H%M') for f in geostationary_fnames]
+    return [f for _,f in sorted(zip(times,geostationary_fnames))]
 
 
 def find_integration_start_stop_times(plume_fname,
@@ -456,7 +461,7 @@ def find_integration_start_stop_times(plume_fname,
     geostationary_lons_subset = geostationary_lons[bb['min_y']:bb['max_y'], bb['min_x']:bb['max_x']]
 
     # adjust pixel resolution of bouding box so that lats/lons, bb have the same size as the image for channel
-    zoom = 4
+    zoom = 2
     geostationary_lats_subset = ndimage.zoom(geostationary_lats_subset, zoom)
     geostationary_lons_subset = ndimage.zoom(geostationary_lons_subset, zoom)
     bb.update((x, y * zoom) for x, y in bb.items())  # enlarge bounding box by factor of zoom also
@@ -470,7 +475,7 @@ def find_integration_start_stop_times(plume_fname,
     # set up image reprojection object for geostationary imager using bounded lats and lons
     utm_resampler_geos = utm_resampler(geostationary_lats_subset,
                                        geostationary_lons_subset,
-                                       pixel_size=500)
+                                       pixel_size=1000)
 
     # get the geographic coordinates for the utm geostationry grid
     utm_lons, utm_lats = utm_resampler_geos.area_def.get_lonlats()
@@ -481,7 +486,8 @@ def find_integration_start_stop_times(plume_fname,
     # reduce geostationary filenames to only those prior to plume observation
     geostationary_fnames = restrict_geostationary_times(plume_time, geostationary_fnames)
 
-    # reverse the filename list
+    # sort filenames by time
+    geostationary_fnames = sort_geostationary_by_time(geostationary_fnames)
     geostationary_fnames.reverse()
 
     # set up stopping condition which is the current estimate of the plume length
@@ -531,7 +537,7 @@ def find_integration_start_stop_times(plume_fname,
         flow_x = flow[:, :, 0]
         flow_y = flow[:, :, 1]
         pixel_distances = np.sqrt(flow_x ** 2 + flow_y ** 2)
-        utm_distances = pixel_distances * 500  # 500m imager resolution
+        utm_distances = pixel_distances * 1000  # 1000m UTM resolution
 
         # now resample distances onto plume
         distances_in_modis_proj = utm_resampler_modis.resample(utm_distances, utm_lats, utm_lons)
