@@ -372,7 +372,7 @@ def compute_plume_vector(plume_points, fire_positions):
     # compute mean fire position
     fire_positions = np.array(fire_positions)
     # x, y
-    fire_pos = np.array([np.mean(fire_positions[:,0]), np.mean(fire_positions[:,1])])
+    fire_pos = np.array([np.mean(fire_positions[:, 0]), np.mean(fire_positions[:, 1])])
 
     # first find the vertices of the plume polygon
     x, y = plume_points.minimum_rotated_rectangle.exterior.xy
@@ -481,7 +481,18 @@ def restrict_geostationary_times(plume_time, geostationary_fnames):
 
 def sort_geostationary_by_time(geostationary_fnames):
     times = [datetime.strptime(f.split('/')[-1][7:20], '%Y%m%d_%H%M') for f in geostationary_fnames]
-    return [f for _,f in sorted(zip(times,geostationary_fnames))]
+    return [f for _, f in sorted(zip(times, geostationary_fnames))]
+
+
+def draw_str(dst, target, s):
+    x, y = target
+    cv2.putText(dst, s, (x+1, y+1), cv2.FONT_HERSHEY_PLAIN, 1.0, (0, 0, 0), thickness = 2, lineType=cv2.LINE_AA)
+    cv2.putText(dst, s, (x, y), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 255, 255), lineType=cv2.LINE_AA)
+
+
+# set up feature detection and tracking parameters
+lk_params = {'winSize': (15, 15), 'maxLevel': 3,
+             'criteria': (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03)}
 
 
 def find_integration_start_stop_times(plume_fname,
@@ -513,7 +524,7 @@ def find_integration_start_stop_times(plume_fname,
     image_segment = find_image_segment(bb)
 
     # adjust the bb for the image segment (zero based so subtract 1)
-    adjust_bb_for_segment(bb, image_segment-1)
+    adjust_bb_for_segment(bb, image_segment - 1)
 
     # get the geostationary filenames for the given plume time and image segment
     geostationary_fnames = get_geostationary_fnames(plume_time, image_segment)
@@ -523,6 +534,17 @@ def find_integration_start_stop_times(plume_fname,
 
     # set up stopping condition which is the current estimate of the plume length
     current_plume_length = 0
+
+    # lets copy the vector tail position to track its progressions through time
+    utm_flow_vectors = []
+    utm_plume_projected_flow_vectors = [plume_tail.copy()]
+
+    # for flow tracking
+    frame_idx = 0
+    track_len = 10
+    detect_interval = 1
+    tracks = []
+    fast = cv2.FastFeatureDetector_create(threshold=25)
 
     # iterate over geostationary files
     for f1, f2 in zip(geostationary_fnames[:-1], geostationary_fnames[1:]):
@@ -536,8 +558,8 @@ def find_integration_start_stop_times(plume_fname,
         f2_radiances_subset = f2_radiances[bb['min_y']:bb['max_y'], bb['min_x']:bb['max_x']]
 
         # equalise the image
-        f1_radiances_subset_he = hist_eq(f1_radiances_subset, nbr_bins=256)
-        f2_radiances_subset_he = hist_eq(f2_radiances_subset, nbr_bins=256)
+        f1_radiances_subset_he = hist_eq(f1_radiances_subset, nbr_bins=1024)
+        f2_radiances_subset_he = hist_eq(f2_radiances_subset, nbr_bins=1024)
 
         # reproject image subset to UTM grid
         f1_radiances_subset_reproj_he = utm_resampler.resample_image(f1_radiances_subset_he,
@@ -547,61 +569,112 @@ def find_integration_start_stop_times(plume_fname,
                                                                      geostationary_lats_subset,
                                                                      geostationary_lons_subset)
 
-        if plot:
-            f1_radiances_subset_reproj = utm_resampler.resample_image(f1_radiances_subset,
-                                                                      geostationary_lats_subset,
-                                                                      geostationary_lons_subset)
-
-        if plot:
-            vis.display_map(f1_radiances_subset_reproj,
-                            utm_resampler,
-                            f1.split('/')[-1].split('.')[0] + '_subset.jpg')
+        # if plot:
+        #     f1_radiances_subset_reproj = utm_resampler.resample_image(f1_radiances_subset,
+        #                                                               geostationary_lats_subset,
+        #                                                               geostationary_lons_subset)
+        #
+        # if plot:
+        #     vis.display_map(f1_radiances_subset_reproj,
+        #                     utm_resampler,
+        #                     f1.split('/')[-1].split('.')[0] + '_subset.jpg')
 
         # compute optical flow between two images
-        flow_image = np.zeros(f1_radiances_subset_reproj_he.shape).astype('uint8')
-        flow = cv2.calcOpticalFlowFarneback(f1_radiances_subset_reproj_he,
-                                            f2_radiances_subset_reproj_he,
-                                            flow_image,
-                                            0.5, 4, 25, 10, 7, 1.5,
-                                            cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
-        if plot:
-            vis.display_flow(flow,
-                             f2_radiances_subset_reproj_he,
-                             utm_resampler,
-                             f1.split('/')[-1].split('.')[0] + '_subset.jpg')
 
-        # get the flow for the plume
-        flow_x = flow[:, :, 0][plume_mask]
-        flow_y = flow[:, :, 1][plume_mask]
+        vis = f1_radiances_subset_reproj_he.copy()
+        if len(tracks) > 0:
+            img0, img1 = f2_radiances_subset_reproj_he, f1_radiances_subset_reproj_he
+            p0 = np.float32([tr[-1] for tr in tracks]).reshape(-1, 1, 2)  # the feature points to be tracked
+            p1, _st, _err = cv2.calcOpticalFlowPyrLK(img0, img1, p0, None, **lk_params)  # the shifted points
+            p0r, _st, _err = cv2.calcOpticalFlowPyrLK(img1, img0, p1, None, **lk_params)  # matching in other direction
+            d = abs(p0 - p0r).reshape(-1, 2).max(-1)
 
-        flow_thresh = 0.5
-        flow_mask = (np.abs(flow_x) > flow_thresh) & (np.abs(flow_y) > flow_thresh)
-        flow_x = flow_x[flow_mask]
-        flow_y = flow_y[flow_mask]
-        mean_flow_x = np.mean(flow_x)
-        mean_flow_y = np.mean(flow_y)
+            # lets only keep well behaved points with shifts > 0.5 pixel
+            d1 =abs(p0 - p1).reshape(-1, 2).max(-1)
+            good = (d < 1) & (d1 > 0.5)
 
-        pix_size = 1000
-        flow_vector = [mean_flow_x * pix_size, mean_flow_y * pix_size]
+            new_tracks = []
+            for tr, (x, y), good_flag in zip(tracks, p1.reshape(-1, 2), good):
+                if not good_flag:
+                    continue
+                tr.append((x, y))
+                if len(tr) > track_len:
+                    del tr[0]
+                new_tracks.append(tr)
+                cv2.circle(vis, (x, y), 2, (0, 255, 0), -1)
+            tracks = new_tracks
 
-        # now project flow vector onto plume vector
-        projected_flow_vector = np.dot(plume_vector, flow_vector) / np.dot(plume_vector, plume_vector) * plume_vector
-        projected_mag = np.linalg.norm(projected_flow_vector)
+            cv2.polylines(vis, [np.int32(tr) for tr in tracks], False, (0, 255, 0))
+            draw_str(vis, (20, 20), 'track count: %d' % len(tracks))
 
-        # plot masked plume
-        if plot:
-            vis.display_masked_map(f1_radiances_subset_reproj,
-                                   plume_mask,
-                                   utm_resampler,
-                                   plume_head,
-                                   plume_tail,
-                                   f1.split('/')[-1].split('.')[0] + '_subset.jpg')
+        if frame_idx % detect_interval == 0:
+            points = fast.detect(f2_radiances_subset_reproj_he, None)
+            if points is not None:
+                for pt in points:
+                    # check if points is in plume
+                    if plume_mask[int(pt.pt[1]), int(pt.pt[0])]:
+                        tracks.append([pt.pt])
 
-        # sum distance with total distance
-        current_plume_length += projected_mag
-        print projected_mag, current_plume_length
-        if current_plume_length > plume_length:
-            return datetime.strptime(f2.split('/')[-1][7:20], '%Y%m%d_%H%M')  # return time of the second file
+        frame_idx += 1
+        plt.imshow(vis, cmap='gray')
+        plt.show()
+
+
+
+
+
+
+        # flow_image = np.zeros(f1_radiances_subset_reproj_he.shape).astype('uint8')
+        # flow = cv2.calcOpticalFlowFarneback(f2_radiances_subset_reproj_he,
+        #                                     f1_radiances_subset_reproj_he,
+        #                                     flow_image,
+        #                                     0.5, 1, 15, 7, 7, 1.5,
+        #                                     cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
+        # if plot:
+        #     vis.display_flow(flow,
+        #                      f2_radiances_subset_reproj_he,
+        #                      utm_resampler,
+        #                      f1.split('/')[-1].split('.')[0] + '_subset.jpg')
+        #
+        # # get the flow for the plume
+        # flow_x = flow[:, :, 0][plume_mask] * 20
+        # flow_y = flow[:, :, 1][plume_mask] * 20
+        #
+        # flow_thresh = 0.5
+        # flow_mask = (np.abs(flow_x) > flow_thresh) & (np.abs(flow_y) > flow_thresh)
+        # flow_x = flow_x[flow_mask]
+        # flow_y = flow_y[flow_mask]
+        # mean_flow_x = np.mean(flow_x)
+        # mean_flow_y = np.mean(flow_y)
+        #
+        # pix_size = 1000
+        # flow_vector = [mean_flow_x * pix_size, mean_flow_y * pix_size]
+        #
+        # # now project flow vector onto plume vector
+        # projected_flow_vector = np.dot(plume_vector, flow_vector) / np.dot(plume_vector, plume_vector) * plume_vector
+        # projected_mag = np.linalg.norm(projected_flow_vector)
+        #
+        # # Keep track of the position of the projected and unprojected flow vectors for
+        # # plotting purposes.  So we do all of this is the UTM coordinates and not relative
+        # utm_flow_vectors += [utm_plume_projected_flow_vectors[-1] + flow_vector]
+        # utm_plume_projected_flow_vectors += [utm_plume_projected_flow_vectors[-1] + projected_flow_vector]
+        #
+        # # plot masked plume
+        # if plot:
+        #     vis.display_masked_map(f1_radiances_subset_reproj,
+        #                            plume_mask,
+        #                            utm_resampler,
+        #                            plume_head,
+        #                            plume_tail,
+        #                            utm_flow_vectors,
+        #                            utm_plume_projected_flow_vectors,
+        #                            f1.split('/')[-1].split('.')[0] + '_subset.jpg')
+        #
+        # # sum distance with total distance
+        # current_plume_length += projected_mag
+        # print projected_mag, current_plume_length
+        # if current_plume_length > plume_length:
+        #     return datetime.strptime(f2.split('/')[-1][7:20], '%Y%m%d_%H%M')  # return time of the second file
 
     return None
 

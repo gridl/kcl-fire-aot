@@ -50,7 +50,10 @@ def display_map(f1_radiances_subset_reproj, utm_resampler, fname):
     plt.close()
 
 
-def display_masked_map(f1_radiances_subset_reproj, mask, utm_resampler, plume_head, plume_tail, fname):
+def display_masked_map(f1_radiances_subset_reproj, mask, utm_resampler,
+                       plume_head, plume_tail,
+                       flow_vector, projected_flow_vector,
+                       fname):
 
     f1_radiances_subset_reproj_masked = np.ma.masked_array(f1_radiances_subset_reproj, ~mask)
 
@@ -71,10 +74,34 @@ def display_masked_map(f1_radiances_subset_reproj, mask, utm_resampler, plume_he
 
     ax.coastlines(resolution='50m', color='black', linewidth=1)
 
-    gridlines = ax.gridlines(draw_labels=True)
+    #gridlines = ax.gridlines(draw_labels=True)
     plt.imshow(f1_radiances_subset_reproj_masked, transform=crs, extent=extent, origin='upper', cmap='gray')
-    plt.plot(plume_head[0], plume_head[1], 'rx')
+    plt.plot(plume_head[0], plume_head[1], 'r>')
     plt.plot(plume_tail[0], plume_tail[1], 'ro')
+    #plt.plot([plume_head[0], plume_head[1]], [plume_tail[0], plume_tail[1]], 'r--')
+
+    # now plot the flow vector progression
+    for i, fv in enumerate(flow_vector):
+
+        pv_tail = projected_flow_vector[i]
+        pv_head = projected_flow_vector[i+1]
+
+        # convert flow vector into lat lon
+        fv = utm_resampler.resample_point_to_geo(fv[1], fv[0])
+
+        # get the positions along the plume vector
+        pv_tail = utm_resampler.resample_point_to_geo(pv_tail[1], pv_tail[0])
+        pv_head = utm_resampler.resample_point_to_geo(pv_head[1], pv_head[0])
+
+        #plt.plot(fv[0], fv[1], 'r>')
+        #plt.plot(pv_tail[0], pv_tail[1], 'ro')
+
+        plt.plot(pv_head[0], pv_head[1], 'r>')
+        #plt.plot(pv_tail[0], pv_tail[1], 'ro')
+
+        #plt.plot([pv_tail[0], pv_tail[1]], [fv[0], fv[1]], 'r--')
+        #plt.plot([pv_tail[0], pv_tail[1]], [pv_head[0], pv_head[1]], 'r--')
+
 
     # Create an inset GeoAxes showing the location
     sub_ax = plt.axes([0.5, 0.66, 0.2, 0.2], projection=ccrs.PlateCarree())
@@ -91,6 +118,7 @@ def display_masked_map(f1_radiances_subset_reproj, mask, utm_resampler, plume_he
     sub_ax.add_geometries([extent_box], ccrs.PlateCarree(), color='none',
                           edgecolor='blue', linewidth=2)
 
+    #plt.show()
     plt.savefig(os.path.join(fp.path_to_him_visualisations, 'plumes', fname), bbox_inches='tight', dpi=300)
     plt.close()
 
@@ -98,7 +126,7 @@ def display_masked_map(f1_radiances_subset_reproj, mask, utm_resampler, plume_he
 def draw_flow(img, flow, step=8):
     h, w = img.shape[:2]
     y, x = np.mgrid[step/2:h:step, step/2:w:step].reshape(2,-1)
-    fx, fy = flow[y,x].T * 3
+    fx, fy = flow[y,x].T
     lines = np.vstack([x, y, x+fx, y+fy]).T.reshape(-1, 2, 2)
     lines = np.int32(lines + 0.5)
     vis = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
