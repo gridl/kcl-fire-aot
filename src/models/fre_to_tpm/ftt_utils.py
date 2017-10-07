@@ -243,6 +243,13 @@ def hist_eq(im, nbr_bins=256):
     return im2.reshape(im.shape).astype('uint8')
 
 
+def rescale_image(image, display_min, display_max):
+    image -= display_min
+    np.floor_divide(image, (display_max - display_min + 1) / 256,
+                    out=image, casting='unsafe')
+    return image.astype(np.uint8)
+
+
 class utm_resampler(object):
     def __init__(self, lats, lons, pixel_size, resolution=0.01):
         self.lats = lats
@@ -541,7 +548,7 @@ def find_integration_start_stop_times(plume_fname,
 
     # for flow tracking
     frame_idx = 0
-    track_len = 10
+    track_len = 40
     detect_interval = 1
     tracks = []
     fast = cv2.FastFeatureDetector_create(threshold=25)
@@ -557,9 +564,8 @@ def find_integration_start_stop_times(plume_fname,
         f1_radiances_subset = f1_radiances[bb['min_y']:bb['max_y'], bb['min_x']:bb['max_x']]
         f2_radiances_subset = f2_radiances[bb['min_y']:bb['max_y'], bb['min_x']:bb['max_x']]
 
-        # equalise the image
-        f1_radiances_subset_he = hist_eq(f1_radiances_subset, nbr_bins=1024)
-        f2_radiances_subset_he = hist_eq(f2_radiances_subset, nbr_bins=1024)
+        f1_radiances_subset_he = rescale_image(f1_radiances_subset, f1_radiances_subset.min(), f1_radiances_subset.max())
+        f2_radiances_subset_he = rescale_image(f2_radiances_subset, f2_radiances_subset.min(), f2_radiances_subset.max())
 
         # reproject image subset to UTM grid
         f1_radiances_subset_reproj_he = utm_resampler.resample_image(f1_radiances_subset_he,
@@ -589,9 +595,9 @@ def find_integration_start_stop_times(plume_fname,
             p0r, _st, _err = cv2.calcOpticalFlowPyrLK(img1, img0, p1, None, **lk_params)  # matching in other direction
             d = abs(p0 - p0r).reshape(-1, 2).max(-1)
 
-            # lets only keep well behaved points with shifts > 0.5 pixel
-            d1 =abs(p0 - p1).reshape(-1, 2).max(-1)
-            good = (d < 1) & (d1 > 0.5)
+            # lets only keep well behaved points with shifts > 1 pixel (equivalent to 6km/hr)
+            d1 =abs(p0 - p1).reshape(-1, 2).max(-1)  # gets the max across all
+            good = (d < 1) & (d1 >= 1)
 
             new_tracks = []
             for tr, (x, y), good_flag in zip(tracks, p1.reshape(-1, 2), good):
