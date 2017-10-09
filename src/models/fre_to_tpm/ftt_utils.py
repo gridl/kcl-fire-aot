@@ -496,18 +496,26 @@ def compute_flow_stats(flow):
     # remove anything outside 2 sd
     mean_flow = np.mean(flow, axis=0)
     sd_flow = np.std(flow, axis=0)
-    flow = flow[np.abs(flow) < mean_flow + 2*sd_flow]
+    mask = (np.abs(flow[:,0]) < mean_flow[0] + 2*sd_flow[0]) & (np.abs(flow[:,1]) < mean_flow[1] + 2*sd_flow[1])
+    flow = flow[mask,:]
+
+    pix_size = 1000
+    logging.info("Uncleaned" + '\n' + "mean flow " + str(mean_flow * pix_size) + '\n' +
+                 "sd flow " + str(sd_flow * pix_size) + '\n' +
+                 "median flow " + str(np.median(flow, axis=0) * pix_size) + '\n' +
+                 "min flow " + str(np.min(flow, axis=0) * pix_size) + '\n' +
+                 "max flow " + str(np.max(flow, axis=0) * pix_size) + '\n')
 
     # recompute flow
     mean_flow = np.mean(flow, axis=0)
     sd_flow = np.std(flow, axis=0)
 
     pix_size = 1000
-    logging.info("mean flow " + str(mean_flow * pix_size) + '\n' +
-                 "sd flow" + str(sd_flow * pix_size) + '\n' +
-                 "median flow" + str(np.median(flow, axis = 0) * pix_size) + '\n' +
-                 "min flow" + str(np.min(flow, axis=0) * pix_size) + '\n' +
-                 "max flow" + str(np.max(flow, axis=0) * pix_size) + '\n')
+    logging.info("Cleaned" + '\n' + "mean flow " + str(mean_flow * pix_size) + '\n' +
+                 "sd flow " + str(sd_flow * pix_size) + '\n' +
+                 "median flow " + str(np.median(flow, axis = 0) * pix_size) + '\n' +
+                 "min flow " + str(np.min(flow, axis=0) * pix_size) + '\n' +
+                 "max flow " + str(np.max(flow, axis=0) * pix_size) + '\n')
     return mean_flow, sd_flow
 
 
@@ -559,8 +567,8 @@ def find_integration_start_stop_times(plume_fname,
     # set up some vectors to store stuff
     utm_flow_vectors = []
     utm_plume_projected_flow_vectors = [plume_tail.copy()]
-    mean_flow_vector = np.zeros(72)
-    sd_flow_vector = np.zeros(72)
+    mean_flow_vector = np.zeros([72,2])
+    sd_flow_vector = np.zeros([72,2])
     projected_flow_magnitude = np.zeros(72)
 
     # holds the flow features
@@ -570,7 +578,8 @@ def find_integration_start_stop_times(plume_fname,
     fast = cv2.FastFeatureDetector_create(threshold=25)
 
     # iterate over geostationary files
-    for i, f1, f2 in enumerate(zip(geostationary_fnames[:-1], geostationary_fnames[1:])):
+    for i, (f1, f2) in enumerate(zip(geostationary_fnames[:-1], geostationary_fnames[1:])):
+        print i
 
         # load geostationary files
         f1_radiances, _ = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_l1b, f1))
@@ -629,28 +638,20 @@ def find_integration_start_stop_times(plume_fname,
                 flow = (p1 - p0).reshape(-1, 2)[good]
 
                 # get robust flow statitics
-                mean_flow, sd_flow = compute_flow_stats(flow)
+                try:
+                    pix_size = 1000
+                    mean_flow, sd_flow = compute_flow_stats(flow)
+                    mean_flow_vector[i,:] = mean_flow * pix_size
+                    sd_flow_vector[i,:] = sd_flow * pix_size
+                except Exception, e:
+                    logging.warning('Could not compute mean with error:' + str(e) +
+                                    ' will fill estimate using alternative value')
 
-                # check if flow estimate is reasonable by comparing against previous observation if available
-                prev_index = i - 1
-                if prev_index < 0:
-                    # if first flow vector nothing to compare against.
-                    # TODO perhaps compare the forwards at some point to check is reasonable
-                    mean_flow_vector[i] = mean_flow
-                    sd_flow_vector[i] = sd_flow
-                else:
-                    flow_reasonble = np.abs(mean_flow) < mean_flow_vector[prev_index] + 2*sd_flow_vector[prev_index]
-                    if flow_reasonble:
-                        mean_flow_vector[i] = mean_flow
-                        sd_flow_vector[i] = sd_flow
+        # check if we have a nan
+        if (np.isnan(mean_flow).any()) | ((mean_flow == 0).all() & (i != 0)):
+            mean_flow_vector[i] = mean_flow_vector[i-1]
+            sd_flow_vector[i] = sd_flow_vector[i-1]
 
-        # now we need to check if there are any missing flow estimates, which will be zero
-        if np.sum(mean_flow_vector[:i] == 0) > 0:
-            # just replace with the zero elements with this one.  As we are checking everytime
-            # we will be getting the nearest flow estimate replacing the zero flow estimate.
-            update_locations = mean_flow_vector[:i] == 0
-            mean_flow_vector[:i][update_locations] = mean_flow_vector[i]
-            sd_flow_vector[:i][update_locations] = sd_flow_vector[i]
 
 
         # if plot:
@@ -663,12 +664,13 @@ def find_integration_start_stop_times(plume_fname,
 
 
         # now project flow vector onto plume vector
-        projected_flow_vector = np.dot(plume_vector, mean_flow) / np.dot(plume_vector, plume_vector) * plume_vector
+        projected_flow_vector = np.dot(plume_vector, mean_flow_vector[i]) / \
+                                np.dot(plume_vector, plume_vector) * plume_vector
         projected_flow_magnitude[i] = np.linalg.norm(projected_flow_vector)
 
         # Keep track of the position of the projected and unprojected flow vectors for
         # plotting purposes.  So we do all of this is the UTM coordinates and not relative
-        utm_flow_vectors += [utm_plume_projected_flow_vectors[-1] + mean_flow]
+        utm_flow_vectors += [utm_plume_projected_flow_vectors[-1] + mean_flow_vector[i]]
         utm_plume_projected_flow_vectors += [utm_plume_projected_flow_vectors[-1] + projected_flow_vector]
 
         # plot masked plume
