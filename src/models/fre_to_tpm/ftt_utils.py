@@ -27,6 +27,8 @@ import cv2
 
 import matplotlib.pyplot as plt
 
+import src.NPT.NonParametricTransform as im_transform
+import src.NPT.NonParametricMatcher as im_matcher
 import src.data.readers.load_hrit as load_hrit
 import src.config.filepaths as fp
 import src.visualization.ftt_visualiser as vis
@@ -231,25 +233,6 @@ def reproject_shapely(plume_polygon, utm_resampler):
     return transform(project, plume_polygon)  # apply projection
 
 
-def hist_eq(im, nbr_bins=256):
-    # get image histogram
-    imhist, bins = np.histogram(im.flatten(), nbr_bins, normed=True)
-    cdf = imhist.cumsum()  # cumulative distribution function
-    cdf = 255 * cdf / cdf[-1]  # normalize
-
-    # use linear interpolation of cdf to find new pixel values
-    im2 = np.interp(im.flatten(), bins[:-1], cdf)
-
-    return im2.reshape(im.shape).astype('uint8')
-
-
-def rescale_image(image, display_min, display_max):
-    image -= display_min
-    np.floor_divide(image, (display_max - display_min + 1) / 256,
-                    out=image, casting='unsafe')
-    return image.astype(np.uint8)
-
-
 class utm_resampler(object):
     def __init__(self, lats, lons, pixel_size, resolution=0.01):
         self.lats = lats
@@ -410,7 +393,7 @@ def compute_plume_vector(plume_points, fire_positions):
         return mid_point_b, mid_point_a, mid_point_b - mid_point_a  # fire closest to b
 
 
-def geo_spatial_subset(lats_1, lons_1, lats_2, lons_2):
+def spatial_subset(lats_1, lons_1, lats_2, lons_2):
     '''
 
     :param lats_1: target lat region
@@ -536,10 +519,9 @@ def find_integration_start_stop_times(plume_fname,
 
     # find distance in plume polygon from fire head to tail
     plume_head, plume_tail, plume_vector = compute_plume_vector(plume_points, utm_fires)
-    plume_length = np.linalg.norm(plume_vector)
 
     # generate bounding box for extract geostationary data
-    bb = geo_spatial_subset(plume_lats, plume_lons, geostationary_lats, geostationary_lons)
+    bb = spatial_subset(plume_lats, plume_lons, geostationary_lats, geostationary_lons)
 
     geostationary_lats_subset = geostationary_lats[bb['min_y']:bb['max_y'], bb['min_x']:bb['max_x']]
     geostationary_lons_subset = geostationary_lons[bb['min_y']:bb['max_y'], bb['min_x']:bb['max_x']]
@@ -562,6 +544,7 @@ def find_integration_start_stop_times(plume_fname,
     geostationary_fnames.reverse()
 
     # set up stopping condition which is the current estimate of the plume length
+    plume_length = np.linalg.norm(plume_vector)
     current_plume_length = 0
 
     # set up some vectors to store stuff
@@ -570,12 +553,6 @@ def find_integration_start_stop_times(plume_fname,
     mean_flow_vector = np.zeros([72,2])
     sd_flow_vector = np.zeros([72,2])
     projected_flow_magnitude = np.zeros(72)
-
-    # holds the flow features
-    tracks = []
-
-    # set up feature detector
-    fast = cv2.FastFeatureDetector_create(threshold=25)
 
     # iterate over geostationary files
     for i, (f1, f2) in enumerate(zip(geostationary_fnames[:-1], geostationary_fnames[1:])):
@@ -588,8 +565,6 @@ def find_integration_start_stop_times(plume_fname,
         # extract geostationary image subset using adjusted bb and rescale to 8bit
         f1_radiances_subset = f1_radiances[bb['min_y']:bb['max_y'], bb['min_x']:bb['max_x']]
         f2_radiances_subset = f2_radiances[bb['min_y']:bb['max_y'], bb['min_x']:bb['max_x']]
-        f1_radiances_subset = rescale_image(f1_radiances_subset, f1_radiances_subset.min(), f1_radiances_subset.max())
-        f2_radiances_subset = rescale_image(f2_radiances_subset, f2_radiances_subset.min(), f2_radiances_subset.max())
 
         # reproject subsets to UTM grid
         f1_radiances_subset_reproj = utm_resampler.resample_image(f1_radiances_subset,
@@ -599,70 +574,22 @@ def find_integration_start_stop_times(plume_fname,
                                                                      geostationary_lats_subset,
                                                                      geostationary_lons_subset)
 
-        # FEATURE DETECTION - detect good points to track in the image using FAST
-        points = fast.detect(f1_radiances_subset_reproj, None)
-        if points is not None:
-            for pt in points:
-                # check if points is in plume
-                if plume_mask[int(pt.pt[1]), int(pt.pt[0])]:
-                    tracks.append([pt.pt])
+        f1_trans = im_transform.CensusTransform(f1_radiances_subset_reproj, xrad=7, yrad=7).transform()
+        f2_trans = im_transform.CensusTransform(f2_radiances_subset_reproj, xrad=7, yrad=7).transform()
+        (x_dis, y_dis, quality) = im_matcher.NonParametricMatcherSubPixel(f1_trans, f2_trans, x_range=(-20, 20),
+                                                                       y_range=(-20, 20), agg_rad=5,
+                                                                       null_value=999).match()
 
-        # FLOW COMPUTATION - compute the flow between the images, but only if we have features
-        if len(tracks) > 0:
-            p0 = np.float32([tr[-1] for tr in tracks]).reshape(-1, 1, 2)  # the feature points to be tracked
-            p1, _st, _err = cv2.calcOpticalFlowPyrLK(f1_radiances_subset_reproj, f2_radiances_subset_reproj,
-                                                     p0, None, **lk_params)  # the shifted points
-            p0r, _st, _err = cv2.calcOpticalFlowPyrLK(f2_radiances_subset_reproj, f1_radiances_subset_reproj,
-                                                      p1, None, **lk_params)  # matching in other direction
 
-            # lets check the points and consistent in both match directions and keep only those
-            # points with a pixel shift greater than the minimum limit
-            min_pix_shift = 1
-            d = abs(p0 - p0r).reshape(-1, 2).max(-1)
-            d1 = abs(p0 - p1).reshape(-1, 2).max(-1)  # gets the max across all
-            good = (d < 1) & (d1 >= min_pix_shift)
-
-            new_tracks = []
-            for tr, (x, y), good_flag in zip(tracks, p1.reshape(-1, 2), good):
-                if not good_flag:
-                    continue
-                tr.append((x, y))
-                new_tracks.append(tr)
-            tracks = new_tracks
-
-            # We can only compute flow if there is something to work with,
-            # if not we check instead if we can get a flow estimate from a
-            # previous scene.
-            if len(tracks) > 1:
-                # generate the relative flow
-                flow = (p1 - p0).reshape(-1, 2)[good]
-
-                # get robust flow statitics
-                try:
-                    pix_size = 1000
-                    mean_flow, sd_flow = compute_flow_stats(flow)
-                    mean_flow_vector[i,:] = mean_flow * pix_size
-                    sd_flow_vector[i,:] = sd_flow * pix_size
-                except Exception, e:
-                    logging.warning('Could not compute mean with error:' + str(e) +
-                                    ' will fill estimate using alternative value')
-
-            # if too few features use previous estimate
-            else:
-                # dont need to worry about i-1 when i == 0, as will just fill
-                # from end of mean_flow_vector, which will have a value of 0
-                # so can correct at a later stage
-                mean_flow_vector[i, :] = mean_flow_vector[i - 1, :]
-                sd_flow_vector[i, :] = sd_flow_vector[i - 1, :]
-        # if no features use previous estimate
-        else:
-            mean_flow_vector[i, :] = mean_flow_vector[i - 1, :]
-            sd_flow_vector[i, :] = sd_flow_vector[i - 1, :]
-
-        # check if any other missing points and fill as needed with most recent flow estimate even if it
-        # is a zero it will get filled at some point with a reasonable (!) estimate.
-        if (mean_flow_vector[:i, :] == 0).any():
-            mean_flow_vector[:i, :][mean_flow_vector[:i, :] == 0] = mean_flow_vector[i, :]
+        plt.imshow(x_dis, cmap='PuOr', vmin=-5, vmax=5)
+        plt.colorbar()
+        plt.show()
+        plt.imshow(y_dis, cmap='PuOr', vmin=-5, vmax=5)
+        plt.colorbar()
+        plt.show()
+        plt.imshow(np.sqrt(y_dis^2 + x_dis^2), cmap='PuOr', vmin=-5, vmax=5)
+        plt.colorbar()
+        plt.show()
 
 
         # if plot:
