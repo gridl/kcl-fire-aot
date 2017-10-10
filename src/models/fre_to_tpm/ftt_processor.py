@@ -6,6 +6,7 @@ from pyhdf.SD import SD, SDC
 import numpy as np
 
 import src.models.fre_to_tpm.ftt_utils as ut
+import src.models.fre_to_tpm.ftt_plume_tracking as pt
 import src.config.filepaths as fp
 import src.data.readers.load_hrit as load_hrit
 
@@ -104,7 +105,7 @@ def main():
         utm_modis_aod_subset = []
 
         # get FRP integration start and stop times
-        start_time, stop_time = ut.find_integration_start_stop_times(plume.filename,
+        start_time, stop_time = pt.find_integration_start_stop_times(plume.filename,
                                                                      utm_plume_points, utm_plume_mask,
                                                                      plume_lats, plume_lons,
                                                                      geostationary_lats, geostationary_lons,
@@ -119,9 +120,6 @@ def main():
     # split data based on lc type
 
     # compute models
-
-
-
 
 
 if __name__=="__main__":

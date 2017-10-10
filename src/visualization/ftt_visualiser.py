@@ -114,27 +114,11 @@ def display_masked_map(f1_radiances_subset_reproj, mask, utm_resampler,
     plt.close()
 
 
-def draw_flow(img, flow, step=8):
-    h, w = img.shape[:2]
-    y, x = np.mgrid[step/2:h:step, step/2:w:step].reshape(2,-1)
-    fx, fy = flow[y,x].T
-    lines = np.vstack([x, y, x+fx, y+fy]).T.reshape(-1, 2, 2)
-    lines = np.int32(lines + 0.5)
-    vis = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-    cv2.polylines(vis, lines, 0, (0, 0, 0))
-    for (x1, y1), (x2, y2) in lines:
-        cv2.circle(vis, (x1, y1), 1, (0, 0, 0), -1)
-    return vis
 
+def display_flow(x_flow, y_flow, f1_radiances, utm_resampler, fname):
 
-def display_flow(flow, f1_radiances_subset_reproj, utm_resampler, fname):
-
-    # vis = f1_radiances_subset_reproj.copy()
-    # cv2.circle(vis, (x, y), 2, (0, 255, 0), -1)
-    # cv2.polylines(vis, [np.int32(tr) for tr in tracks], False, (0, 255, 0))
-    # draw_str(vis, (20, 20), 'track count: %d' % len(tracks))
-    # plt.imshow(vis, cmap='gray')
-    # plt.show()
+    x_flow[np.abs(x_flow) < 1] = 0
+    y_flow[np.abs(y_flow) < 1] = 0
 
     lons, lats = utm_resampler.area_def.get_lonlats()
     crs = ccrs.PlateCarree()
@@ -145,31 +129,24 @@ def display_flow(flow, f1_radiances_subset_reproj, utm_resampler, fname):
     padded_extent = [np.min(lons) - u_padding, np.max(lons) + u_padding,
                      np.min(lats) - u_padding, np.max(lats) + l_padding]
 
-    ax = plt.axes(projection=crs)
-    ax.set_extent(padded_extent)
+    ax1 = plt.subplot(1, 3, 1, projection=ccrs.PlateCarree())
+    ax1.coastlines('50m')
+    ax1.set_extent(padded_extent, ccrs.PlateCarree())
+    ax1.imshow(f1_radiances, transform=crs, extent=extent, origin='upper', cmap='gray')
 
-    ax.coastlines(resolution='50m', color='black', linewidth=1)
+    ax2 = plt.subplot(1, 3, 2, projection=ccrs.PlateCarree())
+    ax2.coastlines('50m')
+    ax2.set_extent(padded_extent, ccrs.PlateCarree())
+    im2 = ax2.imshow(x_flow, transform=crs, extent=extent, origin='upper', cmap='PuOr', vmin=-2, vmax=2)
+    plt.colorbar(im2, ax=ax2)
 
-    #gridlines = ax.gridlines(draw_labels=True)
+    ax3 = plt.subplot(1, 3, 3, projection=ccrs.PlateCarree())
+    ax3.coastlines('50m')
+    ax3.set_extent(padded_extent, ccrs.PlateCarree())
+    im3 = ax3.imshow(y_flow, transform=crs, extent=extent, origin='upper', cmap='PuOr', vmin=-2, vmax=2)
+    plt.colorbar(im3, ax=ax3)
 
-    # Create an inset GeoAxes showing the location
-    sub_ax = plt.axes([0.5, 0.66, 0.2, 0.2], projection=ccrs.PlateCarree())
-    sub_ax.set_extent([95, 145, -20, 10])
-
-    # Make a nice border around the inset axes.
-    effect = Stroke(linewidth=4, foreground='wheat', alpha=0.5)
-    sub_ax.outline_patch.set_path_effects([effect])
-
-    # Add the land, coastlines and the extent of the Solomon Islands.
-    sub_ax.add_feature(cartopy.feature.LAND)
-    sub_ax.coastlines()
-    extent_box = sgeom.box(extent[0], extent[2], extent[1], extent[3])
-    sub_ax.add_geometries([extent_box], ccrs.PlateCarree(), color='none',
-                          edgecolor='blue', linewidth=2)
-
-
-    ax.imshow(draw_flow(f1_radiances_subset_reproj, flow), transform=crs, extent=extent, origin='upper', cmap='gray')
-
+    #plt.show()
     plt.savefig(os.path.join(fp.path_to_him_visualisations, 'flows', fname), bbox_inches='tight', dpi=600)
     plt.close()
 
