@@ -619,7 +619,7 @@ def find_integration_start_stop_times(plume_fname,
             # points with a pixel shift greater than the minimum limit
             min_pix_shift = 1
             d = abs(p0 - p0r).reshape(-1, 2).max(-1)
-            d1 =abs(p0 - p1).reshape(-1, 2).max(-1)  # gets the max across all
+            d1 = abs(p0 - p1).reshape(-1, 2).max(-1)  # gets the max across all
             good = (d < 1) & (d1 >= min_pix_shift)
 
             new_tracks = []
@@ -633,7 +633,7 @@ def find_integration_start_stop_times(plume_fname,
             # We can only compute flow if there is something to work with,
             # if not we check instead if we can get a flow estimate from a
             # previous scene.
-            if tracks:
+            if len(tracks) > 1:
                 # generate the relative flow
                 flow = (p1 - p0).reshape(-1, 2)[good]
 
@@ -647,11 +647,22 @@ def find_integration_start_stop_times(plume_fname,
                     logging.warning('Could not compute mean with error:' + str(e) +
                                     ' will fill estimate using alternative value')
 
-        # check if we have a nan
-        if (np.isnan(mean_flow).any()) | ((mean_flow == 0).all() & (i != 0)):
-            mean_flow_vector[i] = mean_flow_vector[i-1]
-            sd_flow_vector[i] = sd_flow_vector[i-1]
+            # if too few features use previous estimate
+            else:
+                # dont need to worry about i-1 when i == 0, as will just fill
+                # from end of mean_flow_vector, which will have a value of 0
+                # so can correct at a later stage
+                mean_flow_vector[i, :] = mean_flow_vector[i - 1, :]
+                sd_flow_vector[i, :] = sd_flow_vector[i - 1, :]
+        # if no features use previous estimate
+        else:
+            mean_flow_vector[i, :] = mean_flow_vector[i - 1, :]
+            sd_flow_vector[i, :] = sd_flow_vector[i - 1, :]
 
+        # check if any other missing points and fill as needed with most recent flow estimate even if it
+        # is a zero it will get filled at some point with a reasonable (!) estimate.
+        if (mean_flow_vector[:i, :] == 0).any():
+            mean_flow_vector[:i, :][mean_flow_vector[:i, :] == 0] = mean_flow_vector[i, :]
 
 
         # if plot:
