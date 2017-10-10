@@ -300,24 +300,68 @@ def compute_flow(tracks, im1, im2):
         # in effect this is im2 - im1.  Could perhaps make the code clearer here
         flow = (p0 - p1).reshape(-1, 2)[good]
         flow = adjust_image_map_coordinates(flow)
+        return tracks, flow
+    else:
+        return tracks, []
 
-    return tracks, flow
 
+def assess_flow(flow, flow_means, flow_sds, flow_nobs, tracks, i, pix_size=1000):
+    """
 
-def assess_flow(flow, flow_means, flow_sds):
-    pass
+    :param flow: the current flow vectors from the feature tracking
+    :param flow_means: the vector containing the flow means
+    :param flow_sds: the vector containing the flow standard deviations
+    :param tracks: the track points
+    :param i: the current index
+    :return: None
+    """
+    if len(tracks) <= 0:
+        if i != 0:
+            flow_means[i] = flow_means[i-1]
+            flow_sds[i] = flow_sds[i-1]
+            flow_nobs[i] = 0
+    else:
+        flow_means[i, :] = np.mean(flow, axis=0) * pix_size
+        flow_sds[i, :] = np.std(flow, axis=0) * pix_size
+        flow_nobs[i] = len(tracks)
+
+    if (flow_means[:i] == 0).any():
+        mask = [flow_means[:i] == 0]
+        flow_means[:i][mask] = flow_means[i]
+        flow_sds[:i][mask] = flow_sds[i]
+
+    if flow_nobs[i] < 5:
+        flow_means[i] = flow_means[i - 1]
+        flow_sds[i] = flow_sds[i - 1]
+
 
 
 def find_integration_start_stop_times(plume_fname,
                                       plume_points, plume_mask,
                                       plume_lats, plume_lons,
                                       geostationary_lats, geostationary_lons,
-                                      utm_fires,
+                                      fires,
                                       utm_resampler,
-                                      plot=False):
+                                      plot=True):
+    """
+    Main function to compute the time stamps over which we need to integrate the
+    FRP observations.  This is done by tracking the motion of the plume, and determining
+    how long it takes for the plume to travel from its distal end to its source
+    :param plume_fname:  The filename of the plume
+    :param plume_points: The points that make up the plume polygon
+    :param plume_mask: The plume mask
+    :param plume_lats: The latitudes associated with the plume
+    :param plume_lons: The longitudes associated with the plume
+    :param geostationary_lats: The geostationary lat grid
+    :param geostationary_lons: The geostationary lon grid
+    :param fires:  The fires for the plume
+    :param utm_resampler:  The resampler used to reproject everything into a common UTM grid
+    :param plot:  Plotting flag
+    :return:  TBD, but likely the himawari observation time associate with the plume crossover
+    """
     plume_time = get_plume_time(plume_fname)
 
-    plume_head, plume_tail, plume_vector = compute_plume_vector(plume_points, utm_fires)
+    plume_head, plume_tail, plume_vector = compute_plume_vector(plume_points, fires)
 
     bb = spatial_subset(plume_lats, plume_lons, geostationary_lats, geostationary_lons)
 
@@ -341,6 +385,7 @@ def find_integration_start_stop_times(plume_fname,
     current_plume_length = 0
     flow_means = np.zeros([72, 2])
     flow_sds = np.zeros([72, 2])
+    flow_nobs = np.zeros([72])
     projected_flow_magnitude = np.zeros(72)
     tracks = []
 
@@ -363,7 +408,7 @@ def find_integration_start_stop_times(plume_fname,
             tracks, flow = compute_flow(tracks, f2_subset_reproj, f1_subset_reproj)
 
         # compute mean flow for plume
-        assess_flow(flow, flow_means, flow_sds)
+        assess_flow(flow, flow_means, flow_sds, flow_nobs, tracks, i)
 
         # now project flow vector onto plume vector
         projected_flow_vector = np.dot(plume_vector, flow_means[i]) / \

@@ -102,8 +102,10 @@ def display_masked_map(f1_radiances_subset_reproj, mask, utm_resampler,
         #plt.plot(fv[0], fv[1], 'r>')
         #plt.plot(pv_tail[0], pv_tail[1], 'ro')
 
-        plt.plot(pv_head[0], pv_head[1], 'r>', markersize=1)
-        #plt.plot(pv_tail[0], pv_tail[1], 'ro')
+        #plt.plot(pv_head[0], pv_head[1], 'r>', markersize=1)
+        #plt.plot(pv_tail[0], pv_tail[1], 'ro', markersize=1)
+        plt.plot(fv[0], fv[1], 'r>', markersize=1)
+
 
         plt.plot([pv_tail[0], fv[0]], [pv_tail[1], fv[1]], 'r--', linewidth=0.5)
         #plt.plot([pv_tail[0], pv_head[0]], [pv_tail[1], pv_head[1]], 'r--', linewidth=0.5)
