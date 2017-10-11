@@ -56,12 +56,13 @@ def display_map(f1_radiances_subset_reproj, utm_resampler, fname):
     plt.close()
 
 
-def display_masked_map(f1_radiances_subset_reproj, mask, utm_resampler,
+def display_masked_map(img, plume_points, utm_resampler,
                        plume_head, plume_tail,
                        flow_vector, projected_flow_vector,
                        fname):
 
-    f1_radiances_subset_reproj_masked = np.ma.masked_array(f1_radiances_subset_reproj, ~mask)
+    x, y = plume_points.minimum_rotated_rectangle.exterior.xy
+    verts = [utm_resampler.resample_point_to_geo(y, x) for (x, y) in zip(x, y)]
 
     plume_head = utm_resampler.resample_point_to_geo(plume_head[1], plume_head[0])
     plume_tail = utm_resampler.resample_point_to_geo(plume_tail[1], plume_tail[0])
@@ -70,8 +71,8 @@ def display_masked_map(f1_radiances_subset_reproj, mask, utm_resampler,
     crs = ccrs.PlateCarree()
     extent = [np.min(lons), np.max(lons), np.min(lats), np.max(lats)]
 
-    u_padding = -0.1
-    l_padding = -0.1
+    u_padding = -0
+    l_padding = -0
     padded_extent = [np.min(lons) - u_padding, np.max(lons) + u_padding,
                      np.min(lats) - u_padding, np.max(lats) + l_padding]
 
@@ -81,35 +82,26 @@ def display_masked_map(f1_radiances_subset_reproj, mask, utm_resampler,
     ax.coastlines(resolution='50m', color='black', linewidth=1)
 
     #gridlines = ax.gridlines(draw_labels=True)
-    plt.imshow(f1_radiances_subset_reproj_masked, transform=crs, extent=extent, origin='upper', cmap='gray')
-    plt.plot(plume_head[0], plume_head[1], 'r>', markersize=2)
-    plt.plot(plume_tail[0], plume_tail[1], 'ro', markersize=2)
-    plt.plot([plume_head[0], plume_tail[0]], [plume_head[1], plume_tail[1]], 'r--', linewidth=0.5)
+    plt.imshow(img, transform=crs, extent=extent, origin='upper', cmap='gray')
+    plt.plot([plume_head[0], plume_tail[0]], [plume_head[1], plume_tail[1]], 'k-', linewidth=1)
+
+
+    for v1, v2 in zip(verts[:-1], verts[1:]):
+        plt.plot([v1[0], v2[0]], [v1[1], v2[1]], 'k-', linewidth=1)
+
+    plt.plot(plume_head[0], plume_head[1], 'r.', markersize=2)
+    #plt.plot(plume_tail[0], plume_tail[1], 'r>', markersize=2)
 
     # now plot the flow vector progression
     for i, fv in enumerate(flow_vector):
 
         pv_tail = projected_flow_vector[i]
-        pv_head = projected_flow_vector[i+1]
 
-        # convert flow vector into lat lon
         fv = utm_resampler.resample_point_to_geo(fv[1], fv[0])
-
-        # get the positions along the plume vector
         pv_tail = utm_resampler.resample_point_to_geo(pv_tail[1], pv_tail[0])
-        pv_head = utm_resampler.resample_point_to_geo(pv_head[1], pv_head[0])
 
-        #plt.plot(fv[0], fv[1], 'r>')
-        #plt.plot(pv_tail[0], pv_tail[1], 'ro')
-
-        #plt.plot(pv_head[0], pv_head[1], 'r>', markersize=1)
-        #plt.plot(pv_tail[0], pv_tail[1], 'ro', markersize=1)
-        plt.plot(fv[0], fv[1], 'r>', markersize=1)
-
-
-        plt.plot([pv_tail[0], fv[0]], [pv_tail[1], fv[1]], 'r--', linewidth=0.5)
-        #plt.plot([pv_tail[0], pv_head[0]], [pv_tail[1], pv_head[1]], 'r--', linewidth=0.5)
-
+        plt.plot([pv_tail[0], fv[0]], [pv_tail[1], fv[1]], 'k-', linewidth=1)
+        plt.plot(fv[0], fv[1], 'r.', markersize=2)
 
     #plt.show()
     plt.savefig(os.path.join(fp.path_to_him_visualisations, 'plumes', fname), bbox_inches='tight', dpi=300)

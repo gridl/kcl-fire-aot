@@ -415,16 +415,12 @@ def find_integration_start_stop_times(plume_fname,
                                 np.dot(plume_vector, plume_vector) * plume_vector
         projected_flow_magnitude[i] = np.linalg.norm(projected_flow_vector)
 
-        # sum current plume length and compare with total plume length
-        # if projected_flow_magnitude.sum() > plume_length:
-        #     return datetime.strptime(f2.split('/')[-1][7:20], '%Y%m%d_%H%M')  # return time of the second file
-
         # plot masked plume
         if plot:
             utm_flow_vectors += [utm_plume_projected_flow_vectors[-1] + flow_means[i]]
             utm_plume_projected_flow_vectors += [utm_plume_projected_flow_vectors[-1] + projected_flow_vector]
             vis.display_masked_map(f1_subset_reproj,
-                                   plume_mask,
+                                   plume_points,
                                    utm_resampler,
                                    plume_head,
                                    plume_tail,
@@ -432,4 +428,10 @@ def find_integration_start_stop_times(plume_fname,
                                    utm_plume_projected_flow_vectors,
                                    f1.split('/')[-1].split('.')[0] + '_subset.jpg')
 
-    return None
+        # sum current plume length and compare with total plume length
+        if projected_flow_magnitude.sum() > plume_length:
+            t1 = datetime.strptime(geostationary_fnames[0].split('/')[-1][7:20], '%Y%m%d_%H%M')
+            t2 = datetime.strptime(f2.split('/')[-1][7:20], '%Y%m%d_%H%M')
+            return t1, t2   # return time of the second file
+
+    return None, None
