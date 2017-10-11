@@ -7,41 +7,14 @@ import numpy as np
 
 import src.models.fre_to_tpm.ftt_utils as ut
 import src.models.fre_to_tpm.ftt_plume_tracking as pt
-import src.models.fre_to_tpm.ftt_fre as fre
+import src.models.fre_to_tpm.ftt_fre as ft
+import src.models.fre_to_tpm.ftt_tpm as tt
 import src.config.filepaths as fp
 import src.data.readers.load_hrit as load_hrit
 
 log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=log_fmt)
 logger = logging.getLogger(__name__)
-
-import matplotlib.pyplot as plt
-
-
-def get_timestamp(myd021km_fname):
-    try:
-        return re.search("[0-9]{7}[.][0-9]{4}[.]", myd021km_fname).group()
-    except Exception, e:
-        logger.warning("Could not extract time stamp from: " + myd021km_fname + " with error: " + str(e))
-        return ''
-
-
-def get_modis_fname(path, timestamp_myd, myd021km_fname):
-    fname = [f for f in os.listdir(path) if timestamp_myd in f]
-    if len(fname) > 1:
-        logger.warning("More that one frp granule matched " + myd021km_fname + "selecting 0th option")
-        return fname[0]
-    elif len(fname) == 1:
-        return fname[0]
-    else:
-        return ''
-
-def read_hdf(f):
-    return SD(f, SDC.READ)
-
-def fires_myd14(myd14_data):
-    return np.where(myd14_data.select('fire mask').get() >= 7)
-
 
 def main():
 
@@ -61,8 +34,6 @@ def main():
     # itereate over the plumes
     for i, plume in plume_df.iterrows():
 
-
-
         # load plume datasets
         orac_aod = []
         myd04_aod = []
@@ -75,8 +46,6 @@ def main():
             plume_polygon = ut.construct_polygon(plume, plume_bounding_box, plume_lats, plume_lons)
             plume_mask = ut.construct_plume_mask(plume, plume_bounding_box)
 
-
-
         except Exception, e:
             print e
             continue
@@ -87,10 +56,10 @@ def main():
         orac_aod_subset = []
         myd04_aod_subset = []
 
-        timestamp_myd = get_timestamp(plume.filename)
-        myd14_fname = get_modis_fname(fp.path_to_modis_frp, timestamp_myd, plume.filename)
-        myd14 = read_hdf(os.path.join(fp.path_to_modis_frp, myd14_fname))
-        myd14 = fires_myd14(myd14)
+        timestamp_myd = ut.get_timestamp(plume.filename)
+        myd14_fname = ut.get_modis_fname(fp.path_to_modis_frp, timestamp_myd, plume.filename)
+        myd14 = ut.read_hdf(os.path.join(fp.path_to_modis_frp, myd14_fname))
+        myd14 = ut.fires_myd14(myd14)
         fires = ut.extract_fires(fp.path_to_modis_l1b, plume, myd14)
         fires_lats, fires_lons = ut.fires_in_plume(fires, plume_polygon)
 
@@ -106,18 +75,18 @@ def main():
         utm_modis_aod_subset = []
 
         # get FRP integration start and stop times
-        start_time, stop_time = pt.find_integration_start_stop_times(plume.filename,
-                                                                     utm_plume_points, utm_plume_mask,
-                                                                     plume_lats, plume_lons,
-                                                                     geostationary_lats, geostationary_lons,
-                                                                     utm_fires,
-                                                                     utm_resampler)
+        # start_time, stop_time = pt.find_integration_start_stop_times(plume.filename,
+        #                                                              utm_plume_points, utm_plume_mask,
+        #                                                              plume_lats, plume_lons,
+        #                                                              geostationary_lats, geostationary_lons,
+        #                                                              utm_fires,
+        #                                                              utm_resampler)
 
         # get the variables of interest
-        if start_time is not None:
-            #fre.append(ut.compute_fre(plume_polygon, frp_df, start_time, stop_time))
-            tpm.append(ut.compute_aod(orac_aod, myd04_aod, plume_bounding_box, plume_mask, plume_lats, plume_lons))
-            lc.append(0)
+        # if start_time is not None:
+        #     fre.append(ft.compute_fre(plume_polygon, frp_df, start_time, stop_time, utm_resampler))
+        tpm.append(tt.compute_aod(orac_aod, myd04_aod, plume_bounding_box, plume_mask, plume_lats, plume_lons))
+        lc.append(0)
 
     # split data based on lc type
 

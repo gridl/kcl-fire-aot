@@ -21,20 +21,38 @@ from shapely.geometry import Polygon, Point, MultiPoint
 from shapely.ops import transform
 import pyresample as pr
 import pyproj
-
-import matplotlib.pyplot as plt
-
-import src.data.readers.load_hrit as load_hrit
-import src.config.filepaths as fp
-import src.visualization.ftt_visualiser as vis
+import re
 
 log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=log_fmt)
 logger = logging.getLogger(__name__)
 
 
-#########################    GENERAL UTILS    #########################
+def get_timestamp(myd021km_fname):
+    try:
+        return re.search("[0-9]{7}[.][0-9]{4}[.]", myd021km_fname).group()
+    except Exception, e:
+        logger.warning("Could not extract time stamp from: " + myd021km_fname + " with error: " + str(e))
+        return ''
 
+
+def get_modis_fname(path, timestamp_myd, myd021km_fname):
+    fname = [f for f in os.listdir(path) if timestamp_myd in f]
+    if len(fname) > 1:
+        logger.warning("More that one frp granule matched " + myd021km_fname + "selecting 0th option")
+        return fname[0]
+    elif len(fname) == 1:
+        return fname[0]
+    else:
+        return ''
+
+
+def read_hdf(f):
+    return SD(f, SDC.READ)
+
+
+def fires_myd14(myd14_data):
+    return np.where(myd14_data.select('fire mask').get() >= 7)
 
 def read_orac_data(plume, orac_file_path):
     y = plume.filename[10:14]
@@ -285,58 +303,3 @@ class utm_resampler(object):
 
     def resample_point_to_geo(self, point_y, point_x):
         return self.proj(point_x, point_y, inverse=True)
-
-
-
-
-
-
-
-
-#########################    TPM    #########################
-
-# TODO still need to make sure area is being calculated correctly
-def compute_plume_area(utm_plume_polygon):
-    # # TODO is sinusoidal proj good enough?  Yes it is: https://goo.gl/KE3tuY
-    # # get extra accuracy by selecting an appropriate lon_0
-    # m = Basemap(projection='sinu', lon_0=140, resolution='c')
-    #
-    # lons = (lons + 180) - np.floor((lons + 180) / 360) * 360 - 180;
-    # zone = stats.mode(np.floor((lons + 180) / 6) + 1, axis=None)[0][0]
-    # p = pyproj.Proj(proj='utm', zone=zone, ellps='WGS84', datum='WGS84')
-    #
-    # # apply to shapely polygon
-    # projected_plume_polygon_m = transform(m, plume_polygon)
-    # projected_plume_polygon_p = transform(p, plume_polygon)
-
-    # compute projected polygon area in m2
-    # return projected_plume_polygon_m.area, projected_plume_polygon_p.area
-
-    # we already have the plume polygon area
-    return utm_plume_polygon.area
-
-
-def compute_aod(plume_bounding_pixels, plume_mask, lats, lons):
-    '''
-    Resampling of the ORAC AOD data is required to remove the bowtie effect from the data.  We can then
-    sum over the AODs contained with the plume.
-
-    Resampling of the MODIS AOD data is required so that it is in the same projection as the ORAC AOD.
-    With it being in the same projection we can replace low quality ORAC AODs with those from MXD04 products.
-    We also need to get the background AOD data from MXD04 products as ORAC does not do optically thin
-    retrievals well.
-
-    Also, we need to check that the pixel area estimates being computed by compute_plume_area are reasonable.
-    That can be done in this function, we just produce another area estimate from the resampled mask by getting
-    vertices, getting the lat lons of the vertices, creating a shapely polygon from them and then computing the area.
-    '''
-
-    # create best AOD map from ORAC and MYD04 AOD
-
-    # extract best AOD using plume mask
-
-    # split into background and plume AODs
-
-    # subtract background from plume
-
-    # return plume AOD
