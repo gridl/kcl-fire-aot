@@ -85,7 +85,7 @@ def main():
         # get the variables of interest
         # if start_time is not None:
         #     fre.append(ft.compute_fre(plume_polygon, frp_df, start_time, stop_time, utm_resampler))
-        tpm.append(tt.compute_aod(orac_aod, myd04_aod, plume_bounding_box, plume_mask, plume_lats, plume_lons))
+        tpm.append(tt.compute_tpm(orac_aod, myd04_aod, plume_bounding_box, plume_mask, plume_lats, plume_lons))
         lc.append(0)
 
     # split data based on lc type
