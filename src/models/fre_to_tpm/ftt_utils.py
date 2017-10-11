@@ -127,13 +127,7 @@ def read_frp_df(path):
     return frp_df
 
 
-def find_landcover_class(plume, myd14_path, landcover_ds):
-    y = plume.filename[10:14]
-    doy = plume.filename[14:17]
-    time = plume.filename[18:22]
-
-    myd14 = glob.glob(os.path.join(myd14_path, '*A' + y + doy + '.' + time + '*.hdf'))[0]  # path to modis FRP
-    myd14 = SD(myd14, SDC.READ)
+def find_landcover_class(plume, myd14, landcover_ds):
 
     lines = myd14.select('FP_line').get()
     samples = myd14.select('FP_sample').get()
