@@ -7,6 +7,7 @@ import numpy as np
 
 import src.models.fre_to_tpm.ftt_utils as ut
 import src.models.fre_to_tpm.ftt_plume_tracking as pt
+import src.models.fre_to_tpm.ftt_fre as fre
 import src.config.filepaths as fp
 import src.data.readers.load_hrit as load_hrit
 
@@ -114,7 +115,7 @@ def main():
 
         # get the variables of interest
         if start_time is not None:
-            fre.append(ut.compute_fre(plume_polygon, frp_df, start_time, stop_time))
+            #fre.append(ut.compute_fre(plume_polygon, frp_df, start_time, stop_time))
             tpm.append(ut.compute_aod(orac_aod, myd04_aod, plume_bounding_box, plume_mask, plume_lats, plume_lons))
             lc.append(0)
 

@@ -1,13 +1,12 @@
 '''
 Contains the various functions and classes that are used in the
-ftt (fre-to_tpm) processor.  These can be broken down as follows:
+ftt (fre-to-tpm) processor.  These can be broken down as follows:
 '''
 
 # load in required packages
 import ast
 import glob
 import os
-from datetime import datetime
 import logging
 from functools import partial
 
@@ -17,13 +16,11 @@ from netCDF4 import Dataset
 from pyhdf.SD import SD, SDC
 from matplotlib.path import Path
 from scipy import stats
-from scipy import integrate
 from scipy import ndimage
 from shapely.geometry import Polygon, Point, MultiPoint
 from shapely.ops import transform
 import pyresample as pr
 import pyproj
-import cv2
 
 import matplotlib.pyplot as plt
 
@@ -222,13 +219,13 @@ def construct_polygon(plume, bounds, lats, lons):
     return Polygon(zip(bounding_lons, bounding_lats))
 
 
-def reproject_shapely(plume_polygon, utm_resampler):
+def reproject_shapely(shapely_object, utm_resampler):
     project = partial(
         pyproj.transform,
         pyproj.Proj(init='epsg:4326'),  # source coordinate system (geographic coords)
         utm_resampler.proj)  # destination coordinate system
 
-    return transform(project, plume_polygon)  # apply projection
+    return transform(project, shapely_object)  # apply projection
 
 
 class utm_resampler(object):
@@ -290,60 +287,7 @@ class utm_resampler(object):
         return self.proj(point_x, point_y, inverse=True)
 
 
-#########################    FRE UTILS    #########################
 
-def integrate_frp(frp_subset):
-    try:
-        t0 = frp_subset.index[0]
-        sample_times = (frp_subset.index - t0).total_seconds()
-    except Exception, e:
-        print 'Could not extract spatial subset, failed with error:', str(e)
-        return None
-
-    # now integrate
-    return integrate.trapz(frp_subset['FRP_0'], sample_times)
-
-
-def compute_fre(plume_polygon, frp_df, start_time, stop_time):
-    # subset df by time
-    try:
-        frp_subset = frp_df.loc[(frp_df['obs_date'] == stop_time) |
-                                (frp_df['obs_date'] == start_time)]
-    except Exception, e:
-        print 'Could not extract time subset, failed with error:', str(e)
-        return None
-
-    # Subset by space
-    #
-    # subset spatially finding only those fires within the bounds of the plume
-    # note Matplotlib path might be a better option to check with bounds
-    # see here: https://goo.gl/Cevi1u.  Also, do we need to project first to
-    # determine if the points are inside the polygon?  I think not as everything
-    # is in, in effect, geographic projection.  So should be fine.
-
-    inbounds = []
-    try:
-        for i, (index, frp_pixel) in enumerate(frp_subset.iterrows()):
-            if frp_pixel['point'].within(plume_polygon):  # TODO THIS IS WRONG, NEED TO TRANSFORM
-                inbounds.append(i)
-        if inbounds:
-            frp_subset = frp_subset.iloc[inbounds]
-    except Exception, e:
-        print 'Could not extract spatial subset, failed with error:', str(e)
-        return None
-
-    # group by time and aggregate the FRP variables
-    frp_subset['FIRE_CONFIDENCE_mean'] = frp_subset['FIRE_CONFIDENCE']
-    frp_subset['FIRE_CONFIDENCE_std'] = frp_subset['FIRE_CONFIDENCE']
-    frp_subset = frp_subset.groupby('obs_time').agg({'FRP_0': np.sum,
-                                                     'FIRE_CONFIDENCE_mean': np.mean,
-                                                     'FIRE_CONFIDENCE_std': np.std})[['FRP_0',
-                                                                                      'FIRE_CONFIDENCE_mean',
-                                                                                      'FIRE_CONFIDENCE_std']]
-
-    # integrate to get the fre
-    fre = integrate_frp(frp_subset)
-    return fre
 
 
 
