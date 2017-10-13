@@ -123,7 +123,8 @@ def append_to_download_list(temp_path, mod_doy):
 
 
 def main():
-    file_list = '/Users/dnf/Projects/kcl-fire-aot/data/Asia/filelists/indonesia_filepaths.txt' #sys.argv[1]
+    #file_list = '/Users/dnf/Projects/kcl-fire-aot/data/Asia/filelists/indonesia_filepaths.txt' #sys.argv[1]
+    file_list = os.path.join(fp.path_to_filelists, 'indonesia_filepaths.txt')
     ftp_laads = ftp_connect_laads()
     temp_path = fp.path_to_modis_tmp
 
@@ -163,6 +164,8 @@ def main():
             if not os.path.isfile(local_fp):  # if we dont have the file, then dl it
                 logger.info("   ...Downloading: " + fname)
                 retrieve(ftp_laads, doy, ftp_dir, local_fp, fname)
+            else:
+                logger.info(fname + " ... already exists")
 
 
 if __name__ == "__main__":
