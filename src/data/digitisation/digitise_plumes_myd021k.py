@@ -75,22 +75,6 @@ def get_orac_fname(path, timestamp_myd):
     return fname[0]
 
 
-def get_viirs_fname(path, timestamp_myd):
-    # only one dataset per day for this analysis
-    # so do not need to worry about geolocating the data
-    # however put in warning for future to catch errors
-    t = timestamp_myd[0:7]
-    fname = [f for f in os.listdir(path) if t in f[0:28]]
-    if len(fname) > 1:
-        logger.warning('Multiple VIIRS AOD files found.  Need to add geolocation check to find right one')
-        print fname
-        return ''
-    elif len(fname) == 1:
-        return fname[0]
-    else:
-        return ''
-
-
 def read_hdf(f):
     return SD(f, SDC.READ)
 
@@ -113,34 +97,6 @@ def aod_myd04_3K(myd04_3K):
 
 def aod_orac(orac_ds):
     return orac_ds.variables['cot'][:], orac_ds.variables['costjm'][:]
-
-
-def aod_viirs(viirs_aod_data, viirs_geo_data, myd021km):
-
-    '''
-    Resample the VIIRS AOD data to the MODIS grid
-    '''
-
-    mod_lats = myd021km.select('Latitude').get()
-    mod_lons = myd021km.select('Longitude').get()
-    mod_swath_def = pr.geometry.SwathDefinition(lons=mod_lons, lats=mod_lats)
-
-    viirs_aod = viirs_aod_data.select('faot550').get()
-    viirs_mask = viirs_aod < 0
-
-    viirs_lats = viirs_geo_data.select('Latitude').get()
-    viirs_lons = viirs_geo_data.select('Longitude').get()
-    viirs_masked_lats = np.ma.masked_array(viirs_lats, viirs_mask)
-    viirs_masked_lons = np.ma.masked_array(viirs_lons, viirs_mask)
-    viirs_swath_def = pr.geometry.SwathDefinition(lons=viirs_masked_lons, lats=viirs_masked_lats)
-
-    resampled_viirs_aod = pr.kd_tree.resample_nearest(viirs_swath_def,
-                                                      viirs_aod,
-                                                      mod_swath_def,
-                                                      radius_of_influence=1000,
-                                                      epsilon=0.5,
-                                                      fill_value=0)
-    return resampled_viirs_aod
 
 
 def image_histogram_equalization(image, number_bins=256):
@@ -219,12 +175,11 @@ def fcc_myd021km(mod_data):
 
 
 class Annotate(object):
-    def __init__(self, fcc, tcc, mod_aod, viirs_aod, orac_aod, orac_cost, fires, ax, polygons):
+    def __init__(self, fcc, tcc, mod_aod, orac_aod, orac_cost, fires, ax, polygons):
         self.ax = ax
         self.fcc = fcc
         self.tcc = tcc
         self.mod_aod = mod_aod
-        self.viirs_aod = viirs_aod
         self.orac_aod = orac_aod
         self.orac_cost = orac_cost
         self.im = self.ax.imshow(self.orac_aod, interpolation='none', cmap='viridis')
@@ -281,9 +236,6 @@ class Annotate(object):
             labels.append('ORAC_COST')
         if self.mod_aod is not None:
             labels.append('MOD_AOD')
-        if (self.viirs_aod is not None) and (np.max(self.viirs_aod) != 0):
-            labels.append('VIIRS_AOD')
-
 
         # FCC and TCC always present
         labels.append('FCC')
@@ -299,9 +251,6 @@ class Annotate(object):
             label_mapping['ORAC_COST'] = self.orac_cost
         if self.mod_aod is not None:
             label_mapping['MOD_AOD'] = self.mod_aod
-        if (self.viirs_aod is not None) and (np.max(self.viirs_aod) != 0):
-            label_mapping['VIIRS_AOD'] = self.viirs_aod
-
 
         # FCC and TCC always present
         label_mapping['FCC'] = self.fcc
@@ -333,9 +282,6 @@ class Annotate(object):
         if label == "MOD_AOD":
             self.im.set_clim(vmax=5, vmin=0)
             self.im.set_cmap('viridis')
-        if label == "VIIRS_AOD":
-            self.im.set_clim(vmax=2, vmin=0)
-            self.im.set_cmap('viridis')
 
         plt.draw()
 
@@ -353,7 +299,7 @@ class Annotate(object):
             self.ax.figure.canvas.draw()
 
 
-def digitise(fcc, tcc, mod_aod, viirs_aod, orac_aod, orac_cost, fires):
+def digitise(fcc, tcc, mod_aod, orac_aod, orac_cost, fires):
 
     smoke_polygons = []
 
@@ -365,7 +311,7 @@ def digitise(fcc, tcc, mod_aod, viirs_aod, orac_aod, orac_cost, fires):
         ax.yaxis.set_visible(False)
 
         # first set up the annotator
-        annotator = Annotate(fcc, tcc, mod_aod, viirs_aod, orac_aod, orac_cost, fires, ax, smoke_polygons)
+        annotator = Annotate(fcc, tcc, mod_aod, orac_aod, orac_cost, fires, ax, smoke_polygons)
 
         # then show the image
         plt.show()
@@ -414,8 +360,6 @@ def main():
         myd14_fname = get_modis_fname(filepaths.path_to_modis_frp, timestamp_myd, myd021km_fname)
         myd04_3K_fname = get_modis_fname(filepaths.path_to_modis_aod_3k, timestamp_myd, myd021km_fname)
         orac_fname = get_orac_fname(filepaths.path_to_orac_aod, timestamp_myd)
-        viirs_aod_fname = get_viirs_fname(filepaths.path_to_viirs_aod, timestamp_myd)
-        viirs_geo_fname = get_viirs_fname(filepaths.path_to_viirs_geo, timestamp_myd)
 
         try:
             myd021km = read_hdf(os.path.join(filepaths.path_to_modis_l1b, myd021km_fname))
@@ -426,7 +370,7 @@ def main():
             continue
 
         # if filenames load in data
-        fires, mod_aod, orac_aod, orac_cost, viirs_aod = None, None, None, None, None
+        fires, mod_aod, orac_aod, orac_cost = None, None, None, None
         if myd14_fname:
             myd14 = read_hdf(os.path.join(filepaths.path_to_modis_frp, myd14_fname))
             fires = fires_myd14(myd14)
@@ -436,13 +380,9 @@ def main():
         if orac_fname:
             orac_data = read_orac(os.path.join(filepaths.path_to_orac_aod, orac_fname))
             orac_aod, orac_cost = aod_orac(orac_data)
-        if viirs_aod_fname and viirs_geo_fname:
-            viirs_aod_data = read_hdf(os.path.join(filepaths.path_to_viirs_aod, viirs_aod_fname))
-            viirs_geo_data = read_hdf(os.path.join(filepaths.path_to_viirs_geo, viirs_geo_fname))
-            viirs_aod = aod_viirs(viirs_aod_data, viirs_geo_data, myd021km)
 
         # do the digitising
-        smoke_polygons = digitise(fcc, tcc, mod_aod, viirs_aod, orac_aod, orac_cost, fires)
+        smoke_polygons = digitise(fcc, tcc, mod_aod, orac_aod, orac_cost, fires)
         if smoke_polygons is None:
             continue
 
