@@ -185,8 +185,8 @@ class Annotate(object):
         self.im = self.ax.imshow(self.orac_aod, interpolation='none', cmap='viridis')
         if fires is not None:
             self.plot = self.ax.plot(fires[1], fires[0], 'r.')
-        self.background_polygons = self._add_polygons_to_axis(background_polygons, 'Blues')
-        self.plume_polygons = self._add_polygons_to_axis(plume_polygons, 'Oranges')
+        self.background_polygons = self._add_polygons_to_axis(background_polygons, 'Blues_r')
+        self.plume_polygons = self._add_polygons_to_axis(plume_polygons, 'Reds_r')
 
         # set up the point holders for the plume and background polygons
         self.plume_x = []
@@ -231,7 +231,9 @@ class Annotate(object):
 
     def _add_polygons_to_axis(self, polygons, cmap):
         patches = [Polygon(verts, True) for verts in polygons]
+        colors = [0] * len(patches)
         p = PatchCollection(patches, cmap=cmap, alpha=0.8)
+        p.set_array(np.array(colors))
         return self.ax.add_collection(p)
 
     def _radio_labels(self):
