@@ -175,7 +175,7 @@ def fcc_myd021km(mod_data):
 
 
 class Annotate(object):
-    def __init__(self, fcc, tcc, mod_aod, orac_aod, orac_cost, fires, ax, polygons):
+    def __init__(self, fcc, tcc, mod_aod, orac_aod, orac_cost, fires, ax, plume_polygons, background_polygons):
         self.ax = ax
         self.fcc = fcc
         self.tcc = tcc
@@ -185,23 +185,16 @@ class Annotate(object):
         self.im = self.ax.imshow(self.orac_aod, interpolation='none', cmap='viridis')
         if fires is not None:
             self.plot = self.ax.plot(fires[1], fires[0], 'r.')
-        patches = [Polygon(verts, True) for verts in polygons]
-        p = PatchCollection(patches, cmap='Oranges', alpha=0.8)
-        self.polygons = self.ax.add_collection(p)
+        self.plume_polygons = self._add_polygons_to_axis(plume_polygons, 'Oranges')
+        self.background_polygons = self._add_polygons_to_axis(background_polygons, 'Blues')
 
-        # set up the point holders for the polygon
-        self.x = []
-        self.y = []
+        # set up the point holders for the plume and background polygons
+        self.plume_x = []
+        self.plume_y = []
+        self.background_x = []
+        self.background_y = []
 
-        # set up the rectangle to hold the background
-        self.rect = Rectangle((0, 0), 1, 1, edgecolor='black', facecolor='none')
-        self.ax.add_patch(self.rect)
-        self.x0_rect = None
-        self.y0_rect = None
-        self.x1_rect = None
-        self.y1_rect = None
-
-        # set up the patch
+        # set up the digitising patch
         self.p = Circle((1,1))
 
         # set up the events
@@ -210,6 +203,9 @@ class Annotate(object):
         # set up check to see if we keep annotating
         self.do_annotation = True
 
+        # set up default digitisation type as plume (True is plume, False is background)
+        self.type = True
+
         # set up radio buttons
         self.axcolor = 'lightgoldenrodyellow'
 
@@ -217,9 +213,13 @@ class Annotate(object):
         self.radio_disitise = RadioButtons(self.rax_digitise, ('Digitise', 'Stop'))
         self.radio_disitise.on_clicked(self.annotation_func)
 
-        self.rax_discard = plt.axes([0.05, 0.4, 0.15, 0.15], facecolor=self.axcolor)
+        self.rax_discard = plt.axes([0.05, 0.5, 0.15, 0.15], facecolor=self.axcolor)
         self.radio_discard = RadioButtons(self.rax_discard, ('Keep', 'Discard'))
         self.radio_discard.on_clicked(self.discard_func)
+
+        self.rax_type = plt.axes([0.05, 0.3, 0.15, 0.15], facecolor=self.axcolor)
+        self.radio_type = RadioButtons(self.rax_type, ('Plume', 'Background'))
+        self.radio_type.on_clicked(self.type_func)
 
         self.rax_image = plt.axes([0.05, 0.1, 0.15, 0.15], facecolor=self.axcolor)
         self.radio_image = RadioButtons(self.rax_image, self._radio_labels())
@@ -227,6 +227,11 @@ class Annotate(object):
 
         self.cax = plt.axes([0.8, 0.1, 0.05, 0.8])
         self.cbar = plt.colorbar(self.im, self.cax)
+
+    def _add_polygons_to_axis(self, polygons, cmap):
+        plume_patches = [Polygon(verts, True) for verts in polygons]
+        p = PatchCollection(plume_patches, cmap=cmap, alpha=0.8)
+        return self.ax.add_collection(p)
 
     def _radio_labels(self):
 
@@ -263,9 +268,16 @@ class Annotate(object):
 
     def discard_func(self, label):
         keep_dict = {'Keep': False, 'Discard': True}
-        if keep_dict[label]:
-            self.x = []
-            self.y = []
+        if keep_dict[label] and self.type:
+            self.plume_x = []
+            self.plume_y = []
+        elif keep_dict[label] and not self.type:
+            self.background_x = []
+            self.background_y = []
+
+    def type_func(self, label):
+        type_dict = {'Plume': True, 'Background': False}
+        self.type = type_dict[label]
 
     def image_func(self, label):
 
@@ -287,21 +299,31 @@ class Annotate(object):
 
     def click(self, event):
         if event.button == 3:
-            self.x.append(int(event.xdata))
-            self.y.append(int(event.ydata))
-            if len(self.x) < 3:
-                self.p = Circle((event.xdata, event.ydata), radius=0.25, facecolor='red', edgecolor='black')
-                self.ax.add_patch(self.p)
-            else:
-                self.p.remove()
-                self.p = Polygon(zip(self.x, self.y), color='red', alpha=0.5)
-                p = self.ax.add_patch(self.p)
-            self.ax.figure.canvas.draw()
+            if self.type:
+                self.plume_x.append(int(event.xdata))
+                self.plume_y.append(int(event.ydata))
+                self._draw_polygon(len(self.plume_x), event, 'red')
+            elif not self.type:
+                self.background_x.append(int(event.xdata))
+                self.background_y.append(int(event.ydata))
+                self._draw_polygon(len(self.plume_x), event, 'blue')
+
+
+    def _draw_polygon(self, poly_len, event, color):
+        if poly_len < 3:
+            self.p = Circle((event.xdata, event.ydata), radius=0.25, facecolor=color, edgecolor='black')
+            self.ax.add_patch(self.p)
+        else:
+            self.p.remove()
+            self.p = Polygon(zip(self.x, self.y), color=color, alpha=0.5)
+            p = self.ax.add_patch(self.p)
+        self.ax.figure.canvas.draw()
 
 
 def digitise(fcc, tcc, mod_aod, orac_aod, orac_cost, fires):
 
-    smoke_polygons = []
+    plume_polygons = []
+    background_polygons = []
 
     do_annotation = True
     while do_annotation:
@@ -311,29 +333,32 @@ def digitise(fcc, tcc, mod_aod, orac_aod, orac_cost, fires):
         ax.yaxis.set_visible(False)
 
         # first set up the annotator
-        annotator = Annotate(fcc, tcc, mod_aod, orac_aod, orac_cost, fires, ax, smoke_polygons)
+        annotator = Annotate(fcc, tcc, mod_aod, orac_aod, orac_cost, fires, ax, plume_polygons, background_polygons)
 
         # then show the image
         plt.show()
 
-        # get the polygon points from the closed image
-        pts = zip(annotator.x, annotator.y)
-        if pts:
-            smoke_polygons.append(pts)
+        # get the polygon points from the closed image, only keep if plume and background polygons
+        plume_pts = zip(annotator.plume_x, annotator.plume_y)
+        background_pts = zip(annotator.background_x, annotator.background_y)
+        if plume_pts & background_pts:
+            plume_polygons.append(plume_pts)
+            background_polygons.append(background_pts)
 
         do_annotation = annotator.do_annotation
 
     plt.close(fig)
 
-    return smoke_polygons
+    return plume_polygons, background_polygons
 
 
-def extract_plume_bounds(plume, fname, plumes_list):
+def append_to_list(plume, background, fname, plumes_list):
     row_dict = {}
 
     row_dict['sensor'] = "MYD"
     row_dict['filename'] = fname
     row_dict['plume_extent'] = plume
+    row_dict['background_extent'] = background
 
     # lastly append to the data dictionary
     plumes_list.append(row_dict)
@@ -382,14 +407,14 @@ def main():
             orac_aod, orac_cost = aod_orac(orac_data)
 
         # do the digitising
-        smoke_polygons = digitise(fcc, tcc, mod_aod, orac_aod, orac_cost, fires)
-        if smoke_polygons is None:
+        plume_polygons, background_polygons = digitise(fcc, tcc, mod_aod, orac_aod, orac_cost, fires)
+        if plume_polygons is None:
             continue
 
         # process plumes and backgrounds
         plumes_list = []
-        for poly in smoke_polygons:
-            extract_plume_bounds(poly, myd021km_fname, plumes_list)
+        for pp, bp in zip(plume_polygons, background_polygons):
+            append_to_list(pp, bp, myd021km_fname, plumes_list)
 
         # covert pixel/background lists to dataframes and concatenate to main dataframes
         temp_plume_df = pd.DataFrame(plumes_list)
