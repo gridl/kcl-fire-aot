@@ -87,7 +87,7 @@ def fires_myd14(myd14_data):
     return np.where(myd14_data.select('fire mask').get() >= 7)
 
 
-def aod_myd04_3K(myd04_3K):
+def aod_myd04(myd04_3K):
     aod_params = myd04_3K.select("Optical_Depth_Land_And_Ocean").attributes()
     aod = myd04_3K.select("Optical_Depth_Land_And_Ocean").get()
     aod = (aod + aod_params['add_offset']) * aod_params['scale_factor']
@@ -358,7 +358,7 @@ def main():
             continue
 
         myd14_fname = get_modis_fname(filepaths.path_to_modis_frp, timestamp_myd, myd021km_fname)
-        myd04_3K_fname = get_modis_fname(filepaths.path_to_modis_aod_3k, timestamp_myd, myd021km_fname)
+        myd04_fname = get_modis_fname(filepaths.path_to_modis_aod, timestamp_myd, myd021km_fname)
         orac_fname = get_orac_fname(filepaths.path_to_orac_aod, timestamp_myd)
 
         try:
@@ -374,9 +374,9 @@ def main():
         if myd14_fname:
             myd14 = read_hdf(os.path.join(filepaths.path_to_modis_frp, myd14_fname))
             fires = fires_myd14(myd14)
-        if myd04_3K_fname:
-            myd04_3K = read_hdf(os.path.join(filepaths.path_to_modis_aod_3k, myd04_3K_fname))
-            mod_aod = aod_myd04_3K(myd04_3K)
+        if myd04_fname:
+            myd04 = read_hdf(os.path.join(filepaths.path_to_modis_aod, myd04_fname))
+            mod_aod = aod_myd04(myd04)
         if orac_fname:
             orac_data = read_orac(os.path.join(filepaths.path_to_orac_aod, orac_fname))
             orac_aod, orac_cost = aod_orac(orac_data)
