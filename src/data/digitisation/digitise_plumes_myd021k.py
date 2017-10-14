@@ -87,11 +87,11 @@ def fires_myd14(myd14_data):
     return np.where(myd14_data.select('fire mask').get() >= 7)
 
 
-def aod_myd04(myd04_3K):
-    aod_params = myd04_3K.select("Optical_Depth_Land_And_Ocean").attributes()
-    aod = myd04_3K.select("Optical_Depth_Land_And_Ocean").get()
+def aod_myd04(myd04):
+    aod_params = myd04.select("AOD_550_Dark_Target_Deep_Blue_Combined").attributes()
+    aod = myd04.select("AOD_550_Dark_Target_Deep_Blue_Combined").get()
     aod = (aod + aod_params['add_offset']) * aod_params['scale_factor']
-    aod = ndimage.zoom(aod, 3, order=1)
+    aod = ndimage.zoom(aod, 10, order=1)
     return aod
 
 
@@ -185,8 +185,8 @@ class Annotate(object):
         self.im = self.ax.imshow(self.orac_aod, interpolation='none', cmap='viridis')
         if fires is not None:
             self.plot = self.ax.plot(fires[1], fires[0], 'r.')
-        self.plume_polygons = self._add_polygons_to_axis(plume_polygons, 'Oranges')
         self.background_polygons = self._add_polygons_to_axis(background_polygons, 'Blues')
+        self.plume_polygons = self._add_polygons_to_axis(plume_polygons, 'Oranges')
 
         # set up the point holders for the plume and background polygons
         self.plume_x = []
@@ -195,7 +195,8 @@ class Annotate(object):
         self.background_y = []
 
         # set up the digitising patch
-        self.p = Circle((1,1))
+        self.plume_p = Circle((1,1))
+        self.background_p = Circle((1,1))
 
         # set up the events
         self.ax.figure.canvas.mpl_connect('button_press_event', self.click)
@@ -229,8 +230,8 @@ class Annotate(object):
         self.cbar = plt.colorbar(self.im, self.cax)
 
     def _add_polygons_to_axis(self, polygons, cmap):
-        plume_patches = [Polygon(verts, True) for verts in polygons]
-        p = PatchCollection(plume_patches, cmap=cmap, alpha=0.8)
+        patches = [Polygon(verts, True) for verts in polygons]
+        p = PatchCollection(patches, cmap=cmap, alpha=0.8)
         return self.ax.add_collection(p)
 
     def _radio_labels(self):
@@ -302,22 +303,28 @@ class Annotate(object):
             if self.type:
                 self.plume_x.append(int(event.xdata))
                 self.plume_y.append(int(event.ydata))
-                self._draw_polygon(len(self.plume_x), event, 'red')
+                if len(self.plume_x) < 3:
+                    self.plume_p = Circle((event.xdata, event.ydata), radius=0.25, facecolor='red', edgecolor='black')
+                    self.ax.add_patch(self.plume_p)
+                else:
+                    self.plume_p.remove()
+                    self.plume_p = Polygon(zip(self.plume_x, self.plume_y), color='red', alpha=0.5)
+                    plume_p = self.ax.add_patch(self.plume_p)
+                self.ax.figure.canvas.draw()
             elif not self.type:
                 self.background_x.append(int(event.xdata))
                 self.background_y.append(int(event.ydata))
-                self._draw_polygon(len(self.plume_x), event, 'blue')
+                if len(self.background_x) < 3:
+                    self.background_p = Circle((event.xdata, event.ydata), radius=0.25, facecolor='blue', edgecolor='black')
+                    self.ax.add_patch(self.background_p)
+                else:
+                    self.background_p.remove()
+                    self.background_p = Polygon(zip(self.background_x, self.background_y), color='blue', alpha=0.5)
+                    background_p = self.ax.add_patch(self.background_p)
+                self.ax.figure.canvas.draw()
 
 
-    def _draw_polygon(self, poly_len, event, color):
-        if poly_len < 3:
-            self.p = Circle((event.xdata, event.ydata), radius=0.25, facecolor=color, edgecolor='black')
-            self.ax.add_patch(self.p)
-        else:
-            self.p.remove()
-            self.p = Polygon(zip(self.x, self.y), color=color, alpha=0.5)
-            p = self.ax.add_patch(self.p)
-        self.ax.figure.canvas.draw()
+
 
 
 def digitise(fcc, tcc, mod_aod, orac_aod, orac_cost, fires):
@@ -341,7 +348,7 @@ def digitise(fcc, tcc, mod_aod, orac_aod, orac_cost, fires):
         # get the polygon points from the closed image, only keep if plume and background polygons
         plume_pts = zip(annotator.plume_x, annotator.plume_y)
         background_pts = zip(annotator.background_x, annotator.background_y)
-        if plume_pts & background_pts:
+        if plume_pts and background_pts:
             plume_polygons.append(plume_pts)
             background_polygons.append(background_pts)
 
@@ -382,9 +389,14 @@ def main():
         if image_seen(myd021km_fname):
             continue
 
-        myd14_fname = get_modis_fname(filepaths.path_to_modis_frp, timestamp_myd, myd021km_fname)
-        myd04_fname = get_modis_fname(filepaths.path_to_modis_aod, timestamp_myd, myd021km_fname)
-        orac_fname = get_orac_fname(filepaths.path_to_orac_aod, timestamp_myd)
+        try:
+            myd14_fname = get_modis_fname(filepaths.path_to_modis_frp, timestamp_myd, myd021km_fname)
+            myd04_fname = get_modis_fname(filepaths.path_to_modis_aod, timestamp_myd, myd021km_fname)
+            orac_fname = get_orac_fname(filepaths.path_to_orac_aod, timestamp_myd)
+        except Exception, e:
+            logger.warning('Could not load aux file for:' + myd021km_fname + '. Failed with ' + str(e))
+            continue
+
 
         try:
             myd021km = read_hdf(os.path.join(filepaths.path_to_modis_l1b, myd021km_fname))
