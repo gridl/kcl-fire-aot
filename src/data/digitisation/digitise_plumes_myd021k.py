@@ -413,13 +413,13 @@ def main():
                 myd14 = read_hdf(os.path.join(filepaths.path_to_modis_frp, myd14_fname))
                 fires = fires_myd14(myd14)
             except Exception, e:
-                logger.warning('Could not read myd14 file: ' + myd14)
+                logger.warning('Could not read myd14 file: ' + myd14_fname)
         if myd04_fname:
             try:
                 myd04 = read_hdf(os.path.join(filepaths.path_to_modis_aod, myd04_fname))
                 mod_aod = aod_myd04(myd04)
             except Exception, e:
-                logger.warning('Could not read myd04 file: ' + myd04)
+                logger.warning('Could not read myd04 file: ' + myd04_fname)
         if orac_fname:
             orac_data = read_orac(os.path.join(filepaths.path_to_orac_aod, orac_fname))
             orac_aod, orac_cost = aod_orac(orac_data)

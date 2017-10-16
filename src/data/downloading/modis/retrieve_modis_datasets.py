@@ -43,15 +43,19 @@ def get_files(ftp_laads):
     return file_list
 
 
-def get_filename(ftp_laads, doy, path, myd021km_file):
+def get_filename(ftp_laads, doy, product, mxd021km_file):
+
+    mxd_product = mxd021km_file[0:3] + product
+    product_path = fp.path_to_all_data + mxd_product + '/'
+
     try:
-        ftp_cd(ftp_laads, doy, path)
+        ftp_cd(ftp_laads, doy, product_path)
         file_list = get_files(ftp_laads)
 
         # find the right file
         file_list = [f.split(None, 8)[-1].lstrip() for f in file_list]
-        myd04_file = [f for f in file_list if myd021km_file[10:23] in f][0]
-        return myd04_file
+        product_file = [f for f in file_list if mxd021km_file[10:23] in f][0]
+        return product_file, product_path
 
     except:
         logger.info('Could not access file list for DOY: ' + doy + " on attempt 1. Reattempting...")
@@ -59,20 +63,20 @@ def get_filename(ftp_laads, doy, path, myd021km_file):
         while True:
             try:
                 ftp_laads = ftp_connect_laads()
-                ftp_cd(ftp_laads, doy, fp.path_to_myd04)
+                ftp_cd(ftp_laads, doy, product_path)
                 file_list = get_files(ftp_laads)
 
                 # find the right file
                 file_list = [f.split(None, 8)[-1].lstrip() for f in file_list]
-                myd_file = [f for f in file_list if myd021km_file[10:23] in f][0]
-                return myd_file
+                product_file = [f for f in file_list if mxd021km_file[10:23] in f][0]
+                return product_file, product_path
             except:
                 attempt += 1
                 logger.info('Could not access file list for DOY: ' + doy + " on attempt " + str(attempt) +
                             " Reattempting...")
                 time.sleep(5)
                 if attempt == 10:
-                    return str()
+                    return str(), str()
 
 
 def ftp_cd(ftp_laads, doy, directory):
@@ -129,30 +133,30 @@ def main():
     temp_path = fp.path_to_modis_tmp
 
     with open(file_list, 'rb') as fl:
-        myd021km_filenames = fl.readlines()
+        mxd021km_filenames = fl.readlines()
 
-    for myd021km_filename in myd021km_filenames:
+    for mxd021km_filename in mxd021km_filenames:
 
-        myd021km_filename = myd021km_filename.rstrip()
+        mxd021km_filename = mxd021km_filename.rstrip()
 
-        downloading = check_downloading_status(temp_path, myd021km_filename)
+        downloading = check_downloading_status(temp_path, mxd021km_filename)
         if downloading:
             continue
         else:
-            append_to_download_list(temp_path, myd021km_filename)
+            append_to_download_list(temp_path, mxd021km_filename)
 
         # get ftp filename
-        doy = myd021km_filename[14:17]
-        myd14_filename = get_filename(ftp_laads, doy, fp.path_to_myd14, myd021km_filename)
-        myd03_filename = get_filename(ftp_laads, doy, fp.path_to_myd03, myd021km_filename)
-        myd04_filename = get_filename(ftp_laads, doy, fp.path_to_myd04, myd021km_filename)
+        doy = mxd021km_filename[14:17]
+        mxd14_filename, mxd14_filepath = get_filename(ftp_laads, doy, '14', mxd021km_filename)
+        mxd03_filename, mxd03_filepath = get_filename(ftp_laads, doy, '03', mxd021km_filename)
+        mxd04_filename, mxd04_filepath = get_filename(ftp_laads, doy, '04_L2', mxd021km_filename)
 
         # pull them down
-        logger.info("Getting products for L1B file " + myd021km_filename + "...")
+        logger.info("Getting products for L1B file " + mxd021km_filename + "...")
 
-        filenames = [myd021km_filename, myd14_filename, myd03_filename, myd04_filename]
-        ftp_dirs = [fp.path_to_myd021km, fp.path_to_myd14, fp.path_to_myd03, fp.path_to_myd04]
-        local_dirs = [fp.path_to_modis_l1b, fp.path_to_modis_frp, fp.path_to_modis_geo, fp.path_to_modis_aod]
+        filenames = [mxd14_filename, mxd03_filename, mxd04_filename]
+        ftp_dirs = [mxd14_filepath, mxd03_filepath, mxd04_filepath]
+        local_dirs = [fp.path_to_modis_frp, fp.path_to_modis_geo, fp.path_to_modis_aod]
 
         for fname, ftp_dir, local_dir in zip(filenames, ftp_dirs, local_dirs):
             # check if local dir exists if not make it
