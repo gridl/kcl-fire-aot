@@ -398,8 +398,6 @@ def main():
         except Exception, e:
             logger.warning('Could not load aux file for:' + myd021km_fname + '. Failed with ' + str(e))
             continue
-
-
         try:
             myd021km = read_hdf(os.path.join(filepaths.path_to_modis_l1b, myd021km_fname))
             fcc = fcc_myd021km(myd021km)
@@ -411,11 +409,17 @@ def main():
         # if filenames load in data
         fires, mod_aod, orac_aod, orac_cost = None, None, None, None
         if myd14_fname:
-            myd14 = read_hdf(os.path.join(filepaths.path_to_modis_frp, myd14_fname))
-            fires = fires_myd14(myd14)
+            try:
+                myd14 = read_hdf(os.path.join(filepaths.path_to_modis_frp, myd14_fname))
+                fires = fires_myd14(myd14)
+            except Exception, e:
+                logger.warning('Could not read myd14 file: ' + myd14)
         if myd04_fname:
-            myd04 = read_hdf(os.path.join(filepaths.path_to_modis_aod, myd04_fname))
-            mod_aod = aod_myd04(myd04)
+            try:
+                myd04 = read_hdf(os.path.join(filepaths.path_to_modis_aod, myd04_fname))
+                mod_aod = aod_myd04(myd04)
+            except Exception, e:
+                logger.warning('Could not read myd04 file: ' + myd04)
         if orac_fname:
             orac_data = read_orac(os.path.join(filepaths.path_to_orac_aod, orac_fname))
             orac_aod, orac_cost = aod_orac(orac_data)
