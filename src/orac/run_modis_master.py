@@ -103,7 +103,7 @@ def run_pro(proc_params):
                     # write out processed filenames for transfer
                     transfer_filelist.write(os.path.join(pro_dir, msi_root + phs + ".primary.nc") + '\n')                  
                     # call orac
-                    #os.system('./orac_main.py ' + proc_cmd + phs + ' ' + msi_root)
+                    os.system('./orac_main.py ' + proc_cmd + phs + ' ' + msi_root)
 
 
 def main():
