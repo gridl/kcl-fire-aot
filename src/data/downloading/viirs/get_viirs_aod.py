@@ -6,8 +6,6 @@ import ftplib
 import time
 
 import src.config.filepaths as filepaths
-import src.config.data as data_settings
-
 
 def ftp_connect_laads():
     try:
@@ -29,15 +27,15 @@ def ftp_connect_laads():
                 attempt += 1
 
 
-def get_file(ftp_laads, doy, myd021km_file):
+def get_file(ftp_laads, year, doy, VAOTIP_L2_filetime):
     try:
-        ftp_cd(ftp_laads, doy, filepaths.path_to_myd04)
+        ftp_cd(ftp_laads, year, doy, filepaths.path_to_VAOTIP_L2)
         file_list = get_files(ftp_laads)
 
         # find the right file
         file_list = [f.split(None, 8)[-1].lstrip() for f in file_list]
-        myd04_file = [f for f in file_list if myd021km_file[10:23] in f][0]
-        return myd04_file
+        VAOTIP_L2_file = [f for f in file_list if VAOTIP_L2_filetime in f][0]
+        return VAOTIP_L2_file
 
     except:
         logger.info('Could not access file list for DOY: ' + doy + " on attempt 1. Reattempting...")
@@ -45,13 +43,13 @@ def get_file(ftp_laads, doy, myd021km_file):
         while True:
             try:
                 ftp_laads = ftp_connect_laads()
-                ftp_cd(ftp_laads, doy, filepaths.path_to_myd04)
+                ftp_cd(ftp_laads, year, doy, filepaths.path_to_VAOTIP_L2)
                 file_list = get_files(ftp_laads)
 
                 # find the right file
                 file_list = [f.split(None, 8)[-1].lstrip() for f in file_list]
-                myd04_file = [f for f in file_list if myd021km_file[10:23] in f][0]
-                return myd04_file
+                VAOTIP_L2_file = [f for f in file_list if VAOTIP_L2_filetime in f][0]
+                return VAOTIP_L2_file
             except:
                 attempt += 1
                 logger.info('Could not access file list for DOY: ' + doy + " on attempt " + str(attempt) +
@@ -67,13 +65,13 @@ def get_files(ftp_laads):
     return file_list
 
 
-def retrieve(ftp_laads, doy, local_filename, filename):
+def retrieve(ftp_laads, year, doy, local_filename, filename):
     # try accessing ftp, if fail then reconnect
     try:
-        ftp_cd(ftp_laads, doy, filepaths.path_to_myd04)
+        ftp_cd(ftp_laads, year, doy, filepaths.path_to_VAOTIP_L2)
     except:
         ftp_laads = ftp_connect_laads()
-        ftp_cd(ftp_laads, doy, filepaths.path_to_myd04)
+        ftp_cd(ftp_laads, year, doy, filepaths.path_to_VAOTIP_L2)
 
 
     lf = open(local_filename, "wb")
@@ -82,9 +80,9 @@ def retrieve(ftp_laads, doy, local_filename, filename):
     ftp_laads.close()
 
 
-def ftp_cd(ftp_laads, doy, directory):
+def ftp_cd(ftp_laads, year, doy, directory):
     ftp_laads.cwd("/")
-    ftp_laads.cwd(directory + data_settings.myd_year + '/')
+    ftp_laads.cwd(directory + year + '/')
     ftp_laads.cwd(doy)
 
 
@@ -113,44 +111,43 @@ def main():
     ftp_laads = ftp_connect_laads()
 
     # get the files to download
-    for f in os.listdir(filepaths.path_to_modis_l1b):
-        
-        if not f:
-            continue
+    filename_list = 'indonesia_filenames_viirs.txt'
+    with open(os.path.join(filepaths.path_to_filelists, filename_list), 'rb') as filenames:
+        for f in filenames.readlines():
 
-        # check if year we are working on is in the file, if not move on
-        if data_settings.myd_year not in f[0:16]:
-            continue
+            if not f:
+                continue
+            f = f.rstrip()
 
-        # check if the file for the MYD04 data  is being downloaded by another script already
-        downloading = check_downloading_status(temp_path, f)
-        if downloading:
-            continue
-        else:
-            append_to_download_list(temp_path, f)
+            # check if the file for the MYD04 data  is being downloaded by another script already
+            downloading = check_downloading_status(temp_path, f)
+            if downloading:
+                continue
+            else:
+                append_to_download_list(temp_path, f)
 
+            # find the correct viirs file
+            year = f[0:4]
+            doy = f[4:7]
+            if not doy:
+                continue
+            VAOTIP_L2_filename = get_file(ftp_laads, year, doy, f)
 
-        # find the correct myd04 file
-        doy = f[14:17]
-        if not doy:
-            continue
-        myd04_filename = get_file(ftp_laads, doy, f)
+            if not VAOTIP_L2_filename:
+                logger.warning('Could not download myd04 file for file: ' + f)
+                continue
 
-        if not myd04_filename:
-            logger.warning('Could not download myd04 file for file: ' + f)
-            continue
+            # download the filef
+            local_filename = os.path.join(filepaths.path_to_viirs_aod, VAOTIP_L2_filename)
 
-        # download the filef
-        local_filename = os.path.join(filepaths.path_to_modis_aod, myd04_filename)
+            if not os.path.isfile(local_filename):  # if we dont have the file, then dl it
+                logger.info("Downloading: " + VAOTIP_L2_filename)
+                retrieve(ftp_laads, year, doy, local_filename, VAOTIP_L2_filename)
+            else:
+                logger.info(VAOTIP_L2_filename + ' already exists on the system')
 
-        if not os.path.isfile(local_filename):  # if we dont have the file, then dl it
-            logger.info("Downloading: " + myd04_filename)
-            retrieve(ftp_laads, doy, local_filename, myd04_filename)
-        else:
-            logger.info(myd04_filename + ' already exists on the system')
-
-        # remote temp empty file from currently downloading list
-        remove_from_download_list(temp_path, f)
+            # remote temp empty file from currently downloading list
+            remove_from_download_list(temp_path, f)
 
 
 if __name__ == "__main__":

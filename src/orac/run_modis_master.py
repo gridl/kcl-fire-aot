@@ -8,13 +8,15 @@ from datetime import datetime
 
 class ProcParams(object):
     def __init__(self):
+        self.sensor = "myd"
+        self.proc_level = 'pro'
+
         self.filelist_name = 'indonesia_filepaths.txt'
         self.processing_filelist_dir = '/home/users/dnfisher/nceo_aerosolfire/data/filelists/processing/'
         self.transfer_filelist_dir = '/home/users/dnfisher/nceo_aerosolfire/data/filelists/transfer/'
-        self.data_dir = '/group_workspaces/cems2/nceo_generic/satellite_data/modis_c6/myd021km/'
-        self.geo_dir = '/group_workspaces/cems2/nceo_generic/satellite_data/modis_c6/myd03/'
-        self.output_dir = '/group_workspaces/cems/nceo_aerosolfire/data/orac_proc/myd/'
-        self.proc_level = 'pro'
+        self.data_dir = '/group_workspaces/cems2/nceo_generic/satellite_data/modis_c6/{0}021km/'.format(self.sensor)
+        self.geo_dir = '/group_workspaces/cems2/nceo_generic/satellite_data/modis_c6/{0}03/'.format(self.sensor)
+        self.output_dir = '/group_workspaces/cems/nceo_aerosolfire/data/orac_proc/{0}/'.format(self.sensor)
 
         self.cldsaddir = '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/sad_dir/modis_WAT'
         self.cldphs = ['WAT']
@@ -32,7 +34,7 @@ def run_pre(proc_params):
     # iterate over mod files in proc filelisr
     for root, dirs, files in os.walk(proc_params.data_dir):
         for f in files:
-            if f in file_list:
+            if (f in file_list) and (f[0:3] == proc_params.sensor):
                 input_file_path = os.path.join(root, f)
             # elif f:  # check if not empty
             #    input_file_path = os.path.join(root, f)
