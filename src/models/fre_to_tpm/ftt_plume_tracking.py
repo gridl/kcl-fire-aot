@@ -78,7 +78,7 @@ def spatial_subset(lats_1, lons_1, lats_2, lons_2):
     :return bounds: bounding box locating l1 in l2
     """
 
-    padding = 25  # pixels
+    padding = 100  # pixels
 
     min_lat = np.min(lats_1)
     max_lat = np.max(lats_1)
@@ -206,6 +206,15 @@ def rescale_image(image, display_min, display_max):
     return image.astype(np.uint8)
 
 
+def normalise_image(im):
+    eps = 0.001  # to prevent div by zero
+    sig = 1  # standard deviation of gaussian
+    mean_im = ndimage.filters.gaussian_filter(im, sig)
+    sd_im = np.sqrt(ndimage.filters.gaussian_filter((im - mean_im) ** 2, sig))
+    return (im - mean_im) / (sd_im + eps)
+
+
+
 def extract_observations(f1, f2, bb, segment):
     # load geostationary files for the segment
     f1_rad_s1, _ = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_l1b, f1))
@@ -222,11 +231,16 @@ def extract_observations(f1, f2, bb, segment):
     f2_rad = np.vstack((f2_rad_s1, f2_rad_s2))
 
     # extract geostationary image subset using adjusted bb and rescale to 8bit
-    f1_rad = f1_rad[bb['min_y']:bb['max_y'], bb['min_x']:bb['max_x']]
-    f2_rad = f2_rad[bb['min_y']:bb['max_y'], bb['min_x']:bb['max_x']]
-    f1_rad = rescale_image(f1_rad, f1_rad.min(), f1_rad.max())
-    f2_rad = rescale_image(f2_rad, f2_rad.min(), f2_rad.max())
-    return f1_rad, f2_rad
+    f1_rad_bb = f1_rad[bb['min_y']:bb['max_y'], bb['min_x']:bb['max_x']]
+    f2_rad_bb = f2_rad[bb['min_y']:bb['max_y'], bb['min_x']:bb['max_x']]
+
+    # normalise
+    f1_rad_bb_norm = normalise_image(f1_rad_bb)
+    f2_rad_bb_norm = normalise_image(f2_rad_bb)
+
+    f1_rad_bb_norm = rescale_image(f1_rad_bb_norm, f1_rad_bb_norm.min(), f1_rad_bb_norm.max())
+    f2_rad_bb_norm = rescale_image(f2_rad_bb_norm, f2_rad_bb_norm.min(), f2_rad_bb_norm.max())
+    return f1_rad_bb_norm, f2_rad_bb_norm, f1_rad_bb, f2_rad_bb
 
 
 def feature_detector(fast, im, mask, tracks):
@@ -377,7 +391,7 @@ def find_integration_start_stop_times(plume_fname,
 
     geostationary_fnames = setup_geostationary_files(plume_time, min_image_segment)
 
-    fast = cv2.FastFeatureDetector_create(threshold=25)  # feature detector
+    fast = cv2.FastFeatureDetector_create(threshold=15)  # feature detector
 
     # plot stuff
     if plot:
@@ -394,19 +408,20 @@ def find_integration_start_stop_times(plume_fname,
 
     # iterate over geostationary files
     for i, (f1, f2) in enumerate(zip(geostationary_fnames[:-1], geostationary_fnames[1:])):
-        print i
 
         # set up observations
-        f1_subset, f2_subset = extract_observations(f1, f2, bb, min_image_segment)
+        f1_subset, f2_subset, f1_display_subset, f2_display_subset = extract_observations(f1, f2, bb, min_image_segment)
 
         # reproject subsets to UTM grid
         f1_subset_reproj = utm_resampler.resample_image(f1_subset, subset_lats, subset_lons)
         f2_subset_reproj = utm_resampler.resample_image(f2_subset, subset_lats, subset_lons)
+        f1_display_subset_reproj = utm_resampler.resample_image(f1_display_subset, subset_lats, subset_lons)
 
         # FEATURE DETECTION - detect good points to track in the image using FAST
         feature_detector(fast, f2_subset_reproj, plume_mask, tracks)  # tracks updated inplace
 
         # FLOW COMPUTATION - compute the flow between the images, but only if we have features
+        print 'n points:', len(tracks)
         if len(tracks) > 0:
             tracks, flow = compute_flow(tracks, f2_subset_reproj, f1_subset_reproj)
 
@@ -422,7 +437,7 @@ def find_integration_start_stop_times(plume_fname,
         if plot:
             utm_flow_vectors += [utm_plume_projected_flow_vectors[-1] + flow_means[i]]
             utm_plume_projected_flow_vectors += [utm_plume_projected_flow_vectors[-1] + projected_flow_vector]
-            vis.display_masked_map(f1_subset_reproj,
+            vis.display_masked_map(f1_display_subset_reproj,
                                    plume_points,
                                    utm_resampler,
                                    plume_head,
