@@ -2,6 +2,7 @@ import re
 import os
 import logging
 
+import matplotlib.pyplot as plt
 from pyhdf.SD import SD, SDC
 import numpy as np
 
@@ -80,7 +81,7 @@ def main():
                                                                      geostationary_lats, geostationary_lons,
                                                                      utm_fires,
                                                                      utm_resampler,
-                                                                     plot=False)
+                                                                     plot=True)
 
         # get the variables of interest
         if start_time is not None:

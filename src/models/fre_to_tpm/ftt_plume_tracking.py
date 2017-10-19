@@ -118,21 +118,15 @@ def subset_geograpic_data(geostationary_lats, geostationary_lons, bb):
     return geostationary_lats_subset, geostationary_lons_subset
 
 
-def find_image_segment(bb):
+def find_min_himawari_image_segment(bb):
     """
     :param bb: bounding box
     :return: the himawari image segment for the given bounding box
     """
     # there are ten 1100 pixel segments in himawari 1 km data
     seg_size = 1100
-    segment_min = bb['min_y'] / seg_size + 1
-    segment_max = bb['max_y'] / seg_size + 1
-
-    if segment_min == segment_max:
-        return segment_min
-    else:
-        logger.critical('Plumes crossing multiple himawari image segments not yet implemented')
-        return None
+    min_segment = bb['min_y'] / seg_size + 1
+    return min_segment
 
 
 def adjust_bb_for_segment(bb, segment):
@@ -212,10 +206,20 @@ def rescale_image(image, display_min, display_max):
     return image.astype(np.uint8)
 
 
-def extract_observations(f1, f2, bb):
-    # load geostationary files
-    f1_rad, _ = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_l1b, f1))
-    f2_rad, _ = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_l1b, f2))
+def extract_observations(f1, f2, bb, segment):
+    # load geostationary files for the segment
+    f1_rad_s1, _ = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_l1b, f1))
+    f2_rad_s1, _ = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_l1b, f2))
+
+    # load for the next segment
+    f1_rad_s2, _ = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_l1b, f1.replace('S'+str(segment).zfill(2),
+                                                                                           'S'+str(segment+1).zfill(2))))
+    f2_rad_s2, _ = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_l1b, f2.replace('S'+str(segment).zfill(2),
+                                                                                           'S'+str(segment+1).zfill(2))))
+
+    # concat the himawari files
+    f1_rad = np.vstack((f1_rad_s1, f1_rad_s2))
+    f2_rad = np.vstack((f2_rad_s1, f2_rad_s2))
 
     # extract geostationary image subset using adjusted bb and rescale to 8bit
     f1_rad = f1_rad[bb['min_y']:bb['max_y'], bb['min_x']:bb['max_x']]
@@ -367,11 +371,11 @@ def find_integration_start_stop_times(plume_fname,
 
     subset_lats, subset_lons = subset_geograpic_data(geostationary_lats, geostationary_lons, bb)
 
-    image_segment = find_image_segment(bb)
+    min_image_segment = find_min_himawari_image_segment(bb)
 
-    adjust_bb_for_segment(bb, image_segment - 1)
+    adjust_bb_for_segment(bb, min_image_segment - 1)
 
-    geostationary_fnames = setup_geostationary_files(plume_time, image_segment)
+    geostationary_fnames = setup_geostationary_files(plume_time, min_image_segment)
 
     fast = cv2.FastFeatureDetector_create(threshold=25)  # feature detector
 
@@ -382,7 +386,6 @@ def find_integration_start_stop_times(plume_fname,
 
     # iterator stuff
     plume_length = np.linalg.norm(plume_vector)
-    current_plume_length = 0
     flow_means = np.zeros([72, 2])
     flow_sds = np.zeros([72, 2])
     flow_nobs = np.zeros([72])
@@ -394,7 +397,7 @@ def find_integration_start_stop_times(plume_fname,
         print i
 
         # set up observations
-        f1_subset, f2_subset = extract_observations(f1, f2, bb)
+        f1_subset, f2_subset = extract_observations(f1, f2, bb, min_image_segment)
 
         # reproject subsets to UTM grid
         f1_subset_reproj = utm_resampler.resample_image(f1_subset, subset_lats, subset_lons)
