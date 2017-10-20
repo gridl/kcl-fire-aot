@@ -108,6 +108,44 @@ def display_masked_map(img, plume_points, utm_resampler,
     plt.close()
 
 
+def display_masked_map_first(img, plume_points, utm_resampler,
+                             plume_head, plume_tail, fname):
+
+    x, y = plume_points.minimum_rotated_rectangle.exterior.xy
+    verts = [utm_resampler.resample_point_to_geo(y, x) for (x, y) in zip(x, y)]
+
+    plume_head = utm_resampler.resample_point_to_geo(plume_head[1], plume_head[0])
+    plume_tail = utm_resampler.resample_point_to_geo(plume_tail[1], plume_tail[0])
+
+    lons, lats = utm_resampler.area_def.get_lonlats()
+    crs = ccrs.PlateCarree()
+    extent = [np.min(lons), np.max(lons), np.min(lats), np.max(lats)]
+
+    u_padding = -0
+    l_padding = -0
+    padded_extent = [np.min(lons) - u_padding, np.max(lons) + u_padding,
+                     np.min(lats) - u_padding, np.max(lats) + l_padding]
+
+    ax = plt.axes(projection=crs)
+    ax.set_extent(padded_extent)
+
+    ax.coastlines(resolution='50m', color='black', linewidth=1)
+
+    #gridlines = ax.gridlines(draw_labels=True)
+    plt.imshow(img, transform=crs, extent=extent, origin='upper', cmap='gray')
+    plt.plot([plume_head[0], plume_tail[0]], [plume_head[1], plume_tail[1]], 'k-', linewidth=1)
+
+
+    for v1, v2 in zip(verts[:-1], verts[1:]):
+        plt.plot([v1[0], v2[0]], [v1[1], v2[1]], 'k-', linewidth=1)
+
+    plt.plot(plume_head[0], plume_head[1], 'r.', markersize=2)
+    #plt.plot(plume_tail[0], plume_tail[1], 'r>', markersize=2)
+
+    #plt.show()
+    plt.savefig(os.path.join(fp.path_to_him_visualisations, 'plumes', fname), bbox_inches='tight', dpi=300)
+    plt.close()
+
 
 def display_flow(x_flow, y_flow, f1_radiances, utm_resampler, fname):
 

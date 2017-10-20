@@ -35,38 +35,31 @@ def compute_plume_vector(plume_points, fire_positions):
     :return: The loingest vector that points from the distal end of the plume to the fire end
     """
 
-    # compute mean fire position
+    # compute median fire position
     fire_positions = np.array(fire_positions)
     # x, y
-    fire_pos = np.array([np.mean(fire_positions[:, 0]), np.mean(fire_positions[:, 1])])
+    fire_pos = np.array([np.median(fire_positions[:, 0]), np.median(fire_positions[:, 1])])
 
     # first find the vertices of the plume polygon
     x, y = plume_points.minimum_rotated_rectangle.exterior.xy
     verts = zip(x, y)
 
-    # next find the midpoints of the shortest sides
-    side_a = np.linalg.norm(np.array(verts[0]) - np.array(verts[1]))
-    side_b = np.linalg.norm(np.array(verts[1]) - np.array(verts[2]))
-    if side_a > side_b:
-        mid_point_a = (np.array(verts[1]) + np.array(verts[2])) / 2.
-        mid_point_b = (np.array(verts[3]) + np.array(verts[4])) / 2.
-    else:
-        mid_point_a = (np.array(verts[0]) + np.array(verts[1])) / 2.
-        mid_point_b = (np.array(verts[2]) + np.array(verts[3])) / 2.
-
-    # determine which mid point is closest to the fire and create vector
-    dist_a = np.linalg.norm(fire_pos - mid_point_a)
-    dist_b = np.linalg.norm(fire_pos - mid_point_b)
+    smallest_dist_from_side = 999999
+    for i, (v1, v2) in enumerate(zip(verts[:-1], verts[1:])):
+        side = np.array(v2) - np.array(v1)  # get the vector of the side of the rectangle
+        hyp = fire_pos - np.array(v1)  # get the vector between plume and vertex
+        proj_hyp = np.dot(side, hyp) / np.dot(side, side) * side  # project that vector onto side
+        dist_from_side = np.linalg.norm(np.array(hyp - proj_hyp))  # compute distance between them
+        if dist_from_side < smallest_dist_from_side:
+            smallest_dist_from_side = dist_from_side
+            mid_point_a = (np.array(v1) + np.array(v2)) / 2
+            # get the opposite side of the rectangle
+            mid_point_b = (np.array(verts[(i + 2) % 4]) + np.array(verts[(i + 3) % 4])) / 2
 
     # we want the head of the vector at the fire, and the tail at the origin
-    # if mid_point_a is closest to the fire then we need to subtract b from a (by vector subtraction)
-    # and vice versa if the fire is closest to midpoint b.
-    if dist_a < dist_b:
-        # head location, tail location, relative shift
-        return mid_point_a, mid_point_b, mid_point_a - mid_point_b  # fires closest to a
-    else:
-        # head location, tail location, relative shift
-        return mid_point_b, mid_point_a, mid_point_b - mid_point_a  # fire closest to b
+    # as mid_point_a is closest to the fire then we need to subtract b from a (by vector subtraction)
+    # head location, tail location, relative shift
+    return mid_point_a, mid_point_b, mid_point_a - mid_point_b  # fires closest to a
 
 
 def spatial_subset(lats_1, lons_1, lats_2, lons_2):
@@ -214,17 +207,18 @@ def normalise_image(im):
     return (im - mean_im) / (sd_im + eps)
 
 
-
 def extract_observations(f1, f2, bb, segment):
     # load geostationary files for the segment
     f1_rad_s1, _ = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_l1b, f1))
     f2_rad_s1, _ = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_l1b, f2))
 
     # load for the next segment
-    f1_rad_s2, _ = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_l1b, f1.replace('S'+str(segment).zfill(2),
-                                                                                           'S'+str(segment+1).zfill(2))))
-    f2_rad_s2, _ = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_l1b, f2.replace('S'+str(segment).zfill(2),
-                                                                                           'S'+str(segment+1).zfill(2))))
+    f1_rad_s2, _ = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_l1b, f1.replace('S' + str(segment).zfill(2),
+                                                                                           'S' + str(segment + 1).zfill(
+                                                                                               2))))
+    f2_rad_s2, _ = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_l1b, f2.replace('S' + str(segment).zfill(2),
+                                                                                           'S' + str(segment + 1).zfill(
+                                                                                               2))))
 
     # concat the himawari files
     f1_rad = np.vstack((f1_rad_s1, f1_rad_s2))
@@ -335,8 +329,8 @@ def assess_flow(flow, flow_means, flow_sds, flow_nobs, tracks, i, pix_size=1000)
     """
     if len(tracks) <= 0:
         if i != 0:
-            flow_means[i] = flow_means[i-1]
-            flow_sds[i] = flow_sds[i-1]
+            flow_means[i] = flow_means[i - 1]
+            flow_sds[i] = flow_sds[i - 1]
             flow_nobs[i] = 0
     else:
         flow_means[i, :] = np.mean(flow, axis=0) * pix_size
@@ -351,7 +345,6 @@ def assess_flow(flow, flow_means, flow_sds, flow_nobs, tracks, i, pix_size=1000)
     if flow_nobs[i] < 5:
         flow_means[i] = flow_means[i - 1]
         flow_sds[i] = flow_sds[i - 1]
-
 
 
 def find_integration_start_stop_times(plume_fname,
@@ -405,6 +398,7 @@ def find_integration_start_stop_times(plume_fname,
     flow_nobs = np.zeros([72])
     projected_flow_magnitude = np.zeros(72)
     tracks = []
+    thresh = 1000  # stopping condition in metres (if distance between plumes is less than this)
 
     # iterate over geostationary files
     for i, (f1, f2) in enumerate(zip(geostationary_fnames[:-1], geostationary_fnames[1:])):
@@ -415,7 +409,17 @@ def find_integration_start_stop_times(plume_fname,
         # reproject subsets to UTM grid
         f1_subset_reproj = utm_resampler.resample_image(f1_subset, subset_lats, subset_lons)
         f2_subset_reproj = utm_resampler.resample_image(f2_subset, subset_lats, subset_lons)
-        f1_display_subset_reproj = utm_resampler.resample_image(f1_display_subset, subset_lats, subset_lons)
+        f2_display_subset_reproj = utm_resampler.resample_image(f2_display_subset, subset_lats, subset_lons)
+
+        # if plotting and on first iteration plot the first image
+        if plot & (i == 0):
+            f1_display_subset_reproj = utm_resampler.resample_image(f1_display_subset, subset_lats, subset_lons)
+            vis.display_masked_map_first(f1_display_subset_reproj,
+                                         plume_points,
+                                         utm_resampler,
+                                         plume_head,
+                                         plume_tail,
+                                         f1.split('/')[-1].split('.')[0] + '_subset.jpg')
 
         # FEATURE DETECTION - detect good points to track in the image using FAST
         feature_detector(fast, f2_subset_reproj, plume_mask, tracks)  # tracks updated inplace
@@ -437,19 +441,20 @@ def find_integration_start_stop_times(plume_fname,
         if plot:
             utm_flow_vectors += [utm_plume_projected_flow_vectors[-1] + flow_means[i]]
             utm_plume_projected_flow_vectors += [utm_plume_projected_flow_vectors[-1] + projected_flow_vector]
-            vis.display_masked_map(f1_display_subset_reproj,
+            vis.display_masked_map(f2_display_subset_reproj,
                                    plume_points,
                                    utm_resampler,
                                    plume_head,
                                    plume_tail,
                                    utm_flow_vectors,
                                    utm_plume_projected_flow_vectors,
-                                   f1.split('/')[-1].split('.')[0] + '_subset.jpg')
+                                   f2.split('/')[-1].split('.')[0] + '_subset.jpg')
 
         # sum current plume length and compare with total plume length
-        if projected_flow_magnitude.sum() > plume_length:
+        summed_length = projected_flow_magnitude.sum()
+        if ((summed_length - plume_length) < thresh) | (summed_length > plume_length):
             t1 = datetime.strptime(geostationary_fnames[0].split('/')[-1][7:20], '%Y%m%d_%H%M')
             t2 = datetime.strptime(f2.split('/')[-1][7:20], '%Y%m%d_%H%M')
-            return t1, t2   # return time of the second file
+            return t1, t2  # return time of the second file
 
     return None, None
