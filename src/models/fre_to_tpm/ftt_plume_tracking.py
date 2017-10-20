@@ -35,6 +35,9 @@ def compute_plume_vector(plume_points, fire_positions):
     :return: The loingest vector that points from the distal end of the plume to the fire end
     """
 
+    # ratio to determine if the head of the vector is too far from the fires
+    ratio = 0.25
+
     # compute median fire position
     fire_positions = np.array(fire_positions)
     # x, y
@@ -52,14 +55,47 @@ def compute_plume_vector(plume_points, fire_positions):
         dist_from_side = np.linalg.norm(np.array(hyp - proj_hyp))  # compute distance between them
         if dist_from_side < smallest_dist_from_side:
             smallest_dist_from_side = dist_from_side
-            mid_point_a = (np.array(v1) + np.array(v2)) / 2
-            # get the opposite side of the rectangle
-            mid_point_b = (np.array(verts[(i + 2) % 4]) + np.array(verts[(i + 3) % 4])) / 2
 
-    # we want the head of the vector at the fire, and the tail at the origin
-    # as mid_point_a is closest to the fire then we need to subtract b from a (by vector subtraction)
-    # head location, tail location, relative shift
-    return mid_point_a, mid_point_b, mid_point_a - mid_point_b  # fires closest to a
+            # head and tail of the vector are the side midpoint near the fires (i.e. the current side)
+            # and the opposite side to the side near the fires
+            head = (np.array(v1) + np.array(v2)) / 2
+            tail = (np.array(verts[(i + 2) % 4]) + np.array(verts[(i + 3) % 4])) / 2
+
+    # compute distance between fires and head of the midpoint vector, and head and tail of the midpoint vector
+    fire_to_head_distance = np.linalg.norm(np.array(fire_pos - head))
+    head_to_tail_distance = np.linalg.norm(np.array(tail - head))
+
+    # if the ratio of the above less than the set threshold, then we have an appropriate plume vector
+    # that runs from the end of the plume, to the fires.
+    if fire_to_head_distance/head_to_tail_distance < ratio:
+        return head, tail, head-tail
+
+    # if not then we assume that the plume is much longer than wide and use the following approach
+    else:
+
+        # next find the midpoints of the shortest sides
+        side_a = np.linalg.norm(np.array(verts[0]) - np.array(verts[1]))
+        side_b = np.linalg.norm(np.array(verts[1]) - np.array(verts[2]))
+        if side_a > side_b:
+            mid_point_a = (np.array(verts[1]) + np.array(verts[2])) / 2.
+            mid_point_b = (np.array(verts[3]) + np.array(verts[4])) / 2.
+        else:
+            mid_point_a = (np.array(verts[0]) + np.array(verts[1])) / 2.
+            mid_point_b = (np.array(verts[2]) + np.array(verts[3])) / 2.
+
+        # determine which mid point is closest to the fire and create vector
+        dist_a = np.linalg.norm(fire_pos - mid_point_a)
+        dist_b = np.linalg.norm(fire_pos - mid_point_b)
+
+        # we want the head of the vector at the fire, and the tail at the origin
+        # if mid_point_a is closest to the fire then we need to subtract b from a (by vector subtraction)
+        # and vice versa if the fire is closest to midpoint b.
+        if dist_a < dist_b:
+            # head location, tail location, relative shift
+            return mid_point_a, mid_point_b, mid_point_a - mid_point_b  # fires closest to a
+        else:
+            # head location, tail location, relative shift
+            return mid_point_b, mid_point_a, mid_point_b - mid_point_a  # fire closest to b
 
 
 def spatial_subset(lats_1, lons_1, lats_2, lons_2):
@@ -347,7 +383,8 @@ def assess_flow(flow, flow_means, flow_sds, flow_nobs, tracks, i, pix_size=1000)
         flow_sds[i] = flow_sds[i - 1]
 
 
-def find_integration_start_stop_times(plume_fname,
+def find_integration_start_stop_times(p_number,
+                                      plume_fname,
                                       plume_points, plume_mask,
                                       plume_lats, plume_lons,
                                       geostationary_lats, geostationary_lons,
@@ -384,7 +421,7 @@ def find_integration_start_stop_times(plume_fname,
 
     geostationary_fnames = setup_geostationary_files(plume_time, min_image_segment)
 
-    fast = cv2.FastFeatureDetector_create(threshold=15)  # feature detector
+    fast = cv2.FastFeatureDetector_create(threshold=25)  # feature detector
 
     # plot stuff
     if plot:
@@ -415,11 +452,12 @@ def find_integration_start_stop_times(plume_fname,
         if plot & (i == 0):
             f1_display_subset_reproj = utm_resampler.resample_image(f1_display_subset, subset_lats, subset_lons)
             vis.display_masked_map_first(f1_display_subset_reproj,
+                                         fires,
                                          plume_points,
                                          utm_resampler,
                                          plume_head,
                                          plume_tail,
-                                         f1.split('/')[-1].split('.')[0] + '_subset.jpg')
+                                         f1.split('/')[-1].split('.')[0] + '_subset_p' + str(p_number) + '.jpg')
 
         # FEATURE DETECTION - detect good points to track in the image using FAST
         feature_detector(fast, f2_subset_reproj, plume_mask, tracks)  # tracks updated inplace
@@ -436,19 +474,21 @@ def find_integration_start_stop_times(plume_fname,
         projected_flow_vector = np.dot(plume_vector, flow_means[i]) / \
                                 np.dot(plume_vector, plume_vector) * plume_vector
         projected_flow_magnitude[i] = np.linalg.norm(projected_flow_vector)
+        print projected_flow_magnitude
 
         # plot masked plume
         if plot:
             utm_flow_vectors += [utm_plume_projected_flow_vectors[-1] + flow_means[i]]
             utm_plume_projected_flow_vectors += [utm_plume_projected_flow_vectors[-1] + projected_flow_vector]
             vis.display_masked_map(f2_display_subset_reproj,
+                                   fires,
                                    plume_points,
                                    utm_resampler,
                                    plume_head,
                                    plume_tail,
                                    utm_flow_vectors,
                                    utm_plume_projected_flow_vectors,
-                                   f2.split('/')[-1].split('.')[0] + '_subset.jpg')
+                                   f2.split('/')[-1].split('.')[0] + '_subset_p' + str(p_number) + '.jpg')
 
         # sum current plume length and compare with total plume length
         summed_length = projected_flow_magnitude.sum()

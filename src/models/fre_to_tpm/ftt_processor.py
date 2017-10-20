@@ -33,7 +33,7 @@ def main():
     lc = []
 
     # itereate over the plumes
-    for i, plume in plume_df.iterrows():
+    for p_number, plume in plume_df.iterrows():
 
         # load plume datasets
         orac_aod = []
@@ -52,7 +52,7 @@ def main():
             continue
 
         print plume.filename
-        if filename != 'MYD021KM.A2015228.0605.006.2015228194921.hdf':
+        if plume.filename != 'MYD021KM.A2015228.0605.006.2015228194921.hdf':
             continue
 
 
@@ -79,14 +79,16 @@ def main():
             utm_myd04_aod_subset = []
 
             # get FRP integration start and stop times
-            start_time, stop_time = pt.find_integration_start_stop_times(plume.filename,
+            start_time, stop_time = pt.find_integration_start_stop_times(p_number,
+                                                                         plume.filename,
                                                                          utm_plume_points, utm_plume_mask,
                                                                          plume_lats, plume_lons,
                                                                          geostationary_lats, geostationary_lons,
                                                                          utm_fires,
                                                                          utm_resampler,
                                                                          plot=True)
-        except:
+        except Exception, e:
+            print str(e)
             continue
 
         continue
