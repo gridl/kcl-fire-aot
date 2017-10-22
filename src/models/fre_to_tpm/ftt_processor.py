@@ -35,6 +35,10 @@ def main():
     # itereate over the plumes
     for p_number, plume in plume_df.iterrows():
 
+        # make a directory to hold the plume logging information
+        plume_logging_path = os.path.join(fp.path_to_him_visualisations, str(p_number))
+        os.mkdir(plume_logging_path)
+
         # load plume datasets
         orac_aod = []
         myd04_aod = []
@@ -50,11 +54,6 @@ def main():
         except Exception, e:
             print e
             continue
-
-        print plume.filename
-        if plume.filename != 'MYD021KM.A2015228.0605.006.2015228194921.hdf':
-            continue
-
 
         try:
             # subset ORAC and MYD04, MYD14 datasets
@@ -79,7 +78,7 @@ def main():
             utm_myd04_aod_subset = []
 
             # get FRP integration start and stop times
-            start_time, stop_time = pt.find_integration_start_stop_times(p_number,
+            start_time, stop_time = pt.find_integration_start_stop_times(plume_logging_path,
                                                                          plume.filename,
                                                                          utm_plume_points, utm_plume_mask,
                                                                          plume_lats, plume_lons,

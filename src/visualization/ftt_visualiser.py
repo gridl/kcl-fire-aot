@@ -59,7 +59,7 @@ def display_map(f1_radiances_subset_reproj, utm_resampler, fname):
 def display_masked_map(img, fires, plume_points, utm_resampler,
                        plume_head, plume_tail,
                        flow_vector, projected_flow_vector,
-                       fname):
+                       path, fname):
 
     x, y = plume_points.minimum_rotated_rectangle.exterior.xy
     verts = [utm_resampler.resample_point_to_geo(y, x) for (x, y) in zip(x, y)]
@@ -108,12 +108,12 @@ def display_masked_map(img, fires, plume_points, utm_resampler,
         plt.plot(fv[0], fv[1], 'b.', markersize=2)
 
     #plt.show()
-    plt.savefig(os.path.join(fp.path_to_him_visualisations, 'plumes', fname), bbox_inches='tight', dpi=300)
+    plt.savefig(os.path.join(path, fname), bbox_inches='tight', dpi=300)
     plt.close()
 
 
 def display_masked_map_first(img, fires, plume_points, utm_resampler,
-                             plume_head, plume_tail, fname):
+                             plume_head, plume_tail, path, fname):
 
     x, y = plume_points.minimum_rotated_rectangle.exterior.xy
     verts = [utm_resampler.resample_point_to_geo(y, x) for (x, y) in zip(x, y)]
@@ -151,7 +151,7 @@ def display_masked_map_first(img, fires, plume_points, utm_resampler,
     #plt.plot(plume_tail[0], plume_tail[1], 'r>', markersize=2)
 
     #plt.show()
-    plt.savefig(os.path.join(fp.path_to_him_visualisations, 'plumes', fname), bbox_inches='tight', dpi=300)
+    plt.savefig(os.path.join(path, fname), bbox_inches='tight', dpi=300)
     plt.close()
 
 

@@ -383,7 +383,7 @@ def assess_flow(flow, flow_means, flow_sds, flow_nobs, tracks, i, pix_size=1000)
         flow_sds[i] = flow_sds[i - 1]
 
 
-def find_integration_start_stop_times(p_number,
+def find_integration_start_stop_times(plume_logging_path,
                                       plume_fname,
                                       plume_points, plume_mask,
                                       plume_lats, plume_lons,
@@ -457,7 +457,8 @@ def find_integration_start_stop_times(p_number,
                                          utm_resampler,
                                          plume_head,
                                          plume_tail,
-                                         f1.split('/')[-1].split('.')[0] + '_subset_p' + str(p_number) + '.jpg')
+                                         plume_logging_path,
+                                         f1.split('/')[-1].split('.')[0] + '_subset.jpg')
 
         # FEATURE DETECTION - detect good points to track in the image using FAST
         feature_detector(fast, f2_subset_reproj, plume_mask, tracks)  # tracks updated inplace
@@ -488,11 +489,12 @@ def find_integration_start_stop_times(p_number,
                                    plume_tail,
                                    utm_flow_vectors,
                                    utm_plume_projected_flow_vectors,
-                                   f2.split('/')[-1].split('.')[0] + '_subset_p' + str(p_number) + '.jpg')
+                                   plume_logging_path,
+                                   f2.split('/')[-1].split('.')[0] + '_subset.jpg')
 
         # sum current plume length and compare with total plume length
         summed_length = projected_flow_magnitude.sum()
-        if ((summed_length - plume_length) < thresh) | (summed_length > plume_length):
+        if ((plume_length - summed_length) < thresh) | (summed_length > plume_length):
             t1 = datetime.strptime(geostationary_fnames[0].split('/')[-1][7:20], '%Y%m%d_%H%M')
             t2 = datetime.strptime(f2.split('/')[-1][7:20], '%Y%m%d_%H%M')
             return t1, t2  # return time of the second file
