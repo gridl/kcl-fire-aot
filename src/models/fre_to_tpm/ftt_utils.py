@@ -9,6 +9,7 @@ import glob
 import os
 import logging
 from functools import partial
+from datetime import datetime
 
 import pandas as pd
 import numpy as np
@@ -47,19 +48,35 @@ def get_modis_fname(path, timestamp_myd, myd021km_fname):
         return ''
 
 
+def get_orac_fname(path, timestamp_myd):
+    t = datetime.strptime(timestamp_myd, '%Y%j.%H%M.')
+    t = datetime.strftime(t, '%Y%m%d%H%M')
+    fname = [f for f in os.listdir(path) if t in f]
+    return fname[0]
+
+
+def aod_mxd04(mxd04):
+    aod_params = mxd04.select("AOD_550_Dark_Target_Deep_Blue_Combined").attributes()
+    aod = mxd04.select("AOD_550_Dark_Target_Deep_Blue_Combined").get()
+    aod = (aod + aod_params['add_offset']) * aod_params['scale_factor']
+    aod = ndimage.zoom(aod, 10, order=1)
+    return aod
+
+
+def read_orac(f):
+    return Dataset(f)
+
+
+def aod_orac(orac_ds):
+    return orac_ds.variables['cot'][:]
+
+
 def read_hdf(f):
     return SD(f, SDC.READ)
 
 
 def fires_myd14(myd14_data):
     return np.where(myd14_data.select('fire mask').get() >= 7)
-
-def read_orac_data(plume, orac_file_path):
-    y = plume.filename[10:14]
-    doy = plume.filename[14:17]
-    time = plume.filename[18:22]
-    orac_file = glob.glob(os.path.join(orac_file_path, y, doy, 'main', '*' + time + '*.primary.nc'))[0]
-    return Dataset(orac_file)
 
 
 def read_plume_polygons(path):
@@ -160,25 +177,27 @@ def find_landcover_class(plume, myd14, landcover_ds):
     return stats.mode(lc_list).mode[0]
 
 
-def construct_bounding_box(plume):
+def construct_bounding_box(extent):
     padding = 10  # pixels
-    x, y = zip(*plume.plume_extent)
+    x, y = zip(*extent)
     min_x, max_x = np.min(x) - padding, np.max(x) + padding
     min_y, max_y = np.min(y) - padding, np.max(y) + padding
     return {'max_x': max_x, 'min_x': min_x, 'max_y': max_y, 'min_y': min_y}
 
 
-def read_modis_geo_subset(path, plume, bounds):
+def read_modis_geo(path, plume):
     myd = SD(os.path.join(path, plume.filename), SDC.READ)
-    lats = ndimage.zoom(myd.select('Latitude').get(), 5)[bounds['min_y']:bounds['max_y'],
-           bounds['min_x']:bounds['max_x']]
-    lons = ndimage.zoom(myd.select('Longitude').get(), 5)[bounds['min_y']:bounds['max_y'],
-           bounds['min_x']:bounds['max_x']]
+    lats = ndimage.zoom(myd.select('Latitude').get(), 5)
+    lons = ndimage.zoom(myd.select('Longitude').get(), 5)
     return lats, lons
 
 
-def construct_plume_mask(plume, bounds):
-    extent = [[x - bounds['min_x'], y - bounds['min_y']] for x, y in plume.plume_extent]
+def subset_data(data, bounds):
+    return data[bounds['min_y']:bounds['max_y'], bounds['min_x']:bounds['max_x']]
+
+
+def construct_mask(e, bounds):
+    extent = [[x - bounds['min_x'], y - bounds['min_y']] for x, y in e]
 
     size_x = bounds['max_x'] - bounds['min_x']
     size_y = bounds['max_y'] - bounds['min_y']
