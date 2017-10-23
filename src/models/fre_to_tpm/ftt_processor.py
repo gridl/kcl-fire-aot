@@ -67,8 +67,8 @@ def main():
 
             background_bounding_box = ut.construct_bounding_box(plume.background_extent)
             background_mask = ut.construct_mask(plume.background_extent, background_bounding_box)
-            background_lats = ut.subset_data(scene_lons, background_bounding_box)
-            background_lons = ut.subset_data(scene_lats, background_bounding_box)
+            background_lats = ut.subset_data(scene_lats, background_bounding_box)
+            background_lons = ut.subset_data(scene_lons, background_bounding_box)
 
         except Exception, e:
             logger.error(str(e))
@@ -78,7 +78,7 @@ def main():
             # subset ORAC and MYD04, MYD14 datasets
             orac_aod_plume = ut.subset_data(orac_aod, plume_bounding_box)
             orac_aod_background = ut.subset_data(orac_aod, background_bounding_box)
-            mxd04_aod_background = ut.subset_data(mxd_aod, plume_bounding_box)
+            mxd04_aod_background = ut.subset_data(mxd_aod, background_bounding_box)
 
             # get the modis fire information for the plume
             myd14_fname = ut.get_modis_fname(fp.path_to_modis_frp, timestamp_mxd, plume.filename)
@@ -93,15 +93,15 @@ def main():
             utm_plume_points = ut.reproject_shapely(plume_points, utm_resampler)
             utm_plume_polygon = ut.reproject_shapely(plume_polygon, utm_resampler)
             utm_plume_mask = utm_resampler.resample_image(plume_mask, plume_lats, plume_lons)
-
-            utm_fires = utm_resampler.resample_points_to_utm(fires_lats, fires_lons)
-
             utm_bg_mask = utm_resampler.resample_image(background_mask, background_lats, background_lons)
+
             utm_orac_aod_plume = utm_resampler.resample_image(orac_aod_plume, plume_lats, plume_lons)
             utm_orac_aod_background = utm_resampler.resample_image(orac_aod_background,
                                                                    background_lats, background_lons)
             utm_mxd04_aod_background = utm_resampler.resample_image(mxd04_aod_background,
                                                                     background_lats, background_lons)
+
+            utm_fires = utm_resampler.resample_points_to_utm(fires_lats, fires_lons)
 
             # get FRP integration start and stop times
             start_time, stop_time = pt.find_integration_start_stop_times(plume_logging_path,

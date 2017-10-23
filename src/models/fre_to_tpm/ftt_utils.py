@@ -84,7 +84,8 @@ def read_plume_polygons(path):
         df = pd.read_pickle(path)
     except Exception, e:
         logger.warning('Could not load pickle with error:' + str(e) + ' ...attempting to load csv')
-        df = pd.read_csv(path, quotechar='"', sep=',', converters={'plume_extent': ast.literal_eval})
+        df = pd.read_csv(path, quotechar='"', sep=',', converters={'plume_extent': ast.literal_eval,
+                                                                   'background_extent': ast.literal_eval})
     return df
 
 
