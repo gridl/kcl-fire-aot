@@ -1002,6 +1002,10 @@ def args_main(parser):
                       help='Lower limit value for effective radius')
     main.add_argument('--ulim_IRe', type=str, default='10',
                       help='Upper limit value for effective radius')
+    main.add_argument('--llim_ITau', type=str, default='-3',
+                      help='Lower limit value for optical depth (log)')
+    main.add_argument('--ulim_ITau', type=str, default='1',
+                      help='Upper limit value for optical depth (log)')
     ls = main.add_mutually_exclusive_group()
     ls.add_argument('--land', action='store_false',
                     help='Process only land pixels.')
@@ -1444,6 +1448,10 @@ Ctrl%RS%Use_Full_BRDF      = {use_brdf}""".format(
         driver += "\nCtrl%Invpar%XLLim(IRe) = " + args.llim_IRe
     if args.ulim_IRe:
         driver += "\nCtrl%Invpar%XULim(IRe) = " + args.ulim_IRe
+    if args.llim_ITau:
+        driver += "\nCtrl%Invpar%XLLim(ITau) = " + args.llim_ITau
+    if args.ulim_ITau:
+        driver += "\nCtrl%Invpar%XULim(ITau) = " + args.ulim_ITau
     if args.extra_lines:
         try:
             e = open(args.extra_lines, "r")
