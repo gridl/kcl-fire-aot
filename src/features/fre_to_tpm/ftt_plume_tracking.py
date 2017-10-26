@@ -6,12 +6,14 @@ import logging
 
 import numpy as np
 from scipy import ndimage
+import pandas as pd
 import cv2
 
 import matplotlib.pyplot as plt
 
 import src.data.readers.load_hrit as load_hrit
 import src.config.filepaths as fp
+import src.config.features as fc
 import src.visualization.ftt_visualiser as vis
 
 log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -36,7 +38,7 @@ def compute_plume_vector(plume_points, fire_positions):
     """
 
     # ratio to determine if the head of the vector is too far from the fires
-    ratio = 0.25
+    ratio = 0.25  # TODO add this to config file
 
     # compute median fire position
     fire_positions = np.array(fire_positions)
@@ -67,8 +69,8 @@ def compute_plume_vector(plume_points, fire_positions):
 
     # if the ratio of the above less than the set threshold, then we have an appropriate plume vector
     # that runs from the end of the plume, to the fires.
-    if fire_to_head_distance/head_to_tail_distance < ratio:
-        return head, tail, head-tail
+    if fire_to_head_distance / head_to_tail_distance < ratio:
+        return head, tail, head - tail
 
     # if not then we assume that the plume is much longer than wide and use the following approach
     else:
@@ -107,7 +109,7 @@ def spatial_subset(lats_1, lons_1, lats_2, lons_2):
     :return bounds: bounding box locating l1 in l2
     """
 
-    padding = 100  # pixels
+    padding = 100  # pixels  TODO add to config
 
     min_lat = np.min(lats_1)
     max_lat = np.max(lats_1)
@@ -237,7 +239,7 @@ def rescale_image(image, display_min, display_max):
 
 def normalise_image(im):
     eps = 0.001  # to prevent div by zero
-    sig = 1  # standard deviation of gaussian
+    sig = 1  # standard deviation of gaussian  TODO add to config file
     mean_im = ndimage.filters.gaussian_filter(im, sig)
     sd_im = np.sqrt(ndimage.filters.gaussian_filter((im - mean_im) ** 2, sig))
     return (im - mean_im) / (sd_im + eps)
@@ -353,34 +355,51 @@ def compute_flow(tracks, im1, im2):
         return tracks, []
 
 
-def assess_flow(flow, flow_means, flow_sds, flow_nobs, tracks, i, pix_size=1000):
+def assess_flow(flow, flow_means, flow_sds, flow_nobs, flow_update, tracks, i, pix_size=1000):
     """
 
     :param flow: the current flow vectors from the feature tracking
     :param flow_means: the vector containing the flow means
     :param flow_sds: the vector containing the flow standard deviations
+    :param flow_nobs: the vector containing the number of flow observations
+    :param flow_update: vector containing mean used to to update in case of tracks <= min tracks
     :param tracks: the track points
     :param i: the current index
     :return: None
     """
-    if len(tracks) <= 0:
+    if len(tracks) <= fc.min_number_tracks:
         if i != 0:
             flow_means[i] = flow_means[i - 1]
             flow_sds[i] = flow_sds[i - 1]
-            flow_nobs[i] = 0
+            flow_update[i] = i - 1
     else:
         flow_means[i, :] = np.mean(flow, axis=0) * pix_size
         flow_sds[i, :] = np.std(flow, axis=0) * pix_size
         flow_nobs[i] = len(tracks)
 
+    # check if any points zero and update with most recent estimate
+    # even if most recent estimate is zero, they will still get updated
+    # at some point
     if (flow_means[:i] == 0).any():
         mask = [flow_means[:i] == 0]
         flow_means[:i][mask] = flow_means[i]
         flow_sds[:i][mask] = flow_sds[i]
+        flow_update[:i][mask] = i
 
-    if flow_nobs[i] < 5:
-        flow_means[i] = flow_means[i - 1]
-        flow_sds[i] = flow_sds[i - 1]
+
+def projected_flow(plume_vector, flow_means, projected_flow_magnitude, i):
+    """
+
+    :param plume_vector: the vector of the plume
+    :param flow_means: the mean flows computed for the vector
+    :param projected_flow_magnitude: the vector holding the projected mean flows
+    :param i: the number of current observations we have
+    :return: nothing, projected flows updated in place
+    """
+    for obs in np.arange(i + 1):
+        projected_flow_vector = np.dot(plume_vector, flow_means[obs]) / \
+                                np.dot(plume_vector, plume_vector) * plume_vector
+        projected_flow_magnitude[obs] = np.linalg.norm(projected_flow_vector)
 
 
 def find_integration_start_stop_times(plume_logging_path,
@@ -421,21 +440,22 @@ def find_integration_start_stop_times(plume_logging_path,
 
     geostationary_fnames = setup_geostationary_files(plume_time, min_image_segment)
 
-    fast = cv2.FastFeatureDetector_create(threshold=25)  # feature detector
-
-    # plot stuff
-    if plot:
-        utm_flow_vectors = []
-        utm_plume_projected_flow_vectors = [plume_tail.copy()]
+    fast = cv2.FastFeatureDetector_create(threshold=25)  # feature detector TODO move thresh to config file
 
     # iterator stuff
     plume_length = np.linalg.norm(plume_vector)
     flow_means = np.zeros([72, 2])
     flow_sds = np.zeros([72, 2])
     flow_nobs = np.zeros([72])
+    flow_update = np.zeros([72])
     projected_flow_magnitude = np.zeros(72)
     tracks = []
-    thresh = 1000  # stopping condition in metres (if distance between plumes is less than this)
+
+    stopping_thresh = 1000  # stopping condition in metres TODO move to config
+
+    # set time variables that will be returned
+    t1 = None
+    t2 = None
 
     # iterate over geostationary files
     for i, (f1, f2) in enumerate(zip(geostationary_fnames[:-1], geostationary_fnames[1:])):
@@ -446,57 +466,43 @@ def find_integration_start_stop_times(plume_logging_path,
         # reproject subsets to UTM grid
         f1_subset_reproj = utm_resampler.resample_image(f1_subset, subset_lats, subset_lons)
         f2_subset_reproj = utm_resampler.resample_image(f2_subset, subset_lats, subset_lons)
-        f2_display_subset_reproj = utm_resampler.resample_image(f2_display_subset, subset_lats, subset_lons)
 
-        # if plotting and on first iteration plot the first image
         if plot & (i == 0):
-            f1_display_subset_reproj = utm_resampler.resample_image(f1_display_subset, subset_lats, subset_lons)
-            vis.display_masked_map_first(f1_display_subset_reproj,
-                                         fires,
-                                         plume_points,
-                                         utm_resampler,
-                                         plume_head,
-                                         plume_tail,
-                                         plume_logging_path,
-                                         f1.split('/')[-1].split('.')[0] + '_subset.jpg')
+            plot_images = [utm_resampler.resample_image(f1_display_subset, subset_lats, subset_lons)]
+            fnames = [f1]
+        if plot:
+            plot_images.append(utm_resampler.resample_image(f2_display_subset, subset_lats, subset_lons))
+            fnames.append(f2)
 
         # FEATURE DETECTION - detect good points to track in the image using FAST
         feature_detector(fast, f2_subset_reproj, plume_mask, tracks)  # tracks updated inplace
 
-        # FLOW COMPUTATION - compute the flow between the images, but only if we have features
-        print 'n points:', len(tracks)
-        if len(tracks) > 0:
-            tracks, flow = compute_flow(tracks, f2_subset_reproj, f1_subset_reproj)
+        # FLOW COMPUTATION - compute the flow between the images
+        tracks, flow = compute_flow(tracks, f2_subset_reproj, f1_subset_reproj)
 
         # compute mean flow for plume
-        assess_flow(flow, flow_means, flow_sds, flow_nobs, tracks, i)
+        assess_flow(flow, flow_means, flow_sds, flow_nobs, flow_update, tracks, i)
 
         # now project flow vector onto plume vector
-        projected_flow_vector = np.dot(plume_vector, flow_means[i]) / \
-                                np.dot(plume_vector, plume_vector) * plume_vector
-        projected_flow_magnitude[i] = np.linalg.norm(projected_flow_vector)
-        print projected_flow_magnitude
-
-        # plot masked plume
-        if plot:
-            utm_flow_vectors += [utm_plume_projected_flow_vectors[-1] + flow_means[i]]
-            utm_plume_projected_flow_vectors += [utm_plume_projected_flow_vectors[-1] + projected_flow_vector]
-            vis.display_masked_map(f2_display_subset_reproj,
-                                   fires,
-                                   plume_points,
-                                   utm_resampler,
-                                   plume_head,
-                                   plume_tail,
-                                   utm_flow_vectors,
-                                   utm_plume_projected_flow_vectors,
-                                   plume_logging_path,
-                                   f2.split('/')[-1].split('.')[0] + '_subset.jpg')
+        projected_flow(plume_vector, flow_means, projected_flow_magnitude, i)
 
         # sum current plume length and compare with total plume length
         summed_length = projected_flow_magnitude.sum()
-        if ((plume_length - summed_length) < thresh) | (summed_length > plume_length):
+        if ((plume_length - summed_length) < stopping_thresh) | (summed_length > plume_length):
             t1 = datetime.strptime(geostationary_fnames[0].split('/')[-1][7:20], '%Y%m%d_%H%M')
             t2 = datetime.strptime(f2.split('/')[-1][7:20], '%Y%m%d_%H%M')
-            return t1, t2  # return time of the second file
+            break
 
-    return None, None
+    # save tracking information
+    data = [flow_means[:i], flow_sds[:i], flow_nobs[:i], flow_update[:i]]
+    columns = ['flow_means', 'flow_sds', 'flow_nobs', 'flow_update']
+    df = pd.DataFrame(data, index=geostationary_fnames[1:i+1], columns=columns)
+    df.to_csv(os.path.join(plume_logging_path, 'tracks.csv'))
+
+    # plot plume
+    if plot:
+        vis.run_plot(plot_images, flow_means, projected_flow_magnitude,
+                     plume_head, plume_tail, plume_points, fires, utm_resampler,
+                     plume_logging_path, fnames, i)
+
+    return t1, t2

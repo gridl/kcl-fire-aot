@@ -40,7 +40,7 @@ def spatial_subset(frp_subset, plume_polygon, utm_resampler):
 
             # transform FRP pixel into UTM coordinates
             projected_fire = ut.reproject_shapely(frp_pixel['point'], utm_resampler)
-            if projected_fire.within(plume_polygon):  # TODO THIS IS WRONG, NEED TO TRANSFORM
+            if projected_fire.within(plume_polygon):
                 inbounds.append(i)
 
         if inbounds:

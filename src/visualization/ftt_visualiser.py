@@ -190,3 +190,33 @@ def display_flow(x_flow, y_flow, f1_radiances, utm_resampler, fname):
     plt.savefig(os.path.join(fp.path_to_him_visualisations, 'flows', fname), bbox_inches='tight', dpi=600)
     plt.close()
 
+
+def run_plot(plot_images, flow_means, projected_flow_magnitude,
+             plume_head, plume_tail, plume_points, fires, utm_resampler,
+             plume_logging_path, fnames, i):
+
+    utm_flow_vectors = []
+    utm_plume_projected_flow_vectors = [plume_tail.copy()]
+
+    display_masked_map_first(plot_images[0],
+                             fires,
+                             plume_points,
+                             utm_resampler,
+                             plume_head,
+                             plume_tail,
+                             plume_logging_path,
+                             fnames[0].split('/')[-1].split('.')[0] + '_subset.jpg')
+
+    for obs in np.arange(i + 1):
+        utm_flow_vectors += [utm_plume_projected_flow_vectors[-1] + flow_means[obs]]
+        utm_plume_projected_flow_vectors += [utm_plume_projected_flow_vectors[-1] + projected_flow_magnitude[obs]]
+        display_masked_map(plot_images[obs+1],
+                           fires,
+                           plume_points,
+                           utm_resampler,
+                           plume_head,
+                           plume_tail,
+                           utm_flow_vectors,
+                           utm_plume_projected_flow_vectors,
+                           plume_logging_path,
+                           fnames[obs+1].split('/')[-1].split('.')[0] + '_subset.jpg')
