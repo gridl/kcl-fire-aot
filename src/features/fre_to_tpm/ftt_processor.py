@@ -30,6 +30,8 @@ def main():
 
     # itereate over the plumes
     for p_number, plume in plume_df.iterrows():
+        if p_number < 40:
+            continue
 
         # make a directory to hold the plume logging information
         plume_logging_path = os.path.join(fp.path_to_him_visualisations, str(p_number))
@@ -40,13 +42,17 @@ def main():
         timestamp_mxd = ut.get_timestamp(plume.filename)
 
         # load plume aod datasets
-        mxd04_fname = ut.get_modis_fname(fp.path_to_modis_aod, timestamp_mxd, plume.filename)
-        mxd04 = ut.read_hdf(os.path.join(fp.path_to_modis_aod, mxd04_fname))
-        mxd_aod = ut.aod_mxd04(mxd04)
+        try:
+            mxd04_fname = ut.get_modis_fname(fp.path_to_modis_aod, timestamp_mxd, plume.filename)
+            mxd04 = ut.read_hdf(os.path.join(fp.path_to_modis_aod, mxd04_fname))
+            mxd_aod = ut.aod_mxd04(mxd04)
 
-        orac_fname = ut.get_orac_fname(fp.path_to_orac_aod, timestamp_mxd)
-        orac_data = ut.read_orac(os.path.join(fp.path_to_orac_aod, orac_fname))
-        orac_aod = ut.aod_orac(orac_data)
+            orac_fname = ut.get_orac_fname(fp.path_to_orac_aod, timestamp_mxd)
+            orac_data = ut.read_orac(os.path.join(fp.path_to_orac_aod, orac_fname))
+            orac_aod = ut.aod_orac(orac_data)
+        except Exception, e:
+            logger.error(str(e))
+            continue
 
         # get geo data
         scene_lats, scene_lons = ut.read_modis_geo(fp.path_to_modis_l1b, plume)
@@ -98,15 +104,20 @@ def main():
         utm_fires = utm_resampler.resample_points_to_utm(fires_lats, fires_lons)
 
         # get FRP integration start and stop times
-        start_time, stop_time = pt.find_integration_start_stop_times(p_number,
-                                                                     plume_logging_path,
-                                                                     plume.filename,
-                                                                     utm_plume_points, utm_plume_mask,
-                                                                     plume_lats, plume_lons,
-                                                                     geostationary_lats, geostationary_lons,
-                                                                     utm_fires,
-                                                                     utm_resampler,
-                                                                     plot=True)
+        try:
+            start_time, stop_time = pt.find_integration_start_stop_times(p_number,
+                                                                         plume_logging_path,
+                                                                         plume.filename,
+                                                                         utm_plume_points, utm_plume_mask,
+                                                                         plume_lats, plume_lons,
+                                                                         geostationary_lats, geostationary_lons,
+                                                                         utm_fires,
+                                                                         utm_resampler,
+                                                                         plot=True)
+        except Exception, e:
+            logger.error(str(e))
+            continue
+
 
 
         continue
