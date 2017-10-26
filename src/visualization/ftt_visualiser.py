@@ -191,7 +191,7 @@ def display_flow(x_flow, y_flow, f1_radiances, utm_resampler, fname):
     plt.close()
 
 
-def run_plot(plot_images, flow_means, projected_flow_magnitude,
+def run_plot(plot_images, flow_means, projected_flow_means,
              plume_head, plume_tail, plume_points, fires, utm_resampler,
              plume_logging_path, fnames, i):
 
@@ -209,7 +209,7 @@ def run_plot(plot_images, flow_means, projected_flow_magnitude,
 
     for obs in np.arange(i + 1):
         utm_flow_vectors += [utm_plume_projected_flow_vectors[-1] + flow_means[obs]]
-        utm_plume_projected_flow_vectors += [utm_plume_projected_flow_vectors[-1] + projected_flow_magnitude[obs]]
+        utm_plume_projected_flow_vectors += [utm_plume_projected_flow_vectors[-1] + projected_flow_means[obs]]
         display_masked_map(plot_images[obs+1],
                            fires,
                            plume_points,

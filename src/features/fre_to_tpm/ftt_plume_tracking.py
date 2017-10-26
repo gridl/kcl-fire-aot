@@ -340,10 +340,14 @@ def compute_flow(tracks, im1, im2):
     p1, _st, _err = cv2.calcOpticalFlowPyrLK(im1, im2,
                                              p0, None, **lk_params)  # the shifted points
     # back match the featrues
-    p0r, _st, _err = cv2.calcOpticalFlowPyrLK(im2, im1,
-                                              p1, None, **lk_params)  # matching in other direction
-    good = find_good_tracks(p0, p1, p0r)
-    tracks = update_tracks(tracks, p1, good)
+    try:
+        p0r, _st, _err = cv2.calcOpticalFlowPyrLK(im2, im1,
+                                                  p1, None, **lk_params)  # matching in other direction
+        good = find_good_tracks(p0, p1, p0r)
+        tracks = update_tracks(tracks, p1, good)
+    except Exception, e:
+        print 'Could not get back match tracks with error:', str(e)
+        return tracks, []
 
     if tracks:
         # subtract the feature locations in the second image from the first image
@@ -381,13 +385,20 @@ def assess_flow(flow, flow_means, flow_sds, flow_nobs, flow_update, tracks, i, p
     # even if most recent estimate is zero, they will still get updated
     # at some point
     if (flow_means[:i] == 0).any():
-        mask = [flow_means[:i] == 0]
-        flow_means[:i][mask] = flow_means[i]
-        flow_sds[:i][mask] = flow_sds[i]
+        mask = [flow_means[:i, 0] == 0]  # can take either  x or y, as both will have zero entries
+
+        # update x values
+        flow_means[:i, 0][mask] = flow_means[i, 0]
+        flow_sds[:i, 0][mask] = flow_sds[i, 0]
+
+        # update y values
+        flow_means[:i, 1][mask] = flow_means[i, 1]
+        flow_sds[:i, 1][mask] = flow_sds[i, 1]
+
         flow_update[:i][mask] = i
 
 
-def projected_flow(plume_vector, flow_means, projected_flow_magnitude, i):
+def projected_flow(plume_vector, flow_means, projected_flow_means, projected_flow_magnitudes, i):
     """
 
     :param plume_vector: the vector of the plume
@@ -399,10 +410,12 @@ def projected_flow(plume_vector, flow_means, projected_flow_magnitude, i):
     for obs in np.arange(i + 1):
         projected_flow_vector = np.dot(plume_vector, flow_means[obs]) / \
                                 np.dot(plume_vector, plume_vector) * plume_vector
-        projected_flow_magnitude[obs] = np.linalg.norm(projected_flow_vector)
+        projected_flow_means[obs] = projected_flow_vector
+        projected_flow_magnitudes[obs] = np.linalg.norm(projected_flow_vector)
 
 
-def find_integration_start_stop_times(plume_logging_path,
+def find_integration_start_stop_times(p_number,
+                                      plume_logging_path,
                                       plume_fname,
                                       plume_points, plume_mask,
                                       plume_lats, plume_lons,
@@ -448,6 +461,7 @@ def find_integration_start_stop_times(plume_logging_path,
     flow_sds = np.zeros([72, 2])
     flow_nobs = np.zeros([72])
     flow_update = np.zeros([72])
+    projected_flow_means = np.zeros([72, 2])
     projected_flow_magnitude = np.zeros(72)
     tracks = []
 
@@ -484,7 +498,7 @@ def find_integration_start_stop_times(plume_logging_path,
         assess_flow(flow, flow_means, flow_sds, flow_nobs, flow_update, tracks, i)
 
         # now project flow vector onto plume vector
-        projected_flow(plume_vector, flow_means, projected_flow_magnitude, i)
+        projected_flow(plume_vector, flow_means, projected_flow_means, projected_flow_magnitude, i)
 
         # sum current plume length and compare with total plume length
         summed_length = projected_flow_magnitude.sum()
@@ -494,14 +508,19 @@ def find_integration_start_stop_times(plume_logging_path,
             break
 
     # save tracking information
-    data = [flow_means[:i], flow_sds[:i], flow_nobs[:i], flow_update[:i]]
-    columns = ['flow_means', 'flow_sds', 'flow_nobs', 'flow_update']
-    df = pd.DataFrame(data, index=geostationary_fnames[1:i+1], columns=columns)
-    df.to_csv(os.path.join(plume_logging_path, 'tracks.csv'))
+    data = np.array([flow_means[:i+1, 0], flow_means[:i+1, 1],
+                     projected_flow_means[:i+1, 0], projected_flow_means[:i+1, 1],
+                     flow_sds[:i+1, 0], flow_sds[:i+1, 1],
+                     projected_flow_magnitude[:i+1],
+                     flow_nobs[:i+1], flow_update[:i+1]]).T
+    columns = ['flow_means_x', 'flow_means_y', 'proj_flow_means_x', 'proj_flow_means_y',
+               'flow_sds_x', 'flow_sds_y', 'proj_flow_mag', 'flow_nobs', 'flow_update']
+    df = pd.DataFrame(data, index=[f.split('/')[-1] for f in geostationary_fnames[:i+1]], columns=columns)
+    df.to_csv(os.path.join(plume_logging_path, str(p_number) + '_tracks.csv'))
 
     # plot plume
     if plot:
-        vis.run_plot(plot_images, flow_means, projected_flow_magnitude,
+        vis.run_plot(plot_images, flow_means, projected_flow_means,
                      plume_head, plume_tail, plume_points, fires, utm_resampler,
                      plume_logging_path, fnames, i)
 
