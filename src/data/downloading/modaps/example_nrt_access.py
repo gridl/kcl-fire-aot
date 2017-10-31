@@ -74,8 +74,8 @@ def get_files(ftp_conn):
 def main():
 
     ftp_loc = 'nrt4.modaps.eosdis.nasa.gov'
-    username = 'dnfisher'
-    password = '&5ii5yHMtGX9'
+    username = ''
+    password = ''
 
     year = str(datetime.utcnow().year)
     doy = str(datetime.utcnow().timetuple().tm_yday)
