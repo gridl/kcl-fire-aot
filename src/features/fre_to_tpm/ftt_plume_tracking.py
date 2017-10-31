@@ -531,4 +531,4 @@ def find_integration_start_stop_times(p_number,
     else:
         plume_stats = None
 
-    return t1, t2, plume_stats
+    return t2, t1, plume_stats

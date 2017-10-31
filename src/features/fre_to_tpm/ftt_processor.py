@@ -1,23 +1,26 @@
 import logging
 import os
 
+import numpy as np
+
 import src.features.fre_to_tpm.ftt_tpm as tt
 import src.features.fre_to_tpm.ftt_utils as ut
-
+import src.features.fre_to_tpm.ftt_plume_tracking as pt
+import src.features.fre_to_tpm.ftt_fre as ff
 import src.config.filepaths as fp
 import src.data.readers.load_hrit as load_hrit
-import src.features.fre_to_tpm.ftt_plume_tracking as pt
 
 log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=log_fmt)
 logger = logging.getLogger(__name__)
 
+
 def main():
 
     # load in static data
-    #frp_df = ut.read_frp_df(fp.path_to_himawari_frp)
+    frp_df = ut.read_frp_df(fp.path_to_himawari_frp)
     plume_df = ut.read_plume_polygons(fp.path_to_smoke_plume_polygons_csv)
-    lc_data = []
+    #lc_data = ut.read_nc(fp.path_to_landcover)
 
     geo_file = fp.root_path + '/processed/himawari/Himawari_lat_lon.img'
     geostationary_lats, geostationary_lons = load_hrit.geo_read(geo_file)
@@ -36,6 +39,7 @@ def main():
         if not os.path.isdir(plume_logging_path):
             os.mkdir(plume_logging_path)
 
+
         # get plume time stamp
         timestamp_mxd = ut.get_timestamp(plume.filename)
 
@@ -46,7 +50,7 @@ def main():
             mxd_aod = ut.aod_mxd04(mxd04)
 
             orac_fname = ut.get_orac_fname(fp.path_to_orac_aod, timestamp_mxd)
-            orac_data = ut.read_orac(os.path.join(fp.path_to_orac_aod, orac_fname))
+            orac_data = ut.read_nc(os.path.join(fp.path_to_orac_aod, orac_fname))
             orac_aod = ut.aod_orac(orac_data)
         except Exception, e:
             logger.error(str(e))
@@ -77,6 +81,8 @@ def main():
         orac_aod_plume = ut.subset_data(orac_aod, plume_bounding_box)
         orac_aod_background = ut.subset_data(orac_aod, background_bounding_box)
         mxd04_aod_background = ut.subset_data(mxd_aod, background_bounding_box)
+        mxd04_mask = mxd04_aod_background < 0  # mask out non-aods
+        mxd04_aod_background = np.ma.masked_array(mxd04_aod_background, mxd04_mask)
 
         # get the modis fire information for the plume
         myd14_fname = ut.get_modis_fname(fp.path_to_modis_frp, timestamp_mxd, plume.filename)
@@ -119,10 +125,11 @@ def main():
         # get the variables of interest
         if start_time is not None:
             plumes_numbers.append(p_number)
-            #fre.append(ft.compute_fre(utm_plume_polygon, frp_df, start_time, stop_time, utm_resampler))
+            fre.append(ff.compute_fre(p_number, plume_logging_path,
+                                      utm_plume_polygon, frp_df, start_time, stop_time, utm_resampler))
             tpm.append(tt.compute_tpm(utm_orac_aod_plume, utm_orac_aod_background, utm_mxd04_aod_background,
                                       utm_plume_polygon, utm_plume_mask, utm_bg_mask))
-            lc.append(ut.find_landcover_class(plume, myd14, lc_data))
+            #lc.append(ut.find_landcover_class(fires_lats, fires_lons, lc_data))
 
     # split data based on lc type
 

@@ -1,4 +1,5 @@
 import logging
+import os
 
 import numpy as np
 from scipy import integrate
@@ -19,8 +20,7 @@ def temporal_sbuset(frp_df, start_time, stop_time):
     :return: the subsetted dataframe
     """
     try:
-        return frp_df.loc[(frp_df['obs_date'] == stop_time) |
-                          (frp_df['obs_date'] == start_time)]
+        return frp_df.loc[(frp_df['obs_time'] <= stop_time) & (frp_df['obs_time'] >= start_time)]
     except Exception, e:
         logger.error('Could not extract time subset, failed with error: ' + str(e))
         return None
@@ -87,7 +87,8 @@ def integrate_frp(frp_subset):
     return integrate.trapz(frp_subset['FRP_0'], sample_times)
 
 
-def compute_fre(plume_polygon, frp_df, start_time, stop_time, utm_resampler):
+def compute_fre(p_number, plume_logging_path,
+                plume_polygon, frp_df, start_time, stop_time, utm_resampler):
     """
 
     :param plume_polygon: The smoke plume polygon
@@ -96,10 +97,17 @@ def compute_fre(plume_polygon, frp_df, start_time, stop_time, utm_resampler):
     :param stop_time: The integratinos stop time
     :return:  The FRE
     """
+    try:
+        frp_subset = temporal_sbuset(frp_df, start_time, stop_time)
+        frp_subset = spatial_subset(frp_subset, plume_polygon, utm_resampler)
+        frp_subset.to_csv(os.path.join(plume_logging_path, str(p_number) + '_fires.csv'))
 
-    frp_subset = temporal_sbuset(frp_df, start_time, stop_time)
-    frp_subset = spatial_subset(frp_subset, plume_polygon, utm_resampler)
-    grouped_frp_subset = group_subset(frp_subset)
+        grouped_frp_subset = group_subset(frp_subset)
+        grouped_frp_subset.to_csv(os.path.join(plume_logging_path, str(p_number) + '_fires_grouped.csv'))
+
+    except Exception, e:
+        logger.error('FRE calculation failed with error' + str(e))
+        return None
 
     # integrate to get the fre
     fre = integrate_frp(grouped_frp_subset)

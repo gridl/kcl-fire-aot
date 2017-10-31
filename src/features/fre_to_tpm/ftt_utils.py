@@ -63,7 +63,7 @@ def aod_mxd04(mxd04):
     return aod
 
 
-def read_orac(f):
+def read_nc(f):
     return Dataset(f)
 
 
@@ -145,23 +145,7 @@ def read_frp_df(path):
     return frp_df
 
 
-def find_landcover_class(plume, myd14, landcover_ds):
-
-    lines = myd14.select('FP_line').get()
-    samples = myd14.select('FP_sample').get()
-    lats = myd14.select('FP_latitude').get()
-    lons = myd14.select('FP_longitude').get()
-
-    poly_verts = plume['plume_extent']
-    bb_path = Path(poly_verts)
-
-    # find the geographic coordinates of fires inside the plume mask # TODO need to project here too?
-    lat_list = []
-    lon_list = []
-    for l, s, lat, lon in zip(lines, samples, lats, lons):
-        if bb_path.contains_point((s, l)):
-            lat_list.append(lat)
-            lon_list.append(lon)
+def find_landcover_class(lat_list, lon_list, landcover_ds):
 
     # now get the landcover points
     lc_list = []

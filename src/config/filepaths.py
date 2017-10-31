@@ -2,6 +2,8 @@
 Contains the various file paths for the Python scripts
 '''
 
+# TODO replace all + with os.path.join
+
 sensor = 'himawari'  # goes
 
 # set region based on sensor
@@ -35,6 +37,7 @@ path_to_modis_aod = root_path + 'raw/modis/aod/'
 path_to_orac_aod = root_path + 'processed/orac/'
 path_to_goes_l1b = root_path + 'raw/goes/'
 path_to_himawari_l1b = root_path + 'raw/himawari/'
+path_to_landcover = root_path.replace(region, 'Global') + 'land_cover/ESACCI-LC-L4-LCCS-Map-300m-P1Y-2015-v2.0.7.nc'
 
 # FTP paths (MODIS / Ladsweb)
 path_to_ladsweb_ftp = "ladsweb.nascom.nasa.gov"
@@ -57,6 +60,7 @@ path_to_rf_model = root_path + 'models/rf_model_64_trees.pickle'
 
 # visualisation filepaths
 path_to_orac_visuals = root_path + 'visualisations/orac/'
+path_to_plume_tracking_visualisations = root_path + 'visualisations/plume_tracking/'
 path_to_plume_tracking_visualisations = root_path + 'visualisations/plume_tracking/'
 
 # filelist paths
