@@ -52,7 +52,7 @@ def display_map(f1_radiances_subset_reproj, utm_resampler, fname):
     sub_ax.add_geometries([extent_box], ccrs.PlateCarree(), color='none',
                           edgecolor='blue', linewidth=2)
 
-    plt.savefig(os.path.join(fp.path_to_him_visualisations, 'maps', fname), bbox_inches='tight', dpi=300)
+    plt.savefig(os.path.join(fp.path_to_plume_tracking_visualisations, 'maps', fname), bbox_inches='tight', dpi=300)
     plt.close()
 
 
@@ -187,7 +187,7 @@ def display_flow(x_flow, y_flow, f1_radiances, utm_resampler, fname):
     plt.colorbar(im3, ax=ax3)
 
     #plt.show()
-    plt.savefig(os.path.join(fp.path_to_him_visualisations, 'flows', fname), bbox_inches='tight', dpi=600)
+    plt.savefig(os.path.join(fp.path_to_plume_tracking_visualisations, 'flows', fname), bbox_inches='tight', dpi=600)
     plt.close()
 
 

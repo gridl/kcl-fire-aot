@@ -70,19 +70,24 @@ def main():
     #base_url = "http://modwebsrv.modaps.eosdis.nasa.gov/axis2/services/MODAPSservices/"  # laads
     base_url = "http://lance.modaps.eosdis.nasa.gov/axis2/services/MWSLance/"  # lance
 
-    print generic_request("listProducts", base_url)
+    #print generic_request("listProducts", base_url)
 
-    # files_dundee = search_for_files(base_url, start=datetime.utcnow().strftime("%Y-%m-%d"),
-    #                          stop=datetime.utcnow().strftime("%Y-%m-%d"),
-    #                          north="56.47", south="56.46", west="-3", east="-2.9")
-    # urls_dundee = get_file_urls(base_url, files_dundee)
+    files_dundee = search_for_files(base_url, start=datetime.utcnow().strftime("%Y-%m-%d"),
+                             stop=datetime.utcnow().strftime("%Y-%m-%d"),
+                             north="56.47", south="56.46", west="-3", east="-2.9")
+    urls_dundee = get_file_urls(base_url, files_dundee)
+    for url in urls_dundee:
+        print url
 
 
-    # files_global = search_for_files(base_url, start=datetime.utcnow().strftime("%Y-%m-%d"),
-    #                          stop=datetime.utcnow().strftime("%Y-%m-%d"),
-    #                          north="90", south="-90", west="-180", east="180")
-    #
-    # urls_global = get_file_urls(base_url, files_global)
+    files_global = search_for_files(base_url, start=datetime.utcnow().strftime("%Y-%m-%d"),
+                             stop=datetime.utcnow().strftime("%Y-%m-%d"),
+                             north="90", south="-90", west="-180", east="180")
+
+    urls_global = get_file_urls(base_url, files_global)
+    print
+    for url in urls_global:
+        print url
 
 
 

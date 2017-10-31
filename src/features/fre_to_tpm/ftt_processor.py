@@ -30,11 +30,9 @@ def main():
 
     # itereate over the plumes
     for p_number, plume in plume_df.iterrows():
-        if p_number < 40:
-            continue
 
         # make a directory to hold the plume logging information
-        plume_logging_path = os.path.join(fp.path_to_him_visualisations, str(p_number))
+        plume_logging_path = os.path.join(fp.path_to_plume_tracking_visualisations, str(p_number))
         if not os.path.isdir(plume_logging_path):
             os.mkdir(plume_logging_path)
 
@@ -105,22 +103,18 @@ def main():
 
         # get FRP integration start and stop times
         try:
-            start_time, stop_time = pt.find_integration_start_stop_times(p_number,
-                                                                         plume_logging_path,
-                                                                         plume.filename,
-                                                                         utm_plume_points, utm_plume_mask,
-                                                                         plume_lats, plume_lons,
-                                                                         geostationary_lats, geostationary_lons,
-                                                                         utm_fires,
-                                                                         utm_resampler,
-                                                                         plot=True)
+            start_time, stop_time, plume_stats = pt.find_integration_start_stop_times(p_number,
+                                                                                      plume_logging_path,
+                                                                                      plume.filename,
+                                                                                      utm_plume_points, utm_plume_mask,
+                                                                                      plume_lats, plume_lons,
+                                                                                      geostationary_lats, geostationary_lons,
+                                                                                      utm_fires,
+                                                                                      utm_resampler,
+                                                                                      plot=True)
         except Exception, e:
             logger.error(str(e))
             continue
-
-
-
-        continue
 
         # get the variables of interest
         if start_time is not None:

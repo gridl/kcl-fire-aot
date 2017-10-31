@@ -524,4 +524,11 @@ def find_integration_start_stop_times(p_number,
                      plume_head, plume_tail, plume_points, fires, utm_resampler,
                      plume_logging_path, fnames, i)
 
-    return t1, t2
+    if t1 is not None:
+        plume_stats = {'length_difference': plume_length - summed_length,
+                       'proj_flow_mag_mean': np.mean(projected_flow_magnitude[:i+1]),
+                       'proj_flow_mag_std': np.std(projected_flow_magnitude[:i+1]),}
+    else:
+        plume_stats = None
+
+    return t1, t2, plume_stats

@@ -12,9 +12,9 @@ elif sensor == 'himawari':
 
 # root path to data folder
 #root_path = '/Users/dnf/Projects/kcl-fire-aot/data/{0}/'.format(region)
-root_path = '/Users/danielfisher/Projects/kcl-fire-aot/data/{0}/'.format(region)
+#root_path = '/Users/danielfisher/Projects/kcl-fire-aot/data/{0}/'.format(region)
 #root_path = '/Volumes/dfisher/data/{0}/'.format(region)
-#root_path = '/Volumes/INTENSO/{0}/'.format(region)
+root_path = '/Volumes/INTENSO/{0}/'.format(region)
 
 # processed data paths
 path_to_processed_orac = root_path + 'processed/orac_proc/'
@@ -57,7 +57,7 @@ path_to_rf_model = root_path + 'models/rf_model_64_trees.pickle'
 
 # visualisation filepaths
 path_to_orac_visuals = root_path + 'visualisations/orac/'
-path_to_him_visualisations = root_path + 'visualisations/himawari/'
+path_to_plume_tracking_visualisations = root_path + 'visualisations/plume_tracking/'
 
 # filelist paths
 path_to_filelists = root_path + 'filelists/'
