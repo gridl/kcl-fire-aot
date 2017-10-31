@@ -2,6 +2,7 @@ import logging
 import os
 
 import numpy as np
+import pandas as pd
 
 import src.features.fre_to_tpm.ftt_tpm as tt
 import src.features.fre_to_tpm.ftt_utils as ut
@@ -20,10 +21,12 @@ def main():
     # load in static data
     frp_df = ut.read_frp_df(fp.path_to_himawari_frp)
     plume_df = ut.read_plume_polygons(fp.path_to_smoke_plume_polygons_csv)
-    #lc_data = ut.read_nc(fp.path_to_landcover)
-
+    lc_data = ut.read_nc(fp.path_to_landcover)
     geo_file = fp.root_path + '/processed/himawari/Himawari_lat_lon.img'
     geostationary_lats, geostationary_lons = load_hrit.geo_read(geo_file)
+
+    # setup output path to hold csv
+    output_path = os.path.join(fp.path_to_frp_tpm_features, 'model_features.csv')
 
     # set up arrays to hold data
     plumes_numbers = []
@@ -117,7 +120,7 @@ def main():
                                                                                       geostationary_lats, geostationary_lons,
                                                                                       utm_fires,
                                                                                       utm_resampler,
-                                                                                      plot=True)
+                                                                                      plot=False)
         except Exception, e:
             logger.error(str(e))
             continue
@@ -129,11 +132,13 @@ def main():
                                       utm_plume_polygon, frp_df, start_time, stop_time, utm_resampler))
             tpm.append(tt.compute_tpm(utm_orac_aod_plume, utm_orac_aod_background, utm_mxd04_aod_background,
                                       utm_plume_polygon, utm_plume_mask, utm_bg_mask))
-            #lc.append(ut.find_landcover_class(fires_lats, fires_lons, lc_data))
+            lc.append(ut.find_landcover_class(fires_lats, fires_lons, lc_data))
 
-    # split data based on lc type
-
-    # compute models
+    # dump data to csv via df
+    data = np.array([fre, tpm, lc, plumes_numbers]).T
+    columns = ['fre', 'tpm', 'lc', 'plume_number']
+    df = pd.DataFrame(data, columns=columns)
+    df.to_csv(output_path)
 
 
 if __name__=="__main__":

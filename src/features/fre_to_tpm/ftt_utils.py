@@ -156,7 +156,7 @@ def find_landcover_class(lat_list, lon_list, landcover_ds):
         # image is flipped, so we need to reverse the lat coordinate
         l = -(l + 1)
 
-        lc_list.append(np.array(landcover_ds['Band1'][(l - 1):l, s:s + 1][0])[0])
+        lc_list.append(np.array(landcover_ds['lccs_class'][(l - 1):l, s:s + 1][0])[0])
 
     # return the most common landcover class for the fire contined in the ROI
     return stats.mode(lc_list).mode[0]

@@ -54,6 +54,7 @@ path_to_modis_tmp = root_path + 'tmp/modis/'
 # features filepaths
 path_to_plume_classification_features = root_path + 'interim/classification_features.pickle'
 path_to_reduced_plume_classification_features = root_path + 'interim/classification_features_20pc.pickle'
+path_to_frp_tpm_features = root_path + 'interim/fre_tpm_features/'
 
 # model filepaths
 path_to_rf_model = root_path + 'models/rf_model_64_trees.pickle'
