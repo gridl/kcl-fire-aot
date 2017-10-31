@@ -12,9 +12,9 @@ elif sensor == 'himawari':
 
 # root path to data folder
 #root_path = '/Users/dnf/Projects/kcl-fire-aot/data/{0}/'.format(region)
-#root_path = '/Users/danielfisher/Projects/kcl-fire-aot/data/{0}/'.format(region)
+root_path = '/Users/danielfisher/Projects/kcl-fire-aot/data/{0}/'.format(region)
 #root_path = '/Volumes/dfisher/data/{0}/'.format(region)
-root_path = '/Volumes/INTENSO/{0}/'.format(region)
+#root_path = '/Volumes/INTENSO/{0}/'.format(region)
 
 # processed data paths
 path_to_processed_orac = root_path + 'processed/orac_proc/'
