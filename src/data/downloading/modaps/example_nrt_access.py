@@ -5,6 +5,8 @@ import time
 import shutil
 from datetime import datetime
 
+from netCDF4 import Dataset
+
 
 def ftp_connect(ftp_loc, username, password):
     try:
@@ -27,7 +29,6 @@ def ftp_connect(ftp_loc, username, password):
 
 
 def get_filelist(ftp_loc, username, password, year, doy, ftp_product_path):
-
     attempt = 0
     while True:
         try:
@@ -49,7 +50,6 @@ def get_filelist(ftp_loc, username, password, year, doy, ftp_product_path):
 
 
 def retrieve(ftp_loc, username, password, year, doy, ftp_directory, ftp_filename, local_filepath):
-
     attempt = 0
     run = True
     while run:
@@ -80,11 +80,14 @@ def get_files(ftp_conn):
 
 
 def check_inbounds(local_filepath_geo, roi_lat, roi_lon):
-    pass
+    print local_filepath_geo
+    geo_file = Dataset(local_filepath_geo)
+    inbounds = (roi_lat >= geo_file.geospatial_lat_min) & (roi_lat <= geo_file.geospatial_lat_max) \
+               & (roi_lon >= geo_file.geospatial_lon_min) & (roi_lon <= geo_file.geospatial_lon_max)
+    return inbounds
 
 
 def main():
-
     # ftp connection info
     ftp_loc = 'nrt4.modaps.eosdis.nasa.gov'
     ftp_root = 'allData/5001/'
@@ -92,8 +95,7 @@ def main():
     password = '&5ii5yHMtGX9'
 
     # output filepaths
-    output_root =
-
+    output_root = '/Users/dnf/Projects/kcl-fire-aot/data/nrt_test/viirs'
 
     # product setup
     geo_product = 'VNP03MOD_NRT'
@@ -107,7 +109,6 @@ def main():
     # some iteration variables
     current_doy = 999
     temp_doy_directory = ''
-
     while True:
 
         # get current UTC time fo correct folder access
@@ -120,11 +121,17 @@ def main():
             os.makedirs(output_directory)
 
             # also setup log file
-            hdlr = logging.FileHandler(os.path.join(output_directory, 'doy.log'))
-            formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-            hdlr.setFormatter(formatter)
-            logger.addHandler(hdlr)
-            logger.setLevel(logging.WARNING)
+            try:
+                logger.handlers[0].stream.close()
+                logger.removeHandler(logger.handlers[0])
+            except:
+                pass
+
+            file_handler = logging.FileHandler(os.path.join(output_directory, 'doy.log'), 'a')
+            file_handler.setLevel(logging.DEBUG)
+            formatter = logging.Formatter("%(asctime)s %(filename)s, %(lineno)d, %(funcName)s: %(message)s")
+            file_handler.setFormatter(formatter)
+            logger.addHandler(file_handler)
 
         # create temp folder for doy to hold geo files in
         if doy != current_doy:
@@ -148,23 +155,26 @@ def main():
 
             # see if we have the file
             if not os.path.isfile(temp_filepath_geo):
-                logger.info("   ...Downloading: " + ftp_filename_geo)
                 retrieve(ftp_loc, username, password, year, doy, ftp_directory_geo, ftp_filename_geo,
                          temp_filepath_geo)
 
                 # check if roi in geo_product
-                inbounds = True # check_inbounds(temp_filepath_geo, roi_lat, roi_lon)
+                try:
+                    inbounds = check_inbounds(temp_filepath_geo, roi_lat, roi_lon)
+                except:
+                    logger.info('Failed to check inbounds on product:' + ftp_filename_geo)
+                    continue
 
                 # if it is within roi download other products and log times
                 if inbounds:
-                    ftp_directory_img = os.path.join(ftp_root, img_product)
-                    ftp_filename_img = ftp_filename_geo.replace('VNP03IMG', 'VNP02IMG')
-                    local_filepath_img = os.path.join(output_directory, ftp_filename_img)
-                    retrieve(ftp_loc, username, password, year, doy, ftp_directory_img, ftp_filename_img,
-                             local_filepath_img)
+                    # ftp_directory_img = os.path.join(ftp_root, img_product)
+                    # ftp_filename_img = ftp_filename_geo.replace('VNP03MOD', 'VNP02IMG')
+                    # local_filepath_img = os.path.join(output_directory, ftp_filename_img)
+                    # retrieve(ftp_loc, username, password, year, doy, ftp_directory_img, ftp_filename_img,
+                    #          local_filepath_img)
 
                     ftp_directory_mod = os.path.join(ftp_root, mod_product)
-                    ftp_filename_mod = ftp_filename_geo.replace('VNP03IMG', 'VNP02MOD')
+                    ftp_filename_mod = ftp_filename_geo.replace('VNP03MOD', 'VNP02MOD')
                     local_filepath_mod = os.path.join(output_directory, ftp_filename_mod)
                     retrieve(ftp_loc, username, password, year, doy, ftp_directory_mod, ftp_filename_mod,
                              local_filepath_mod)
@@ -176,15 +186,19 @@ def main():
                     # log the time difference between the current time and the product time
                     current_time = datetime.utcnow()
                     product_time = datetime.strptime(ftp_filename_geo[14:26], "%Y%j.%H%M")
-                    logger.info('Downloaded products...')
+                    logger.info('Downloaded product:' + ftp_filename_mod)
                     logger.info('Products final download time: ' + str(current_time))
                     logger.info('Products aquisition time: ' + str(product_time))
                     logger.info('Products time diff.: ' + str(current_time - product_time))
+                    logger.info('')
 
         # sleep for a bit
         time.sleep(60)
 
+
 if __name__ == "__main__":
+    log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    logging.basicConfig(level=logging.INFO, format=log_fmt)
     logger = logging.getLogger(__name__)
 
     main()
