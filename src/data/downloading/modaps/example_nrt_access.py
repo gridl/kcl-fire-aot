@@ -104,7 +104,7 @@ def main():
 
     # roi setup (somewhere over North Atlantic)
     roi_lat = 57.44
-    roi_lon = -15.16
+    roi_lon = 15.16
 
     # some iteration variables
     current_doy = 999
@@ -193,7 +193,7 @@ def main():
                     logger.info('')
 
         # sleep for a bit
-        time.sleep(60)
+        time.sleep(180)
 
 
 if __name__ == "__main__":
