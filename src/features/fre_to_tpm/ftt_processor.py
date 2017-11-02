@@ -37,6 +37,9 @@ def main():
     # itereate over the plumes
     for p_number, plume in plume_df.iterrows():
 
+        if p_number < 7:
+            continue
+
         # make a directory to hold the plume logging information
         plume_logging_path = os.path.join(fp.path_to_plume_tracking_visualisations, str(p_number))
         if not os.path.isdir(plume_logging_path):
