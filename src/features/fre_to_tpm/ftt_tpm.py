@@ -21,7 +21,7 @@ def compute_tpm(utm_orac_aod_plume,
     mean_plume_aod = extract_mean_aod(utm_orac_aod_plume, utm_plume_mask)
 
     # extract mean MYD04 background AOD using bg_mask
-    mean_bg_aod_orac = extract_mean_aod(utm_orac_aod_background, utm_bg_mask)
+    #mean_bg_aod_orac = extract_mean_aod(utm_orac_aod_background, utm_bg_mask)
     mean_bg_aod_modis = extract_mean_aod(utm_mxd04_aod_background, utm_bg_mask)
 
     # subtract mean background AOD from mean plume AOD

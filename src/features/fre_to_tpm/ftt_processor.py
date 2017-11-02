@@ -120,7 +120,7 @@ def main():
                                                                                       geostationary_lats, geostationary_lons,
                                                                                       utm_fires,
                                                                                       utm_resampler,
-                                                                                      plot=False)
+                                                                                      plot=True)
         except Exception, e:
             logger.error(str(e))
             continue
