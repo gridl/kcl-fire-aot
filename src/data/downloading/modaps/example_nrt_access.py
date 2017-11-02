@@ -66,6 +66,8 @@ def retrieve(ftp_loc, username, password, year, doy, ftp_directory, ftp_filename
             logger.info('Could not download ' + ftp_filename + " on attempt " + str(attempt) +
                         " Failed with error: " + str(e) + "Reattempting...")
             time.sleep(5)
+            if attempt == 5:
+                return str()
 
 
 def ftp_cd(ftp_conn, year, doy, ftp_product_path):
@@ -99,7 +101,6 @@ def main():
 
     # product setup
     geo_product = 'VNP03MOD_NRT'
-    img_product = 'VNP02IMG_NRT'
     mod_product = 'VNP02MOD_NRT'
 
     # roi setup (somewhere over North Atlantic)
