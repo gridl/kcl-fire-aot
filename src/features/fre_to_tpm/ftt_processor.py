@@ -19,9 +19,9 @@ logger = logging.getLogger(__name__)
 def main():
 
     # load in static data
-    frp_df = ut.read_frp_df(fp.path_to_himawari_frp)
+    #frp_df = ut.read_frp_df(fp.path_to_himawari_frp)
     plume_df = ut.read_plume_polygons(fp.path_to_smoke_plume_polygons_csv)
-    lc_data = ut.read_nc(fp.path_to_landcover)
+    #lc_data = ut.read_nc(fp.path_to_landcover)
     geo_file = fp.root_path + '/processed/himawari/Himawari_lat_lon.img'
     geostationary_lats, geostationary_lons = load_hrit.geo_read(geo_file)
 
@@ -37,7 +37,7 @@ def main():
     # itereate over the plumes
     for p_number, plume in plume_df.iterrows():
 
-        if p_number < 7:
+        if p_number < 19:
             continue
 
         # make a directory to hold the plume logging information
@@ -70,10 +70,10 @@ def main():
             plume_bounding_box = ut.construct_bounding_box(plume.plume_extent)
             plume_lats = ut.subset_data(scene_lats, plume_bounding_box)
             plume_lons = ut.subset_data(scene_lons, plume_bounding_box)
+            plume_vector = ut.construct_vector(plume, plume_bounding_box, plume_lats, plume_lons)
             plume_points = ut.construct_points(plume, plume_bounding_box, plume_lats, plume_lons)
             plume_polygon = ut.construct_polygon(plume, plume_bounding_box, plume_lats, plume_lons)
             plume_mask = ut.construct_mask(plume.plume_extent, plume_bounding_box)
-
             background_bounding_box = ut.construct_bounding_box(plume.background_extent)
             background_mask = ut.construct_mask(plume.background_extent, background_bounding_box)
             background_lats = ut.subset_data(scene_lats, background_bounding_box)
@@ -102,6 +102,7 @@ def main():
 
         utm_plume_points = ut.reproject_shapely(plume_points, utm_resampler)
         utm_plume_polygon = ut.reproject_shapely(plume_polygon, utm_resampler)
+        utm_plume_vector = ut.reproject_shapely(plume_vector, utm_resampler)
         utm_plume_mask = utm_resampler.resample_image(plume_mask, plume_lats, plume_lons)
         utm_bg_mask = utm_resampler.resample_image(background_mask, background_lats, background_lons)
 
@@ -120,6 +121,7 @@ def main():
                                                                                       plume.filename,
                                                                                       utm_plume_points, utm_plume_mask,
                                                                                       plume_lats, plume_lons,
+                                                                                      utm_plume_vector,
                                                                                       geostationary_lats, geostationary_lons,
                                                                                       utm_fires,
                                                                                       utm_resampler,
@@ -127,6 +129,8 @@ def main():
         except Exception, e:
             logger.error(str(e))
             continue
+
+        continue
 
         # get the variables of interest
         if start_time is not None:

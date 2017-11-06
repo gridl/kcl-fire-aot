@@ -18,7 +18,7 @@ from pyhdf.SD import SD, SDC
 from matplotlib.path import Path
 from scipy import stats
 from scipy import ndimage
-from shapely.geometry import Polygon, Point, MultiPoint
+from shapely.geometry import Polygon, Point, MultiPoint, LineString
 from shapely.ops import transform
 import pyresample as pr
 import pyproj
@@ -85,7 +85,8 @@ def read_plume_polygons(path):
     except Exception, e:
         logger.warning('Could not load pickle with error:' + str(e) + ' ...attempting to load csv')
         df = pd.read_csv(path, quotechar='"', sep=',', converters={'plume_extent': ast.literal_eval,
-                                                                   'background_extent': ast.literal_eval})
+                                                                   'background_extent': ast.literal_eval,
+                                                                   'plume_vector': ast.literal_eval})
     return df
 
 
@@ -163,7 +164,7 @@ def find_landcover_class(lat_list, lon_list, landcover_ds):
 
 
 def construct_bounding_box(extent):
-    padding = 10  # pixels
+    padding = 10  # pixels  TODO Move to config file
     x, y = zip(*extent)
     min_x, max_x = np.min(x) - padding, np.max(x) + padding
     min_y, max_y = np.min(y) - padding, np.max(y) + padding
@@ -214,9 +215,9 @@ def fires_in_plume(fires, plume_polygon):
     return inbound_fires_y, inbound_fires_x
 
 
-def _extract_geo_from_bounds(plume, bounds, lats, lons):
+def _extract_geo_from_bounds(ext, bounds, lats, lons):
     # adjust plume extent for the subset
-    extent = [[x - bounds['min_x'], y - bounds['min_y']] for x, y in plume.plume_extent]
+    extent = [[x - bounds['min_x'], y - bounds['min_y']] for x, y in ext]
 
     # when digitising points are appended (x,y).  However, arrays are accessed
     # in numpy as row, col which is y, x.  So we need to switch
@@ -226,13 +227,18 @@ def _extract_geo_from_bounds(plume, bounds, lats, lons):
 
 
 def construct_points(plume, bounds, lats, lons):
-    bounding_lats, bounding_lons = _extract_geo_from_bounds(plume, bounds, lats, lons)
+    bounding_lats, bounding_lons = _extract_geo_from_bounds(plume.plume_extent, bounds, lats, lons)
     return MultiPoint(zip(bounding_lons, bounding_lats))
 
 
 def construct_polygon(plume, bounds, lats, lons):
-    bounding_lats, bounding_lons = _extract_geo_from_bounds(plume, bounds, lats, lons)
+    bounding_lats, bounding_lons = _extract_geo_from_bounds(plume.plume_extent, bounds, lats, lons)
     return Polygon(zip(bounding_lons, bounding_lats))
+
+
+def construct_vector(plume, bounds, lats, lons):
+    bounding_lats, bounding_lons = _extract_geo_from_bounds(plume.plume_vector, bounds, lats, lons)
+    return LineString(zip(bounding_lons[0:2], bounding_lats[0:2]))
 
 
 def reproject_shapely(shapely_object, utm_resampler):

@@ -97,7 +97,7 @@ def main():
     password = '&5ii5yHMtGX9'
 
     # output filepaths
-    output_root = '/Users/dnf/Projects/kcl-fire-aot/data/nrt_test/viirs'
+    output_root = '/Users/danielfisher/Projects/kcl-fire-aot/data/nrt_test/viirs'
 
     # product setup
     geo_product = 'VNP03MOD_NRT'

@@ -29,6 +29,12 @@ def get_plume_time(plume_fname):
     return datetime.strptime(plume_fname[10:22], '%Y%j.%H%M')
 
 
+def compute_plume_vector_alt(pv):
+    head = np.array([pv.bounds[0], pv.bounds[3]])
+    tail = np.array([pv.bounds[2], pv.bounds[1]])
+    return tail, head, tail - head
+
+
 def compute_plume_vector(plume_points, fire_positions):
     """
 
@@ -279,9 +285,10 @@ def feature_detector(fast, im, mask, tracks):
     points = fast.detect(im, None)
     if points is not None:
         for pt in points:
-            # check if points is in plume
-            if mask[int(pt.pt[1]), int(pt.pt[0])]:
-                tracks.append([pt.pt])
+            tracks.append([pt.pt])
+            # # check if points is in plume
+            # if mask[int(pt.pt[1]), int(pt.pt[0])]:
+            #     tracks.append([pt.pt])
 
 
 def find_good_tracks(p0, p1, p0r):
@@ -419,6 +426,7 @@ def find_integration_start_stop_times(p_number,
                                       plume_fname,
                                       plume_points, plume_mask,
                                       plume_lats, plume_lons,
+                                      plume_vect,
                                       geostationary_lats, geostationary_lons,
                                       fires,
                                       utm_resampler,
@@ -441,7 +449,8 @@ def find_integration_start_stop_times(p_number,
     """
     plume_time = get_plume_time(plume_fname)
 
-    plume_head, plume_tail, plume_vector = compute_plume_vector(plume_points, fires)
+    #plume_head, plume_tail, plume_vector = compute_plume_vector(plume_points, fires)
+    plume_head, plume_tail, plume_vector = compute_plume_vector_alt(plume_vect)
 
     bb = spatial_subset(plume_lats, plume_lons, geostationary_lats, geostationary_lons)
 

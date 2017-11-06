@@ -352,7 +352,7 @@ class Annotate(object):
                 self.ax.figure.canvas.draw()
 
 
-def digitise(fcc, tcc, mod_aod, orac_aod, orac_cost, fires):
+def digitise(fcc, tcc, mod_aod, orac_aod, orac_cost, fires, myd021km_fname):
 
     plume_polygons = []
     background_polygons = []
@@ -362,6 +362,7 @@ def digitise(fcc, tcc, mod_aod, orac_aod, orac_cost, fires):
     while do_annotation:
 
         fig, ax = plt.subplots(1, figsize=(11, 8))
+        plt.title(myd021km_fname)
         ax.xaxis.set_visible(False)
         ax.yaxis.set_visible(False)
 
@@ -389,13 +390,14 @@ def digitise(fcc, tcc, mod_aod, orac_aod, orac_cost, fires):
     return plume_polygons, background_polygons, plume_vectors
 
 
-def append_to_list(plume, background, fname, plumes_list):
+def append_to_list(plume, background, vector, fname, plumes_list):
     row_dict = {}
 
     row_dict['sensor'] = "MYD"
     row_dict['filename'] = fname
     row_dict['plume_extent'] = plume
     row_dict['background_extent'] = background
+    row_dict['plume_vector'] = vector
 
     # lastly append to the data dictionary
     plumes_list.append(row_dict)
@@ -453,7 +455,11 @@ def main():
             orac_aod, orac_cost = aod_orac(orac_data)
 
         # do the digitising
-        plume_polygons, background_polygons, plume_vectors = digitise(fcc, tcc, mod_aod, orac_aod, orac_cost, fires)
+        plume_polygons, background_polygons, plume_vectors = digitise(fcc, tcc,
+                                                                      mod_aod, orac_aod,
+                                                                      orac_cost,
+                                                                      fires,
+                                                                      myd021km_fname)
         if plume_polygons is None:
             continue
 

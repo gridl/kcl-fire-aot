@@ -110,7 +110,7 @@ def main():
     base_url = "http://lance.modaps.eosdis.nasa.gov/axis2/services/MWSLance/"  # lance
 
     # output filepaths
-    output_root = '/Users/dnf/Projects/kcl-fire-aot/data/nrt_test/modis'
+    output_root = '/Users/danielfisher/Projects/kcl-fire-aot/data/nrt_test/modis'
 
     # set up ftp stuff
     ftp_loc = 'nrt3.modaps.eosdis.nasa.gov'
