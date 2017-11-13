@@ -294,13 +294,13 @@ class utm_resampler(object):
         return pr.geometry.AreaDefinition(area_id, description, proj_id, proj_dict,
                                           self.x_size, self.y_size, self.extent)
 
-    def resample_image(self, image, image_lats, image_lons):
+    def resample_image(self, image, image_lats, image_lons, fill_value=-999):
         swath_def = pr.geometry.SwathDefinition(lons=image_lons, lats=image_lats)
         return pr.kd_tree.resample_nearest(swath_def,
                                            image,
                                            self.area_def,
-                                           radius_of_influence=75000,
-                                           fill_value=-999)
+                                           radius_of_influence=1000,
+                                           fill_value=fill_value)
 
     def resample_points_to_utm(self, point_lats, point_lons):
         return [self.proj(lon, lat) for lon, lat in zip(point_lons, point_lats)]

@@ -20,7 +20,7 @@ def main():
 
     # load in static data
     #frp_df = ut.read_frp_df(fp.path_to_himawari_frp)
-    plume_df = ut.read_plume_polygons(fp.path_to_smoke_plume_polygons_csv)
+    plume_df = ut.read_plume_polygons(fp.path_to_smoke_plume_polygons_modis_csv)
     #lc_data = ut.read_nc(fp.path_to_landcover)
     geo_file = fp.root_path + '/processed/himawari/Himawari_lat_lon.img'
     geostationary_lats, geostationary_lons = load_hrit.geo_read(geo_file)
@@ -37,14 +37,10 @@ def main():
     # itereate over the plumes
     for p_number, plume in plume_df.iterrows():
 
-        if p_number < 19:
-            continue
-
         # make a directory to hold the plume logging information
         plume_logging_path = os.path.join(fp.path_to_plume_tracking_visualisations, str(p_number))
         if not os.path.isdir(plume_logging_path):
             os.mkdir(plume_logging_path)
-
 
         # get plume time stamp
         timestamp_mxd = ut.get_timestamp(plume.filename)
