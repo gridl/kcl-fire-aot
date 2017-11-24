@@ -10,17 +10,14 @@ import pandas as pd
 import matplotlib
 #matplotlib.use('TkAgg')
 
-import pyresample as pr
-import scipy.ndimage as ndimage
-from datetime import datetime
-import h5py
-from skimage import exposure
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Rectangle, Polygon
 from matplotlib.lines import Line2D
 from matplotlib.collections import PatchCollection
 from matplotlib.widgets import RadioButtons
-from matplotlib.colors import LogNorm
+
+import scipy.misc as misc
+
 
 
 import src.config.filepaths as filepaths
@@ -29,11 +26,11 @@ import src.features.fre_to_tpm.ftt_utils as ut
 
 def load_df(path):
     try:
-        myd021km_plume_df = pd.read_pickle(path)
+        viirs_plume_df = pd.read_pickle(path)
     except:
-        logger.info("myd021km dataframe does not exist, creating now")
-        myd021km_plume_df = pd.DataFrame()
-    return myd021km_plume_df
+        logger.info("viirs dataframe does not exist, creating now")
+        viirs_plume_df = pd.DataFrame()
+    return viirs_plume_df
 
 
 def get_timestamp(viirs_sdr_fname):
@@ -69,68 +66,8 @@ def get_viirs_fname(path, timestamp_viirs, viirs_sdr_fname):
         return ''
 
 
-def read_h5(f):
-    return h5py.File(f,  "r")
-
-
-def create_resampler(viirs_data):
-    lats = viirs_data['All_Data']['VIIRS-MOD-GEO_All']['Latitude'][:]
-    lons = viirs_data['All_Data']['VIIRS-MOD-GEO_All']['Longitude'][:]
-    return ut.utm_resampler(lats, lons, 750)
-
-
-def image_histogram_equalization(image, number_bins=256):
-    # from http://www.janeriksolem.net/2009/06/histogram-equalization-with-python-and.html
-
-    # get image histogram
-    image_histogram, bins = np.histogram(image[image > 0].flatten(), number_bins, normed=True)
-    cdf = image_histogram.cumsum() # cumulative distribution function
-    cdf = 255 * cdf / cdf[-1] # normalize
-
-    # use linear interpolation of cdf to find new pixel values
-    image_equalized = np.interp(image.flatten(), bins[:-1], cdf)
-
-    return image_equalized.reshape(image.shape)
-
-
-def tcc_viirs(viirs_data, resampler):
-    #m1_params = viirs_data['All_Data']['VIIRS-M1-SDR_All']['RadianceFactors']
-    m1 = viirs_data['All_Data']['VIIRS-M1-SDR_All']['Radiance'][:]
-    #m4_params = viirs_data['All_Data']['VIIRS-M1-SDR_All']['RadianceFactors']
-    m4 = viirs_data['All_Data']['VIIRS-M4-SDR_All']['Radiance'][:]
-    #m5_params = viirs_data['All_Data']['VIIRS-M1-SDR_All']['RadianceFactors']
-    m5 = viirs_data['All_Data']['VIIRS-M5-SDR_All']['Radiance'][:]
-
-    mask = m5<0
-    masked_lats = np.ma.masked_array(resampler.lats, mask)
-    masked_lons = np.ma.masked_array(resampler.lons, mask)
-
-    resampled_m1 = resampler.resample_image(m1, masked_lats, masked_lons, fill_value=0)
-    resampled_m4 = resampler.resample_image(m4, masked_lats, masked_lons, fill_value=0)
-    resampled_m5 = resampler.resample_image(m5, masked_lats, masked_lons, fill_value=0)
-
-    r = image_histogram_equalization(resampled_m5)
-    g = image_histogram_equalization(resampled_m4)
-    b = image_histogram_equalization(resampled_m1)
-
-    r = np.round((r * (255 / np.max(r))) * 1).astype('uint8')
-    g = np.round((g * (255 / np.max(g))) * 1).astype('uint8')
-    b = np.round((b * (255 / np.max(b))) * 1).astype('uint8')
-
-    rgb = np.dstack((r, g, b))
-    return rgb
-
-
-def extract_aod(viirs_aod, resampler):
-    aod = viirs_aod['All_Data']['VIIRS-Aeros-Opt-Thick-IP_All']['faot550'][:]
-    mask = aod < -1
-    masked_lats = np.ma.masked_array(resampler.lats, mask)
-    masked_lons = np.ma.masked_array(resampler.lons, mask)
-    resampled_aod = resampler.resample_image(aod, masked_lats, masked_lons, fill_value=0)
-
-    return resampled_aod
-
-
+def load_image(f, mode='RGB'):
+    return misc.imread(f)
 
 
 class Annotate(object):
@@ -171,23 +108,23 @@ class Annotate(object):
         # set up radio buttons
         self.axcolor = 'lightgoldenrodyellow'
 
-        self.rax_digitise = plt.axes([0.05, 0.7, 0.15, 0.15], facecolor=self.axcolor)
+        self.rax_digitise = plt.axes([0.01, 0.7, 0.1, 0.15], facecolor=self.axcolor)
         self.radio_disitise = RadioButtons(self.rax_digitise, ('Digitise', 'Stop'))
         self.radio_disitise.on_clicked(self.annotation_func)
 
-        self.rax_discard = plt.axes([0.05, 0.5, 0.15, 0.15], facecolor=self.axcolor)
+        self.rax_discard = plt.axes([0.01, 0.5, 0.1, 0.15], facecolor=self.axcolor)
         self.radio_discard = RadioButtons(self.rax_discard, ('Keep', 'Discard'))
         self.radio_discard.on_clicked(self.discard_func)
 
-        self.rax_type = plt.axes([0.05, 0.3, 0.15, 0.15], facecolor=self.axcolor)
+        self.rax_type = plt.axes([0.01, 0.3, 0.1, 0.15], facecolor=self.axcolor)
         self.radio_type = RadioButtons(self.rax_type, ('Plume', 'Background', 'Vector'))
         self.radio_type.on_clicked(self.type_func)
 
-        self.rax_image = plt.axes([0.05, 0.1, 0.15, 0.15], facecolor=self.axcolor)
+        self.rax_image = plt.axes([0.01, 0.1, 0.1, 0.15], facecolor=self.axcolor)
         self.radio_image = RadioButtons(self.rax_image, self._radio_labels())
         self.radio_image.on_clicked(self.image_func)
 
-        self.cax = plt.axes([0.8, 0.1, 0.05, 0.8])
+        self.cax = plt.axes([0.925, 0.1, 0.025, 0.8])
         self.cbar = plt.colorbar(self.im, self.cax)
 
     def _add_polygons_to_axis(self, polygons, cmap):
@@ -206,14 +143,14 @@ class Annotate(object):
     def _radio_labels(self):
         labels = []
         # FCC and TCC always present
-        labels.append('TCC')
         labels.append('VIIRS_AOD')
+        labels.append('TCC')
         return tuple(labels)
 
     def _radio_label_mapping(self):
         label_mapping = {}
-        label_mapping['TCC'] = self.tcc
         label_mapping['VIIRS_AOD'] = self.viirs_aod
+        label_mapping['TCC'] = self.tcc
         return label_mapping
 
     def annotation_func(self, label):
@@ -293,8 +230,8 @@ def digitise(tcc, viirs_aod, viirs_fname):
     do_annotation = True
     while do_annotation:
 
-        fig, ax = plt.subplots(1, figsize=(11, 8))
-        plt.title(viirs_fname)
+        fig, ax = plt.subplots(1, figsize=(15, 8))
+        plt.title(viirs_fname[35:65])
         ax.xaxis.set_visible(False)
         ax.yaxis.set_visible(False)
 
@@ -342,7 +279,7 @@ def main():
     """
     viirs_plume_df = load_df(filepaths.path_to_smoke_plume_polygons_viirs)
 
-    for viirs_sdr_fname in os.listdir(filepaths.path_to_viirs_sdr):
+    for viirs_sdr_fname in os.listdir(filepaths.path_to_viirs_sdr_resampled):
 
         logger.info("Processing viirs file: " + viirs_sdr_fname)
 
@@ -357,17 +294,13 @@ def main():
             continue
 
         try:
-            aod_fname = get_viirs_fname(filepaths.path_to_viirs_aod, timestamp_viirs, viirs_sdr_fname)
+            aod_fname = get_viirs_fname(filepaths.path_to_viirs_aod_resampled, timestamp_viirs, viirs_sdr_fname)
         except Exception, e:
             logger.warning('Could not load aux file for:' + viirs_sdr_fname + '. Failed with ' + str(e))
             continue
 
         try:
-            viirs_sdr = read_h5(os.path.join(filepaths.path_to_viirs_sdr, viirs_sdr_fname))
-
-            # setup resampler adn extract true colour
-            utm_resampler = create_resampler(viirs_sdr)
-            tcc = tcc_viirs(viirs_sdr, utm_resampler)
+            tcc = load_image(os.path.join(filepaths.path_to_viirs_sdr_resampled, viirs_sdr_fname))
 
         except Exception, e:
             logger.warning('Could not read the input file: ' + viirs_sdr_fname + '. Failed with ' + str(e))
@@ -377,10 +310,14 @@ def main():
         viirs_aod = None
         if aod_fname:
             try:
-                viirs_aod_data = read_h5(os.path.join(filepaths.path_to_viirs_aod, aod_fname))
-                viirs_aod = extract_aod(viirs_aod_data, utm_resampler)
+                viirs_aod = load_image(os.path.join(filepaths.path_to_viirs_aod_resampled, aod_fname))
+
+                # adjust to between 0-2
+                viirs_aod = viirs_aod.astype('float')
+                viirs_aod *= 2.0/viirs_aod.max()
+
             except Exception, e:
-                logger.warning('Could not read aod file: ' + aod_fname)
+                logger.warning('Could not read aod file: ' + aod_fname + ' error: ' + str(e))
         if viirs_aod is None:
             continue
 
