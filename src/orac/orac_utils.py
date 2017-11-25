@@ -503,7 +503,7 @@ class FileName:
                       'd(?P<year>\d{4})(?P<month>\d{2})(?P<day>\d{2})_'
                       't(?P<start_hour>\d{2})(?P<start_min>\d{2})(?P<start_sec>\d{2})(?P<start_msec>\d{1})_'
                       'e(?P<end_hour>\d{2})(?P<end_min>\d{2})(?P<end_sec>\d{2})(?P<end_msec>\d{1})_'
-                      'o(?P<orbit>\d{5})_'
+                      'b(?P<orbit>\d{5})_'
                       'c(?P<proc_time>\d{20})_noaa_ops.h5', filename)
         if m:
             self.sensor = 'VIIRS'
@@ -515,8 +515,9 @@ class FileName:
             s1 = m.group('start_hour') + m.group('start_min') + m.group('start_sec')
             s2 = m.group('end_hour') + m.group('end_min') + m.group('end_sec')
             FMT = '%H%M%S'
-            self.dur = datetime.strptime(s2, FMT) - datetime.strptime(s1, FMT)
+            self.dur = datetime.datetime.strptime(s2, FMT) - datetime.datetime.strptime(s1, FMT)
             self.geo = filename.replace('SWM01', 'GMTCO')
+            return
 
         m = re.search('ATS_TOA_1P([A-Za-z]{4})'
                       '(?P<year>\d{4})(?P<month>\d{2})(?P<day>\d{2})_'
