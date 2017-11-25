@@ -28,10 +28,8 @@ def run_pre(pp):
     for input_file_path in viirs_files:
 
         output_file_path = os.path.join(pp.output_dir, 'pre')
-        geo_file = input_file_path.replace('sdr', 'geo').replace('SVM01', 'GMTCO')
 
         print output_file_path
-        print geo_file
 
         if not os.path.exists(output_file_path):
             os.makedirs(output_file_path)
@@ -39,7 +37,7 @@ def run_pre(pp):
         # call ORAC preproc
         pre_cmd = input_file_path \
                   + ' -o ' + output_file_path \
-                  + ' -g ' + geo_file \
+                  + ' -g ' + pp.geo_dir \
                   + ' -c 1 2 3 4 5 7 8 11 ' \
                   + ' --skip_ecmwf_hr ' \
                   + ' --keep_driver '

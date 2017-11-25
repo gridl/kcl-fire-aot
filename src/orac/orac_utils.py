@@ -1153,7 +1153,7 @@ def build_preproc_driver(args):
 
     inst = FileName(args.target)
     file = glob_dirs(args.in_dir, args.target, 'L1B file')
-    if inst.sensor == 'MODIS':
+    if (inst.sensor == 'MODIS') | (inst.sensor == 'VIIRS'):
         geo = glob_dirs(args.geo_dir, inst.geo, 'geolocation file')
     else:
         geo = glob_dirs(args.in_dir, inst.geo, 'geolocation file')
