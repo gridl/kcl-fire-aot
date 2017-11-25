@@ -337,7 +337,7 @@ def main():
         # covert pixel/background lists to dataframes and concatenate to main dataframes
         temp_plume_df = pd.DataFrame(plumes_list)
         viirs_plume_df = pd.concat([viirs_plume_df, temp_plume_df])
-        viirs_plume_df.to_pickle(filepaths.path_to_smoke_plume_polygons_modis)
+        viirs_plume_df.to_pickle(filepaths.path_to_smoke_plume_polygons_viirs)
 
 
 if __name__ == '__main__':
