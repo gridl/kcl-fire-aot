@@ -29,8 +29,6 @@ def run_pre(pp):
 
         output_file_path = os.path.join(pp.output_dir, 'pre')
 
-        print output_file_path
-
         if not os.path.exists(output_file_path):
             os.makedirs(output_file_path)
 

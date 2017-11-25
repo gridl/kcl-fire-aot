@@ -516,7 +516,7 @@ class FileName:
             s2 = m.group('end_hour') + m.group('end_min') + m.group('end_sec')
             FMT = '%H%M%S'
             self.dur = datetime.datetime.strptime(s2, FMT) - datetime.datetime.strptime(s1, FMT)
-            self.geo = filename.replace('SWM01', 'GMTCO')
+            self.geo = filename.replace('SVM01', 'GMTCO')[:43] + '*.h5'
             return
 
         m = re.search('ATS_TOA_1P([A-Za-z]{4})'
@@ -1154,7 +1154,7 @@ def build_preproc_driver(args):
 
     inst = FileName(args.target)
     file = glob_dirs(args.in_dir, args.target, 'L1B file')
-    if (inst.sensor == 'MODIS') | (inst.sensor == 'VIIRS'):
+    if (inst.sensor == 'MODIS') or (inst.sensor == 'VIIRS'):
         geo = glob_dirs(args.geo_dir, inst.geo, 'geolocation file')
     else:
         geo = glob_dirs(args.in_dir, inst.geo, 'geolocation file')
