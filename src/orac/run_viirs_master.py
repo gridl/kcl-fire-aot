@@ -23,7 +23,7 @@ def run_pre(pp):
 
     # iterate over viirs files in data dir
 
-    viirs_files = glob.glob(pp.data_dir + 'SVM01_npp_d20150908_t0601144_e0602386_b20016_c20171125110259159115_noaa_ops.h5')
+    viirs_files = glob.glob(pp.data_dir + 'SVM01*')
 
     for input_file_path in viirs_files:
 
@@ -36,9 +36,9 @@ def run_pre(pp):
         pre_cmd = input_file_path \
                   + ' -o ' + output_file_path \
                   + ' -g ' + pp.geo_dir \
-                  + ' -c 1 2 3 4 5 7 8 11 ' \
+                  + ' -c 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 ' \
                   + ' --skip_ecmwf_hr ' \
-                  + ' --keep_driver '
+                  + ' --batch '
         os.system('./orac_preproc.py ' + pre_cmd)
 
 
@@ -69,8 +69,8 @@ def run_pro(pp):
                 proc_cmd = '-i ' + root \
                            + ' -o ' + pro_dir \
                            + ' --sad_dir ' + pp.cldsaddir \
-                           + ' --use_channel 1 1 1 1 1 1 1 1 -a AppCld1L --ret_class ClsAerOx ' \
-                           + ' --keep_driver ' \
+                           + ' --use_channel 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 -a AppCld1L --ret_class ClsAerOx ' \
+                           + ' --batch ' \
                            + ' --phase '
 
                 for phs in pp.cldphs:
