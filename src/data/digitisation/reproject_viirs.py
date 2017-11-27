@@ -117,7 +117,7 @@ def extract_aod_flags(viirs_aod, resampler):
     aod_quality = viirs_aod['All_Data']['VIIRS-Aeros-Opt-Thick-IP_All']['QF1'][:]
     flags = np.zeros(aod_quality.shape)
     for k, v in zip(['00', '01', '10', '11'], [0,1,2,3]):
-        mask = get_mask(aod_quality, 0, 2, '00')
+        mask = get_mask(aod_quality, 0, 2, k)
         flags[mask] = v
 
     mask = aod < -1
@@ -139,7 +139,6 @@ def main():
                 fp.path_to_viirs_sdr_resampled, viirs_sdr_fname.replace('h5', 'png'))):
             print viirs_sdr_fname, 'already resampled'
             continue
-
 
         logger.info("Processing viirs file: " + viirs_sdr_fname)
 

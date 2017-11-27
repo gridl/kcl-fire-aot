@@ -13,6 +13,7 @@ import matplotlib
 from datetime import datetime
 
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 from matplotlib.patches import Circle, Rectangle, Polygon
 from matplotlib.lines import Line2D
 from matplotlib.collections import PatchCollection
@@ -86,12 +87,13 @@ def load_image(f, mode='RGB'):
 
 
 class Annotate(object):
-    def __init__(self, tcc, viirs_aod, orac_aod, ax,
+    def __init__(self, tcc, viirs_aod, viirs_flags, orac_aod, ax,
                  plume_polygons, background_polygons, plume_vectors):
         self.ax = ax
         self.tcc = tcc
         self.orac_aod = orac_aod
         self.viirs_aod = viirs_aod
+        self.viirs_flags = viirs_flags
         self.im = self.ax.imshow(self.orac_aod, interpolation='none', cmap='viridis', vmin=0, vmax=10)
         #if fires is not None:
         #    self.plot = self.ax.plot(fires[1], fires[0], 'r.')
@@ -161,6 +163,7 @@ class Annotate(object):
         # FCC and TCC always present
         labels.append('ORAC_AOD')
         labels.append('VIIRS_AOD')
+        labels.append('VIIRS_FLAGS')
         labels.append('TCC')
         return tuple(labels)
 
@@ -168,6 +171,7 @@ class Annotate(object):
         label_mapping = {}
         label_mapping['ORAC_AOD'] = self.orac_aod
         label_mapping['VIIRS_AOD'] = self.viirs_aod
+        label_mapping['VIIRS_FLAGS'] = self.viirs_flags
         label_mapping['TCC'] = self.tcc
         return label_mapping
 
@@ -197,6 +201,10 @@ class Annotate(object):
         if label == "VIIRS_AOD":
             self.im.set_clim(vmax=10, vmin=0)
             self.im.set_cmap('viridis')
+        if label == "VIIRS_FLAGS":
+            self.im.set_clim(vmax=4, vmin=0)
+            cmap = cm.get_cmap('Set1', 4)
+            self.im.set_cmap(cmap)
         if label == "ORAC_AOD":
             self.im.set_clim(vmax=10, vmin=0)
             self.im.set_cmap('viridis')
@@ -242,7 +250,7 @@ class Annotate(object):
                 self.ax.figure.canvas.draw()
 
 
-def digitise(tcc, viirs_aod, orac_aod, viirs_fname):
+def digitise(tcc, viirs_aod, viirs_flags, orac_aod, viirs_fname):
 
     plume_polygons = []
     background_polygons = []
@@ -257,7 +265,7 @@ def digitise(tcc, viirs_aod, orac_aod, viirs_fname):
         ax.yaxis.set_visible(False)
 
         # first set up the annotator
-        annotator = Annotate(tcc, viirs_aod, orac_aod, ax,
+        annotator = Annotate(tcc, viirs_aod, viirs_flags, orac_aod, ax,
                              plume_polygons, background_polygons, plume_vectors)
 
         # then show the image
@@ -349,8 +357,8 @@ def main():
                 viirs_aod *= 2.0/viirs_aod.max()
 
                 viirs_flags = load_image(os.path.join(filepaths.path_to_viirs_aod_flags_resampled, aod_fname))
-                viirs_flags = viirs_aod.astype('float')
-                viirs_flags *= 3.0 / viirs_aod.max()
+                viirs_flags = viirs_flags.astype('float')
+                viirs_flags *= 3.0 / viirs_flags.max()
 
             except Exception, e:
                 logger.warning('Could not read aod file: ' + aod_fname + ' error: ' + str(e))
@@ -374,6 +382,7 @@ def main():
         # do the digitising
         plume_polygons, background_polygons, plume_vectors = digitise(tcc,
                                                                       viirs_aod,
+                                                                      viirs_flags,
                                                                       orac_aod,
                                                                       viirs_sdr_fname)
         if plume_polygons is None:
