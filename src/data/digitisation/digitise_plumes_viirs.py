@@ -10,6 +10,8 @@ import pandas as pd
 import matplotlib
 #matplotlib.use('TkAgg')
 
+from datetime import datetime
+
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Rectangle, Polygon
 from matplotlib.lines import Line2D
@@ -66,17 +68,31 @@ def get_viirs_fname(path, timestamp_viirs, viirs_sdr_fname):
         return ''
 
 
+def get_orac_fname(path, timestamp_viirs, viirs_sdr_fname):
+    viirs_dt = datetime.strptime(timestamp_viirs, 'd%Y%m%d_t%H%M%S')
+    fname = [f for f in os.listdir(path) if
+             abs((viirs_dt - datetime.strptime(f[37:49], "%Y%m%d%H%M")).total_seconds()) <= 30]
+    if len(fname) > 1:
+        logger.warning("More that one frp granule matched " + viirs_sdr_fname + "selecting 0th option")
+        return fname[0]
+    elif len(fname) == 1:
+        return fname[0]
+    else:
+        return ''
+
+
 def load_image(f, mode='RGB'):
     return misc.imread(f)
 
 
 class Annotate(object):
-    def __init__(self, tcc, viirs_aod, ax,
+    def __init__(self, tcc, viirs_aod, orac_aod, ax,
                  plume_polygons, background_polygons, plume_vectors):
         self.ax = ax
         self.tcc = tcc
+        self.orac_aod = orac_aod
         self.viirs_aod = viirs_aod
-        self.im = self.ax.imshow(self.viirs_aod, interpolation='none', cmap='viridis')
+        self.im = self.ax.imshow(self.orac_aod, interpolation='none', cmap='viridis', vmin=0, vmax=10)
         #if fires is not None:
         #    self.plot = self.ax.plot(fires[1], fires[0], 'r.')
         self.background_polygons = self._add_polygons_to_axis(background_polygons, 'Blues_r')
@@ -143,12 +159,14 @@ class Annotate(object):
     def _radio_labels(self):
         labels = []
         # FCC and TCC always present
+        labels.append('ORAC_AOD')
         labels.append('VIIRS_AOD')
         labels.append('TCC')
         return tuple(labels)
 
     def _radio_label_mapping(self):
         label_mapping = {}
+        label_mapping['ORAC_AOD'] = self.orac_aod
         label_mapping['VIIRS_AOD'] = self.viirs_aod
         label_mapping['TCC'] = self.tcc
         return label_mapping
@@ -177,7 +195,10 @@ class Annotate(object):
         self.im.set_data(im_data)
 
         if label == "VIIRS_AOD":
-            self.im.set_clim(vmax=2, vmin=0)
+            self.im.set_clim(vmax=10, vmin=0)
+            self.im.set_cmap('viridis')
+        if label == "ORAC_AOD":
+            self.im.set_clim(vmax=10, vmin=0)
             self.im.set_cmap('viridis')
         plt.draw()
 
@@ -221,7 +242,7 @@ class Annotate(object):
                 self.ax.figure.canvas.draw()
 
 
-def digitise(tcc, viirs_aod, viirs_fname):
+def digitise(tcc, viirs_aod, orac_aod, viirs_fname):
 
     plume_polygons = []
     background_polygons = []
@@ -236,7 +257,7 @@ def digitise(tcc, viirs_aod, viirs_fname):
         ax.yaxis.set_visible(False)
 
         # first set up the annotator
-        annotator = Annotate(tcc, viirs_aod, ax,
+        annotator = Annotate(tcc, viirs_aod, orac_aod, ax,
                              plume_polygons, background_polygons, plume_vectors)
 
         # then show the image
@@ -293,11 +314,22 @@ def main():
         if image_seen(viirs_sdr_fname):
             continue
 
+
+        # get the filenames
         try:
             aod_fname = get_viirs_fname(filepaths.path_to_viirs_aod_resampled, timestamp_viirs, viirs_sdr_fname)
         except Exception, e:
             logger.warning('Could not load aux file for:' + viirs_sdr_fname + '. Failed with ' + str(e))
             continue
+
+        try:
+            orac_fname = get_orac_fname(filepaths.path_to_viirs_orac_resampled, timestamp_viirs, viirs_sdr_fname)
+        except Exception, e:
+            logger.warning('Could not load aux file for:' + viirs_sdr_fname + '. Failed with ' + str(e))
+            continue
+
+
+        # load in the data
 
         try:
             tcc = load_image(os.path.join(filepaths.path_to_viirs_sdr_resampled, viirs_sdr_fname))
@@ -316,15 +348,33 @@ def main():
                 viirs_aod = viirs_aod.astype('float')
                 viirs_aod *= 2.0/viirs_aod.max()
 
+                viirs_flags = load_image(os.path.join(filepaths.path_to_viirs_aod_flags_resampled, aod_fname))
+                viirs_flags = viirs_aod.astype('float')
+                viirs_flags *= 3.0 / viirs_aod.max()
+
             except Exception, e:
                 logger.warning('Could not read aod file: ' + aod_fname + ' error: ' + str(e))
         if viirs_aod is None:
             continue
 
+        orac_aod = None
+        if orac_fname:
+            try:
+                orac_aod = load_image(os.path.join(filepaths.path_to_viirs_orac_resampled, orac_fname))
+
+                # adjust to between 0-10
+                orac_aod = orac_aod.astype('float')
+                orac_aod *= 10.0 / orac_aod.max()
+
+            except Exception, e:
+                logger.warning('Could not read aod file: ' + orac_fname + ' error: ' + str(e))
+        if orac_aod is None:
+            continue
 
         # do the digitising
         plume_polygons, background_polygons, plume_vectors = digitise(tcc,
                                                                       viirs_aod,
+                                                                      orac_aod,
                                                                       viirs_sdr_fname)
         if plume_polygons is None:
             continue

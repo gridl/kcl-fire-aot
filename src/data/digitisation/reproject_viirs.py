@@ -10,6 +10,8 @@ import scipy.misc as misc
 import src.config.filepaths as fp
 import src.features.fre_to_tpm.ftt_utils as ut
 
+import matplotlib.pyplot as plt
+
 
 def get_timestamp(viirs_sdr_fname):
     try:
@@ -92,16 +94,50 @@ def extract_aod(viirs_aod, resampler):
     return resampled_aod
 
 
+def get_mask(arr, bit_pos, bit_len, value):
+    '''Generates mask with given bit information.
+    Parameters
+        bit_pos		-	Position of the specific QA bits in the value string.
+        bit_len		-	Length of the specific QA bits.
+        value  		-	A value indicating the desired condition.
+    '''
+    bitlen = int('1' * bit_len, 2)
+
+    if type(value) == str:
+        value = int(value, 2)
+
+    pos_value = bitlen << bit_pos
+    con_value = value << bit_pos
+    mask = (arr & pos_value) == con_value
+    return mask
+
+
+def extract_aod_flags(viirs_aod, resampler):
+    aod = viirs_aod['All_Data']['VIIRS-Aeros-Opt-Thick-IP_All']['faot550'][:]
+    aod_quality = viirs_aod['All_Data']['VIIRS-Aeros-Opt-Thick-IP_All']['QF1'][:]
+    flags = np.zeros(aod_quality.shape)
+    for k, v in zip(['00', '01', '10', '11'], [0,1,2,3]):
+        mask = get_mask(aod_quality, 0, 2, '00')
+        flags[mask] = v
+
+    mask = aod < -1
+    masked_lats = np.ma.masked_array(resampler.lats, mask)
+    masked_lons = np.ma.masked_array(resampler.lons, mask)
+    resampled_flags = resampler.resample_image(flags, masked_lats, masked_lons, fill_value=3)
+
+    return resampled_flags
+
+
 
 
 def main():
 
 
-    for viirs_sdr_fname in os.listdir(fp.path_to_viirs_sdr_unproj):
+    for viirs_sdr_fname in os.listdir(fp.path_to_viirs_sdr):
 
         if os.path.isfile(os.path.join(
                 fp.path_to_viirs_sdr_resampled, viirs_sdr_fname.replace('h5', 'png'))):
-            print fp.path_to_viirs_sdr_resampled, 'already resampled'
+            print viirs_sdr_fname, 'already resampled'
             continue
 
 
@@ -115,13 +151,16 @@ def main():
             continue
 
         try:
-            aod_fname = get_viirs_fname(fp.path_to_viirs_aod_unproj, timestamp_viirs, viirs_sdr_fname)
+            aod_fname = get_viirs_fname(fp.path_to_viirs_aod, timestamp_viirs, viirs_sdr_fname)
         except Exception, e:
             logger.warning('Could not load aux file for:' + viirs_sdr_fname + '. Failed with ' + str(e))
             continue
 
+        if not aod_fname:
+            continue
+
         try:
-            viirs_sdr = read_h5(os.path.join(fp.path_to_viirs_sdr_unproj, viirs_sdr_fname))
+            viirs_sdr = read_h5(os.path.join(fp.path_to_viirs_sdr, viirs_sdr_fname))
 
             # setup resampler adn extract true colour
             utm_resampler = create_resampler(viirs_sdr)
@@ -135,17 +174,19 @@ def main():
         viirs_aod = None
         if aod_fname:
             try:
-                viirs_aod_data = read_h5(os.path.join(fp.path_to_viirs_aod_unproj, aod_fname))
+                viirs_aod_data = read_h5(os.path.join(fp.path_to_viirs_aod, aod_fname))
                 viirs_aod = extract_aod(viirs_aod_data, utm_resampler)
+                aod_flags = extract_aod_flags(viirs_aod_data, utm_resampler)
+
             except Exception, e:
                 logger.warning('Could not read aod file: ' + aod_fname)
         if viirs_aod is None:
             continue
 
-
         # save the outputs
-        misc.imsave(os.path.join(fp.path_to_viirs_aod_resampled, aod_fname.replace('h5', 'png')), viirs_aod)
         misc.imsave(os.path.join(fp.path_to_viirs_sdr_resampled, viirs_sdr_fname.replace('h5', 'png')), tcc)
+        misc.imsave(os.path.join(fp.path_to_viirs_aod_resampled, aod_fname.replace('h5', 'png')), viirs_aod)
+        misc.imsave(os.path.join(fp.path_to_viirs_aod_flags_resampled, aod_fname.replace('h5', 'png')), aod_flags)
 
 
 if __name__ == "__main__":

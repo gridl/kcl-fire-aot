@@ -30,9 +30,18 @@ def extract_aod(orac_data, resampler):
     return resampled_aod
 
 
+def extract_cost(orac_data, resampler):
+    cost = orac_data['costjm'][:]
+    mask = np.ma.getmask(cost)
+    masked_lats = np.ma.masked_array(resampler.lats, mask)
+    masked_lons = np.ma.masked_array(resampler.lons, mask)
+    resampled_cost = resampler.resample_image(cost, masked_lats, masked_lons, fill_value=1000)
+    return resampled_cost
+
+
 def main():
 
-    for viirs_orac_fname in os.listdir(fp.path_to_viirs_orac_unproj):
+    for viirs_orac_fname in os.listdir(fp.path_to_viirs_orac):
 
         if os.path.isfile(os.path.join(
                 fp.path_to_viirs_orac_resampled, viirs_orac_fname.replace('nc', 'png'))):
@@ -47,11 +56,12 @@ def main():
             continue
 
         try:
-            viirs_orac = read_nc(os.path.join(fp.path_to_viirs_orac_unproj, viirs_orac_fname))
+            viirs_orac = read_nc(os.path.join(fp.path_to_viirs_orac, viirs_orac_fname))
 
             # setup resampler adn extract true colour
             utm_resampler = create_resampler(viirs_orac)
             aod = extract_aod(viirs_orac, utm_resampler)
+            cost = extract_cost(viirs_orac, utm_resampler)
 
         except Exception, e:
             logger.warning('Could not read the input file: ' + viirs_orac_fname + '. Failed with ' + str(e))
@@ -59,6 +69,7 @@ def main():
 
         # save the outputs
         misc.imsave(os.path.join(fp.path_to_viirs_orac_resampled, viirs_orac_fname.replace('nc', 'png')), aod)
+        misc.imsave(os.path.join(fp.path_to_viirs_orac_cost_resampled, viirs_orac_fname.replace('nc', 'png')), cost)
 
 
 if __name__ == "__main__":
