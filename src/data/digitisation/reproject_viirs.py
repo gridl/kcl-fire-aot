@@ -99,6 +99,12 @@ def main():
 
     for viirs_sdr_fname in os.listdir(fp.path_to_viirs_sdr_unproj):
 
+        if os.path.isfile(os.path.join(
+                fp.path_to_viirs_sdr_resampled, viirs_sdr_fname.replace('h5', 'png'))):
+            print fp.path_to_viirs_sdr_resampled, 'already resampled'
+            continue
+
+
         logger.info("Processing viirs file: " + viirs_sdr_fname)
 
         if 'DS' in viirs_sdr_fname:

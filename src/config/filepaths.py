@@ -13,8 +13,8 @@ elif sensor == 'himawari':
     region = 'Asia'
 
 # root path to data folder
-#root_path = '/Users/dnf/Projects/kcl-fire-aot/data/{0}/'.format(region)
-root_path = '/Users/danielfisher/Projects/kcl-fire-aot/data/{0}/'.format(region)
+root_path = '/Users/dnf/Projects/kcl-fire-aot/data/{0}/'.format(region)
+#root_path = '/Users/danielfisher/Projects/kcl-fire-aot/data/{0}/'.format(region)
 #root_path = '/Volumes/dfisher/data/{0}/'.format(region)
 #root_path = '/Volumes/INTENSO/{0}/'.format(region)
 
@@ -41,9 +41,10 @@ path_to_orac_aod = root_path + 'processed/orac/'
 path_to_viirs_unproj = root_path + 'raw/viirs/unprojected/'
 path_to_viirs_sdr_unproj = root_path + 'raw/viirs/unprojected/sdr/'
 path_to_viirs_aod_unproj = root_path + 'raw/viirs/unprojected/aod/'
+path_to_viirs_orac_unproj = root_path + 'processed/orac/viirs/'
 path_to_viirs_sdr_resampled = root_path + 'raw/viirs/resampled/sdr/'
 path_to_viirs_aod_resampled = root_path + 'raw/viirs/resampled/aod/'
-
+path_to_viirs_orac_resampled = root_path + 'raw/viirs/resampled/orac/'
 
 path_to_goes_l1b = root_path + 'raw/goes/'
 path_to_himawari_l1b = root_path + 'raw/himawari/'
