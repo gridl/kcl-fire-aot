@@ -46,7 +46,7 @@ def get_timestamp(myd021km_fname):
 
 def image_seen(myd021km_fname):
     try:
-        with open(filepaths.path_to_processed_filelist, 'r+') as txt_file:
+        with open(filepaths.path_to_processed_filelist_modis, 'r+') as txt_file:
             if myd021km_fname in txt_file.read():
                 logger.info( myd021km_fname + " already processed")
                 return True
@@ -408,7 +408,7 @@ def main():
         timeframe, and time stamps.  The user can then process these
         images and extract smoke plumes.
     """
-    myd021km_plume_df = load_df(filepaths.path_to_smoke_plume_polygons)
+    myd021km_plume_df = load_df(filepaths.path_to_smoke_plume_polygons_modis)
 
     for myd021km_fname in os.listdir(filepaths.path_to_modis_l1b):
 
@@ -471,7 +471,7 @@ def main():
         # covert pixel/background lists to dataframes and concatenate to main dataframes
         temp_plume_df = pd.DataFrame(plumes_list)
         myd021km_plume_df = pd.concat([myd021km_plume_df, temp_plume_df])
-        myd021km_plume_df.to_pickle(filepaths.path_to_smoke_plume_polygons)
+        myd021km_plume_df.to_pickle(filepaths.path_to_smoke_plume_polygons_modis)
 
 
 if __name__ == '__main__':

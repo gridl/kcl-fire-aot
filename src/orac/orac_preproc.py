@@ -22,6 +22,9 @@ try:
 
     # Run preprocessor
     (driver, outroot) = ou.build_preproc_driver(args)
+    print driver
+    print
+    print outroot
     ou.call_exe(args, args.orac_dir+'/pre_processing/orac_preproc.x',
                 driver)
     if args.verbose or args.script_verbose:

@@ -366,9 +366,22 @@ def compute_flow(tracks, im1, im2):
         return tracks, []
 
 
-def assess_flow(flow, flow_means, flow_sds, flow_nobs, flow_update, tracks, i, pix_size=1000):
+def unit_vector(vector):
+    """ Returns the unit vector of the vector.  """
+    return vector / np.linalg.norm(vector)
+
+def angle_between(v1, v2):
+    """ Returns the angle in radians between vectors 'v1' and 'v2'::
+    """
+    v1_u = unit_vector(v1)
+    v2_u = unit_vector(v2)
+    return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+
+
+def assess_flow(flow, flow_means, flow_sds, flow_nobs, flow_update, tracks, i, current_vector, pix_size=1000):
     """
 
+    :param current_vector: the current flow vector for checking angle of flow vectors
     :param flow: the current flow vectors from the feature tracking
     :param flow_means: the vector containing the flow means
     :param flow_sds: the vector containing the flow standard deviations
@@ -378,17 +391,32 @@ def assess_flow(flow, flow_means, flow_sds, flow_nobs, flow_update, tracks, i, p
     :param i: the current index
     :return: None
     """
+
+    # only keep flow within certain angular threshold of current flow vector
+    flow_mask = np.zeros(len(flow)).astype('bool')
+    new_tracks = []
+    for f, (flow_vector, track) in enumerate(zip(flow, tracks)):
+        angle = angle_between(flow_vector, current_vector)
+        if (angle <= fc.angular_limit) | (angle >= (2 * np.pi) - fc.angular_limit):
+            flow_mask[f] = 1
+            new_tracks.append(track)
+
+    tracks = new_tracks
+
     if len(tracks) <= fc.min_number_tracks:
         if i != 0:
             flow_means[i] = flow_means[i - 1]
             flow_sds[i] = flow_sds[i - 1]
             flow_update[i] = i - 1
     else:
+        # here is where the flow update occurs
+        flow = flow[flow_mask]
+
         flow_means[i, :] = np.mean(flow, axis=0) * pix_size
         flow_sds[i, :] = np.std(flow, axis=0) * pix_size
         flow_nobs[i] = len(tracks)
 
-    # check if any points zero and update with most recent estimate
+    # check if any flows of zero and update with most recent flow estimate
     # even if most recent estimate is zero, they will still get updated
     # at some point
     if (flow_means[:i] == 0).any():
@@ -480,6 +508,9 @@ def find_integration_start_stop_times(p_number,
     t1 = None
     t2 = None
 
+    # set up variable to hold current vector for checking angles
+    current_vector = plume_vector.copy()
+
     # iterate over geostationary files
     for i, (f1, f2) in enumerate(zip(geostationary_fnames[:-1], geostationary_fnames[1:])):
 
@@ -503,8 +534,10 @@ def find_integration_start_stop_times(p_number,
         # FLOW COMPUTATION - compute the flow between the images
         tracks, flow = compute_flow(tracks, f2_subset_reproj, f1_subset_reproj)
 
-        # compute mean flow for plume
-        assess_flow(flow, flow_means, flow_sds, flow_nobs, flow_update, tracks, i)
+        # compute mean flow for plume and update current flow vector
+        assess_flow(flow, flow_means, flow_sds, flow_nobs, flow_update, tracks, i, current_vector)
+        if (flow_means[i] != 0).any():
+            current_vector = flow_means[i, :]
 
         # now project flow vector onto plume vector
         projected_flow(plume_vector, flow_means, projected_flow_means, projected_flow_magnitude, i)

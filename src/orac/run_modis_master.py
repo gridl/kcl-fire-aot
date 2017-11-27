@@ -29,24 +29,23 @@ def run_pre(proc_params):
     with open(os.path.join(proc_params.processing_filelist_dir, proc_params.filelist_name), 'rb') as f:
         file_list = f.readlines()
     file_list = [f.rstrip() for f in file_list]
-    print file_list
 
     # iterate over mod files in proc filelisr
     for root, dirs, files in os.walk(proc_params.data_dir):
         for f in files:
-            if (f in file_list) and (f[0:3] == proc_params.sensor):
+            if (f in file_list) and (f[0:3].lower() == proc_params.sensor):
                 input_file_path = os.path.join(root, f)
             # elif f:  # check if not empty
             #    input_file_path = os.path.join(root, f)
             else:
                 continue
-            print f            
 
             split_root = root.split('/')
             year = split_root[-2]
             doy = split_root[-1]
             output_file_path = os.path.join(proc_params.output_dir, year, doy, 'pre')
             geo_file_path = os.path.join(proc_params.geo_dir, year, doy)
+	    print geo_file_path
 
             if not os.path.exists(output_file_path):
                 os.makedirs(output_file_path)

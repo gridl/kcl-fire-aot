@@ -20,9 +20,12 @@ root_path = '/Users/dnf/Projects/kcl-fire-aot/data/{0}/'.format(region)
 
 # processed data paths
 path_to_processed_orac = root_path + 'processed/orac_proc/'
-path_to_smoke_plume_polygons = root_path + 'processed/plume_masks/myd021km_plumes_df.pickle'
-path_to_smoke_plume_polygons_csv = root_path + 'processed/plume_masks/myd021km_plumes_df.csv'
-path_to_processed_filelist = root_path + 'processed/plume_masks/processed_filelist.txt'
+path_to_smoke_plume_polygons_modis = root_path + 'processed/plume_masks/myd021km_plumes_df.pickle'
+path_to_smoke_plume_polygons_modis_csv = root_path + 'processed/plume_masks/myd021km_plumes_df.csv'
+path_to_smoke_plume_polygons_viirs = root_path + 'processed/plume_masks/viirs_plumes_df.pickle'
+path_to_smoke_plume_polygons_viirs_csv = root_path + 'processed/plume_masks/viirs_plumes_df.csv'
+path_to_processed_filelist_modis = root_path + 'processed/plume_masks/processed_filelist_modis.txt'
+path_to_processed_filelist_viirs = root_path + 'processed/plume_masks/processed_filelist_viirs.txt'
 if sensor == 'goes':
     path_to_goes_frp = root_path + 'processed/goes_frp/'
 elif sensor == 'himawari':
@@ -35,6 +38,14 @@ path_to_modis_geo = root_path + 'raw/modis/geo'
 path_to_modis_frp = root_path + 'raw/modis/frp/'
 path_to_modis_aod = root_path + 'raw/modis/aod/'
 path_to_orac_aod = root_path + 'processed/orac/'
+path_to_viirs_unproj = root_path + 'raw/viirs/unprojected/'
+path_to_viirs_sdr_unproj = root_path + 'raw/viirs/unprojected/sdr/'
+path_to_viirs_aod_unproj = root_path + 'raw/viirs/unprojected/aod/'
+path_to_viirs_orac_unproj = root_path + 'processed/orac/viirs/'
+path_to_viirs_sdr_resampled = root_path + 'raw/viirs/resampled/sdr/'
+path_to_viirs_aod_resampled = root_path + 'raw/viirs/resampled/aod/'
+path_to_viirs_orac_resampled = root_path + 'raw/viirs/resampled/orac/'
+
 path_to_goes_l1b = root_path + 'raw/goes/'
 path_to_himawari_l1b = root_path + 'raw/himawari/'
 path_to_landcover = root_path.replace(region, 'Global') + 'land_cover/ESACCI-LC-L4-LCCS-Map-300m-P1Y-2015-v2.0.7.nc'
