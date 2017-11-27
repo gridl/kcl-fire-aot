@@ -23,7 +23,9 @@ def create_resampler(orac_data):
 
 def extract_aod(orac_data, resampler):
     aod = orac_data['cot'][:]
-    mask = np.isnan(aod)
+    print aod.max(), aod.min()
+    mask = ~np.isnan(aod)
+    print mask.max(), mask.min()
     masked_lats = np.ma.masked_array(resampler.lats, mask)
     masked_lons = np.ma.masked_array(resampler.lons, mask)
     resampled_aod = resampler.resample_image(aod, masked_lats, masked_lons, fill_value=0)
