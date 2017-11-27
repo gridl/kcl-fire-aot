@@ -13,10 +13,10 @@ elif sensor == 'himawari':
     region = 'Asia'
 
 # root path to data folder
-#root_path = '/Users/dnf/Projects/kcl-fire-aot/data/{0}/'.format(region)
+root_path = '/Users/dnf/Projects/kcl-fire-aot/data/{0}/'.format(region)
 #root_path = '/Users/danielfisher/Projects/kcl-fire-aot/data/{0}/'.format(region)
 #root_path = '/Volumes/dfisher/data/{0}/'.format(region)
-root_path = '/Volumes/INTENSO/{0}/'.format(region)
+#root_path = '/Volumes/INTENSO/{0}/'.format(region)
 
 # processed data paths
 path_to_processed_orac = root_path + 'processed/orac_proc/'
@@ -38,10 +38,15 @@ path_to_orac_aod = root_path + 'processed/orac/'
 path_to_goes_l1b = root_path + 'raw/goes/'
 path_to_himawari_l1b = root_path + 'raw/himawari/'
 path_to_landcover = root_path.replace(region, 'Global') + 'land_cover/ESACCI-LC-L4-LCCS-Map-300m-P1Y-2015-v2.0.7.nc'
+path_to_viirs_ip_aod = root_path + 'raw/viirs/aod_ip/'
+path_to_viirs_geo = root_path + 'raw/viirs/geo/'
+path_to_viirs_ref = root_path + 'raw/viirs/ref/'
+path_to_viirs_aod6k = root_path + 'raw/viirs/aod_6k/'
 
 # FTP paths (MODIS / Ladsweb)
 path_to_ladsweb_ftp = "ladsweb.nascom.nasa.gov"
-path_to_all_data = 'allData/6/'
+path_to_all_data_modis = 'allData/6/'
+path_to_all_data = 'allData/'
 
 # HTTPS paths (GOES / class)
 path_to_class_https_a = 'https://download.class.ncdc.noaa.gov/download/'
@@ -50,6 +55,7 @@ path_to_class_https_b = 'https://download.class.ngdc.noaa.gov/download/'
 # temporary file paths for data downloads
 path_to_goes_tmp = root_path + 'tmp/goes/'
 path_to_modis_tmp = root_path + 'tmp/modis/'
+path_to_modis_tmp = root_path + 'tmp/viirs/'
 
 # features filepaths
 path_to_plume_classification_features = root_path + 'interim/classification_features.pickle'

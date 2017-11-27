@@ -46,7 +46,7 @@ def get_files(ftp_laads):
 def get_filename(ftp_laads, doy, product, mxd021km_file):
 
     mxd_product = mxd021km_file[0:3] + product
-    product_path = fp.path_to_all_data + mxd_product + '/'
+    product_path = fp.path_to_all_data_modis + mxd_product + '/'
 
     try:
         ftp_cd(ftp_laads, doy, product_path)
