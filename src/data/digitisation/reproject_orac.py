@@ -11,7 +11,6 @@ import src.config.filepaths as fp
 import src.features.fre_to_tpm.ftt_utils as ut
 
 
-
 def read_nc(f):
     return Dataset(f)
 
@@ -21,16 +20,17 @@ def create_resampler(orac_data):
     lons = orac_data.variables['lon'][:]
     return ut.utm_resampler(lats, lons, 750)
 
+
 def extract_aod(orac_data, resampler):
     aod = orac_data['cot'][:]
-    mask = np.isnan(aod)
+    mask = np.ma.getmask(aod)
     masked_lats = np.ma.masked_array(resampler.lats, mask)
     masked_lons = np.ma.masked_array(resampler.lons, mask)
     resampled_aod = resampler.resample_image(aod, masked_lats, masked_lons, fill_value=0)
     return resampled_aod
 
-def main():
 
+def main():
 
     for viirs_orac_fname in os.listdir(fp.path_to_viirs_orac_unproj):
 
