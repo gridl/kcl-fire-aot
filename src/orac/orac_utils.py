@@ -507,8 +507,8 @@ class FileName:
                       'c(?P<proc_time>\d{20})_noaa_ops.h5', filename)
         if m:
             self.sensor = 'VIIRS'
-            self.platform = 'Suomi-NPP'
-            self.inst = 'VIIRS'
+            self.platform = 'NPP'
+            self.inst = 'NPP'
             self.time = datetime.datetime(
                 int(m.group('year')), int(m.group('month')), int(m.group('day')),
                 int(m.group('start_hour')), int(m.group('start_min')), int(m.group('start_sec')), 0)
@@ -1401,7 +1401,6 @@ USE_OCCCI={use_occci}""".format(
         driver += "\nN_CHANNELS={}".format(len(args.channel_ids))
         driver += "\nCHANNEL_IDS={}".format(','.join(str(k)
                                                      for k in args.channel_ids))
-
     outroot = '-'.join((args.project, 'L2', 'CLOUD', 'CLD',
                         '_'.join((inst.sensor, args.processor, inst.platform,
                                   inst.time.strftime('%Y%m%d%H%M'),
