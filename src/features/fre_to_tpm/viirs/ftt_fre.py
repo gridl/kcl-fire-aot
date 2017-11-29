@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO, format=log_fmt)
 logger = logging.getLogger(__name__)
 
 
-def temporal_sbuset(frp_df, start_time, stop_time):
+def temporal_subset(frp_df, start_time, stop_time):
     """
 
     :param frp_df: The FRP containing dataframe
@@ -21,6 +21,21 @@ def temporal_sbuset(frp_df, start_time, stop_time):
     """
     try:
         return frp_df.loc[(frp_df['obs_time'] <= stop_time) & (frp_df['obs_time'] >= start_time)]
+    except Exception, e:
+        logger.error('Could not extract time subset, failed with error: ' + str(e))
+        return None
+
+
+def temporal_subset_single_time(frp_df, t):
+    """
+
+    :param frp_df: The FRP containing dataframe
+    :param start_time: The subset start time
+    :param stop_time: The subset stop time
+    :return: the subsetted dataframe
+    """
+    try:
+        return frp_df.loc[(frp_df['obs_time'] == t)]
     except Exception, e:
         logger.error('Could not extract time subset, failed with error: ' + str(e))
         return None
@@ -98,7 +113,7 @@ def compute_fre(p_number, plume_logging_path,
     :return:  The FRE
     """
     try:
-        frp_subset = temporal_sbuset(frp_df, start_time, stop_time)
+        frp_subset = temporal_subset(frp_df, start_time, stop_time)
         frp_subset = spatial_subset(frp_subset, plume_polygon, utm_resampler)
         frp_subset.to_csv(os.path.join(plume_logging_path, str(p_number) + '_fires.csv'))
 
@@ -112,3 +127,14 @@ def compute_fre(p_number, plume_logging_path,
     # integrate to get the fre
     fre = integrate_frp(grouped_frp_subset)
     return fre
+
+
+def fire_locations(plume_polygon, utm_resampler, frp_df, t):
+    try:
+        frp_subset = temporal_subset_single_time(frp_df, t)
+        frp_subset = spatial_subset(frp_subset, plume_polygon, utm_resampler)
+        return frp_subset.point.values
+
+    except Exception, e:
+        logger.error('FRE calculation failed with error' + str(e))
+        return None

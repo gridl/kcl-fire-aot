@@ -13,6 +13,8 @@ import src.data.readers.load_hrit as load_hrit
 import src.config.filepaths as fp
 import src.config.features as fc
 import src.visualization.ftt_visualiser as vis
+import src.features.fre_to_tpm.viirs.ftt_fre as ff
+
 
 log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=log_fmt)
@@ -460,6 +462,8 @@ def find_integration_start_stop_times(p_number,
                                       geostationary_lats, geostationary_lons,
                                       utm_resampler,
                                       timestamp,
+                                      frp_df,
+                                      plume_polygon,
                                       plot=True):
     """
     Main function to compute the time stamps over which we need to integrate the
@@ -502,6 +506,8 @@ def find_integration_start_stop_times(p_number,
     projected_flow_means = np.zeros([72, 2])
     projected_flow_magnitude = np.zeros(72)
     tracks = []
+    if plot:
+        fires = []
 
     stopping_thresh = 1000  # stopping condition in metres TODO move to config
 
@@ -514,6 +520,11 @@ def find_integration_start_stop_times(p_number,
 
     # iterate over geostationary files
     for i, (f1, f2) in enumerate(zip(geostationary_fnames[:-1], geostationary_fnames[1:])):
+
+        # if we are plotting get the himawari fires
+        if plot:
+            t = datetime.strptime(f1.split('/')[-1][7:20], '%Y%m%d_%H%M')
+            fires.append(ff.fire_locations(plume_polygon, utm_resampler, frp_df, t))
 
         # set up observations
         f1_subset, f2_subset, f1_display_subset, f2_display_subset = extract_observations(f1, f2, bb, min_image_segment)
@@ -563,7 +574,7 @@ def find_integration_start_stop_times(p_number,
 
     # plot plume
     if plot:
-        vis.run_plot(plot_images, flow_means, projected_flow_means,
+        vis.run_plot(plot_images, fires, flow_means, projected_flow_means,
                      plume_head, plume_tail, plume_points, utm_resampler,
                      plume_logging_path, fnames, i)
 

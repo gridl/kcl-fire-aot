@@ -129,6 +129,8 @@ def main():
                                                                                       geostationary_lons,
                                                                                       utm_resampler_plume,
                                                                                       current_timestamp,
+                                                                                      frp_df,
+                                                                                      utm_plume_polygon,
                                                                                       plot=True)
         except Exception, e:
             logger.error(str(e))
