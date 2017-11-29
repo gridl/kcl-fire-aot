@@ -5,7 +5,9 @@ import re
 import h5py
 import numpy as np
 import scipy.misc as misc
+import scipy.spatial as spatial
 from datetime import datetime
+import time
 
 import src.config.filepaths as fp
 import src.features.fre_to_tpm.modis.ftt_utils as ut
@@ -55,6 +57,50 @@ def image_histogram_equalization(image, number_bins=256):
     return image_equalized.reshape(image.shape)
 
 
+def fire_positions(fires, resampled_lats, resampled_lons):
+
+    inverse_lats = resampled_lats * -1  # invert lats for correct indexing
+
+    y_size, x_size = resampled_lats.shape
+
+    min_lat = np.min(inverse_lats[inverse_lats > -1000])
+    range_lat = np.max(inverse_lats) - min_lat
+
+    min_lon = np.min(resampled_lons)
+    range_lon = np.max(resampled_lons[resampled_lons < 1000]) - min_lon
+
+    padding = 10
+
+    x_coords = []
+    y_coords = []
+
+    for f in fires:
+        f_lon, f_lat = f.xy
+
+        # get approximate fire location, remembering to invert the lat
+        y = int(((f_lat[0] * -1) - min_lat) / range_lat * y_size)
+        x = int((f_lon[0] - min_lon) / range_lon * x_size)
+
+        if (y <= padding) | (y >= y_size - padding):
+            continue
+        if (x <= padding) | (x >= x_size - padding):
+            continue
+
+        lat_subset = resampled_lats[y-padding:y+padding, x-padding:x+padding]
+        lon_subset = resampled_lons[y-padding:y+padding, x-padding:x+padding]
+
+        # find the location of the fire in the subset
+        dists = np.abs(f_lat - lat_subset) + np.abs(f_lon - lon_subset)
+        sub_y, sub_x = divmod(dists.argmin(), dists.shape[1])
+
+        # using the subset location get the adjusted location
+        y_coords.append(y-padding+sub_y)
+        x_coords.append(x-padding+sub_x)
+
+    return y_coords, x_coords
+
+
+
 def tcc_viirs(viirs_data, fires, resampler):
     #m1_params = viirs_data['All_Data']['VIIRS-M1-SDR_All']['RadianceFactors']
     m1 = viirs_data['All_Data']['VIIRS-M1-SDR_All']['Radiance'][:]
@@ -74,7 +120,6 @@ def tcc_viirs(viirs_data, fires, resampler):
     # for the fire coordinates in the image
     resampled_lats = resampler.resample_image(resampler.lats, masked_lats, masked_lons, fill_value=1000)
     resampled_lons = resampler.resample_image(resampler.lons, masked_lats, masked_lons, fill_value=1000)
-    coords_set = set(zip(resampled_lats.flatten(),resampled_lons.flatten()))
 
     r = image_histogram_equalization(resampled_m5)
     g = image_histogram_equalization(resampled_m4)
@@ -84,17 +129,11 @@ def tcc_viirs(viirs_data, fires, resampler):
     g = np.round((g * (255 / np.max(g))) * 1).astype('uint8')
     b = np.round((b * (255 / np.max(b))) * 1).astype('uint8')
 
-    for f in fires:
-        f_lon, f_lat = f.xy
-        # first chekc if the points are inbounds
-        if not (f_lat[0], f_lon[0]) in coords_set:
-            continue
-
-        coord_abs_diffs = np.abs(resampled_lats-f_lat) + np.abs(resampled_lons - f_lon)
-        x, y = divmod(coord_abs_diffs.argmin(), coord_abs_diffs.shape[1])
-        r[x, y] = 255
-        g[x, y] = 0
-        b[x, y] = 0
+    fy, fx = fire_positions(fires, resampled_lats, resampled_lons)
+    if fy:
+        r[fy, fx] = 255
+        g[fy, fx] = 0
+        b[fy, fx] = 0
 
     rgb = np.dstack((r, g, b))
     return rgb
@@ -167,17 +206,17 @@ def main():
 
         try:
             viirs_sdr = read_h5(os.path.join(fp.path_to_viirs_sdr, viirs_sdr_fname))
-
-            # setup resampler adn extract true colour
-            utm_resampler = create_resampler(viirs_sdr)
-            t = datetime.strptime(timestamp_viirs, 'd%Y%m%d_t%H%M%S')
-
-            fires = ff.fire_locations_for_digitisation(frp_df, t)
-            tcc = tcc_viirs(viirs_sdr, fires, utm_resampler)
-
         except Exception, e:
             logger.warning('Could not read the input file: ' + viirs_sdr_fname + '. Failed with ' + str(e))
             continue
+
+        try:
+            # setup resampler adn extract true colour
+            utm_resampler = create_resampler(viirs_sdr)
+        except Exception, e:
+            logger.warning('Could make resampler for file: ' + viirs_sdr_fname + '. Failed with ' + str(e))
+            continue
+
 
         # get aod filename
         try:
@@ -200,6 +239,16 @@ def main():
             except Exception, e:
                 logger.warning('Could not read aod file: ' + aod_fname)
         if viirs_aod is None:
+            continue
+
+        try:
+            # setup resampler adn extract true colour
+            t = datetime.strptime(timestamp_viirs, 'd%Y%m%d_t%H%M%S')
+
+            fires = ff.fire_locations_for_digitisation(frp_df, t)
+            tcc = tcc_viirs(viirs_sdr, fires, utm_resampler)
+        except Exception, e:
+            logger.warning('Could make image for file: ' + viirs_sdr_fname + '. Failed with ' + str(e))
             continue
 
         # save the outputs
