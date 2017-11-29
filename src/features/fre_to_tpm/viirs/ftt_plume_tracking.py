@@ -8,12 +8,14 @@ import numpy as np
 from scipy import ndimage
 import pandas as pd
 import cv2
+from shapely.geometry import Polygon
 
 import src.data.readers.load_hrit as load_hrit
 import src.config.filepaths as fp
 import src.config.features as fc
 import src.visualization.ftt_visualiser as vis
 import src.features.fre_to_tpm.viirs.ftt_fre as ff
+import src.features.fre_to_tpm.viirs.ftt_utils as ut
 
 
 log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -158,6 +160,18 @@ def subset_geograpic_data(geostationary_lats, geostationary_lons, bb):
 
     bb.update((x, y * zoom) for x, y in bb.items())  # enlarge bounding box by factor of zoom also
     return geostationary_lats_subset, geostationary_lons_subset
+
+
+def geographic_extent(geostationary_lats, geostationary_lons, bb):
+    extent = [(bb['min_y'], bb['min_x']),
+              (bb['min_y'], bb['max_x']),
+              (bb['max_y'], bb['max_x']),
+              (bb['max_y'], bb['min_x'])]
+
+    bounding_lats = [geostationary_lats[point[0], point[1]] for point in extent]
+    bounding_lons = [geostationary_lons[point[0], point[1]] for point in extent]
+    return bounding_lats, bounding_lons
+
 
 
 def find_min_himawari_image_segment(bb):
@@ -487,6 +501,12 @@ def find_integration_start_stop_times(p_number,
 
     bb = spatial_subset(plume_lats, plume_lons, geostationary_lats, geostationary_lons)
 
+    if plot:
+        # set up this polygon so we can see all fires near to the plume
+        bounding_lats, bounding_lons = geographic_extent(geostationary_lats, geostationary_lons, bb)
+        geo_polygon = Polygon(zip(bounding_lons, bounding_lats))
+        utm_geo_polygon = ut.reproject_shapely(geo_polygon, utm_resampler)
+
     subset_lats, subset_lons = subset_geograpic_data(geostationary_lats, geostationary_lons, bb)
 
     min_image_segment = find_min_himawari_image_segment(bb)
@@ -524,7 +544,7 @@ def find_integration_start_stop_times(p_number,
         # if we are plotting get the himawari fires
         if plot:
             t = datetime.strptime(f1.split('/')[-1][7:20], '%Y%m%d_%H%M')
-            fires.append(ff.fire_locations(plume_polygon, utm_resampler, frp_df, t))
+            fires.append(ff.fire_locations(utm_geo_polygon, utm_resampler, frp_df, t))
 
         # set up observations
         f1_subset, f2_subset, f1_display_subset, f2_display_subset = extract_observations(f1, f2, bb, min_image_segment)
@@ -559,6 +579,10 @@ def find_integration_start_stop_times(p_number,
         if ((plume_length - summed_length) < stopping_thresh) | (summed_length > plume_length):
             t1 = datetime.strptime(geostationary_fnames[0].split('/')[-1][7:20], '%Y%m%d_%H%M')
             t2 = datetime.strptime(f2.split('/')[-1][7:20], '%Y%m%d_%H%M')
+
+            if plot:
+                # also need to get the fires for the last scene
+                fires.append(ff.fire_locations(utm_geo_polygon, utm_resampler, frp_df, t2))
             break
 
     # save tracking information

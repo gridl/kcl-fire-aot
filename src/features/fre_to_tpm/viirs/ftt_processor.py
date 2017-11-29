@@ -140,7 +140,7 @@ def main():
         if start_time is not None:
             plumes_numbers.append(p_number)
             fre.append(ff.compute_fre(p_number, plume_logging_path,
-                                      utm_plume_polygon, frp_df, start_time, stop_time, utm_resampler))
+                                      utm_plume_polygon, frp_df, start_time, stop_time, utm_resampler_plume))   #CHECK IF THIS IS THE RIGHT RESAMPLER
             tpm.append(tt.compute_tpm(viirs_aod_utm_plume, viirs_flag_utm_plume,
                                       orac_aod_utm_plume, orac_cost_utm_plume,
                                       viirs_aod_utm_background, viirs_flag_utm_background,

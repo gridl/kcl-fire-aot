@@ -17,7 +17,6 @@ from netCDF4 import Dataset
 import h5py
 from matplotlib.path import Path
 from scipy import stats
-from scipy import ndimage
 from shapely.geometry import Polygon, Point, MultiPoint, LineString
 from shapely.ops import transform
 import pyresample as pr
