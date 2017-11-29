@@ -30,12 +30,26 @@ def temporal_subset_single_time(frp_df, t):
     """
 
     :param frp_df: The FRP containing dataframe
-    :param start_time: The subset start time
-    :param stop_time: The subset stop time
+    :param start_time: The subset time of interest
     :return: the subsetted dataframe
     """
     try:
         return frp_df.loc[(frp_df['obs_time'] == t)]
+    except Exception, e:
+        logger.error('Could not extract time subset, failed with error: ' + str(e))
+        return None
+
+
+def temporal_subset_single_day(frp_df, t):
+    """
+
+    :param frp_df: The FRP containing dataframe
+    :param t: The subset time of interest
+    :return: the subsetted dataframe
+    """
+
+    try:
+        return frp_df.loc[(frp_df['obs_time'].dt.year == t.year) & (frp_df['obs_time'].dt.day == t.day)]
     except Exception, e:
         logger.error('Could not extract time subset, failed with error: ' + str(e))
         return None
@@ -129,7 +143,7 @@ def compute_fre(p_number, plume_logging_path,
     return fre
 
 
-def fire_locations(plume_polygon, utm_resampler, frp_df, t):
+def fire_locations_for_plume_roi(plume_polygon, utm_resampler, frp_df, t):
     try:
         frp_subset = temporal_subset_single_time(frp_df, t)
         frp_subset = spatial_subset(frp_subset, plume_polygon, utm_resampler)
@@ -138,3 +152,14 @@ def fire_locations(plume_polygon, utm_resampler, frp_df, t):
     except Exception, e:
         logger.error('FRE calculation failed with error' + str(e))
         return None
+
+
+def fire_locations_for_digitisation(frp_df, t):
+    try:
+        frp_subset = temporal_subset_single_day(frp_df, t)
+        return frp_subset.point.values
+
+    except Exception, e:
+        logger.error('FRE calculation failed with error' + str(e))
+        return None
+

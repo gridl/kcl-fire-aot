@@ -544,7 +544,7 @@ def find_integration_start_stop_times(p_number,
         # if we are plotting get the himawari fires
         if plot:
             t = datetime.strptime(f1.split('/')[-1][7:20], '%Y%m%d_%H%M')
-            fires.append(ff.fire_locations(utm_geo_polygon, utm_resampler, frp_df, t))
+            fires.append(ff.fire_locations_for_plume_roi(utm_geo_polygon, utm_resampler, frp_df, t))
 
         # set up observations
         f1_subset, f2_subset, f1_display_subset, f2_display_subset = extract_observations(f1, f2, bb, min_image_segment)
@@ -582,7 +582,7 @@ def find_integration_start_stop_times(p_number,
 
             if plot:
                 # also need to get the fires for the last scene
-                fires.append(ff.fire_locations(utm_geo_polygon, utm_resampler, frp_df, t2))
+                fires.append(ff.fire_locations_for_plume_roi(utm_geo_polygon, utm_resampler, frp_df, t2))
             break
 
     # save tracking information
