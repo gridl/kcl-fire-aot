@@ -1,6 +1,5 @@
 import logging
 import os
-import glob
 import re
 
 import h5py
@@ -8,9 +7,7 @@ import numpy as np
 import scipy.misc as misc
 
 import src.config.filepaths as fp
-import src.features.fre_to_tpm.ftt_utils as ut
-
-import matplotlib.pyplot as plt
+import src.features.fre_to_tpm.modis.ftt_utils as ut
 
 
 def get_timestamp(viirs_sdr_fname):

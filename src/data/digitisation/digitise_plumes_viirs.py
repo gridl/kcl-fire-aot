@@ -1,30 +1,21 @@
 # -*- coding: utf-8 -*-
-import os
 import logging
-
+import os
 import re
-
-import numpy as np
-import pandas as pd
-
-import matplotlib
-#matplotlib.use('TkAgg')
-
 from datetime import datetime
 
-import matplotlib.pyplot as plt
+import matplotlib
 import matplotlib.cm as cm
-from matplotlib.patches import Circle, Rectangle, Polygon
-from matplotlib.lines import Line2D
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import scipy.misc as misc
 from matplotlib.collections import PatchCollection
+from matplotlib.lines import Line2D
+from matplotlib.patches import Circle, Polygon
 from matplotlib.widgets import RadioButtons
 
-import scipy.misc as misc
-
-
-
 import src.config.filepaths as filepaths
-import src.features.fre_to_tpm.ftt_utils as ut
 
 
 def load_df(path):
@@ -87,11 +78,12 @@ def load_image(f, mode='RGB'):
 
 
 class Annotate(object):
-    def __init__(self, tcc, viirs_aod, viirs_flags, orac_aod, ax,
+    def __init__(self, tcc, viirs_aod, viirs_flags, orac_aod, orac_cost, ax,
                  plume_polygons, background_polygons, plume_vectors):
         self.ax = ax
         self.tcc = tcc
         self.orac_aod = orac_aod
+        self.orac_cost = orac_cost
         self.viirs_aod = viirs_aod
         self.viirs_flags = viirs_flags
         self.im = self.ax.imshow(self.orac_aod, interpolation='none', cmap='viridis', vmin=0, vmax=10)
@@ -162,6 +154,7 @@ class Annotate(object):
         labels = []
         # FCC and TCC always present
         labels.append('ORAC_AOD')
+        labels.append('ORAC_COST')
         labels.append('VIIRS_AOD')
         labels.append('VIIRS_FLAGS')
         labels.append('TCC')
@@ -170,6 +163,7 @@ class Annotate(object):
     def _radio_label_mapping(self):
         label_mapping = {}
         label_mapping['ORAC_AOD'] = self.orac_aod
+        label_mapping['ORAC_COST'] = self.orac_cost
         label_mapping['VIIRS_AOD'] = self.viirs_aod
         label_mapping['VIIRS_FLAGS'] = self.viirs_flags
         label_mapping['TCC'] = self.tcc
@@ -208,6 +202,9 @@ class Annotate(object):
         if label == "ORAC_AOD":
             self.im.set_clim(vmax=10, vmin=0)
             self.im.set_cmap('viridis')
+        if label == "ORAC_COST":
+            self.im.set_clim(vmax=20, vmin=0)
+            self.im.set_cmap('plasma')
         plt.draw()
 
     def click(self, event):
@@ -250,7 +247,7 @@ class Annotate(object):
                 self.ax.figure.canvas.draw()
 
 
-def digitise(tcc, viirs_aod, viirs_flags, orac_aod, viirs_fname):
+def digitise(tcc, viirs_aod, viirs_flags, orac_aod, orac_cost, viirs_fname):
 
     plume_polygons = []
     background_polygons = []
@@ -265,7 +262,7 @@ def digitise(tcc, viirs_aod, viirs_flags, orac_aod, viirs_fname):
         ax.yaxis.set_visible(False)
 
         # first set up the annotator
-        annotator = Annotate(tcc, viirs_aod, viirs_flags, orac_aod, ax,
+        annotator = Annotate(tcc, viirs_aod, viirs_flags, orac_aod, orac_cost, ax,
                              plume_polygons, background_polygons, plume_vectors)
 
         # then show the image
@@ -291,7 +288,7 @@ def digitise(tcc, viirs_aod, viirs_flags, orac_aod, viirs_fname):
 def append_to_list(plume, background, vector, fname, plumes_list):
     row_dict = {}
 
-    row_dict['sensor'] = "MYD"
+    row_dict['sensor'] = "VIIRS"
     row_dict['filename'] = fname
     row_dict['plume_extent'] = plume
     row_dict['background_extent'] = background
@@ -317,11 +314,11 @@ def main():
 
         timestamp_viirs = get_timestamp(viirs_sdr_fname)
         if not timestamp_viirs:
+            print 'timestamp not available'
             continue
 
         if image_seen(viirs_sdr_fname):
             continue
-
 
         # get the filenames
         try:
@@ -335,7 +332,6 @@ def main():
         except Exception, e:
             logger.warning('Could not load aux file for:' + viirs_sdr_fname + '. Failed with ' + str(e))
             continue
-
 
         # load in the data
 
@@ -369,10 +365,15 @@ def main():
         if orac_fname:
             try:
                 orac_aod = load_image(os.path.join(filepaths.path_to_viirs_orac_resampled, orac_fname))
+                orac_cost = load_image(os.path.join(filepaths.path_to_viirs_orac_cost_resampled, orac_fname))
 
                 # adjust to between 0-10
                 orac_aod = orac_aod.astype('float')
                 orac_aod *= 10.0 / orac_aod.max()
+
+                # adjust to between 0-1000
+                orac_cost = orac_cost.astype('float')
+                orac_cost *= 50.0 / orac_cost.max()
 
             except Exception, e:
                 logger.warning('Could not read aod file: ' + orac_fname + ' error: ' + str(e))
@@ -384,6 +385,7 @@ def main():
                                                                       viirs_aod,
                                                                       viirs_flags,
                                                                       orac_aod,
+                                                                      orac_cost,
                                                                       viirs_sdr_fname)
         if plume_polygons is None:
             continue

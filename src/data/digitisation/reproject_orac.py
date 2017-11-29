@@ -1,14 +1,12 @@
 import logging
 import os
-import glob
-import re
 
-from netCDF4 import Dataset
 import numpy as np
 import scipy.misc as misc
+from netCDF4 import Dataset
 
 import src.config.filepaths as fp
-import src.features.fre_to_tpm.ftt_utils as ut
+import src.features.fre_to_tpm.modis.ftt_utils as ut
 
 
 def read_nc(f):
