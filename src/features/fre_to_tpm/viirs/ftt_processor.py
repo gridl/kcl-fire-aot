@@ -53,8 +53,11 @@ def main():
         # if working on a new scene. Then set it up
         if current_timestamp != previous_timestamp:
 
-            viirs_data = ut.load_viirs(fp.path_to_viirs_aod, current_timestamp, plume.filename)
-            orac_data = ut.load_orac(fp.path_to_viirs_orac, current_timestamp)
+            try:
+                viirs_data = ut.load_viirs(fp.path_to_viirs_aod, current_timestamp, plume.filename)
+                orac_data = ut.load_orac(fp.path_to_viirs_orac, current_timestamp)
+            except Exception, e:
+                logger.info('Could not load AOD data with error: ' + str(e))
 
             # set up resampler
             utm_resampler = ut.utm_resampler(orac_data.variables['lat'][:],
