@@ -41,7 +41,7 @@ def compute_tpm(viirs_aod_utm_plume, viirs_flag_utm_plume,
                                                utm_plume_mask)
 
         # extract mean MYD04 background AOD using bg_mask
-        mean_bg_aod = extract_bg_aod(viirs_aod_utm_background, viirs_flag_utm_background)
+        mean_bg_aod = extract_bg_aod(viirs_aod_utm_background, viirs_flag_utm_background, utm_bg_mask)
 
         # subtract mean background AOD from mean plume AOD
         print 'mean plume', mean_plume_aod
@@ -56,5 +56,6 @@ def compute_tpm(viirs_aod_utm_plume, viirs_flag_utm_plume,
 
         # return plume TPM
         return tpm
-    except:
+    except Exception, e:
+        print 'tpm extraction failed with error', str(e)
         return None
