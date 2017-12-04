@@ -101,6 +101,9 @@ class Annotate(object):
         self.vector_x = []
         self.vector_y = []
 
+        # set varaible to check if we are using plume tracking on this plume or not
+        self.tracking = True
+
         # set up the digitising patch
         self.plume_p = Circle((1,1))
         self.background_p = Circle((1,1))
@@ -117,6 +120,10 @@ class Annotate(object):
 
         # set up radio buttons
         self.axcolor = 'lightgoldenrodyellow'
+
+        self.rax_tracking = plt.axes([0.01, 0.9, 0.1, 0.15], facecolor=self.axcolor)
+        self.radio_tracking = RadioButtons(self.rax_tracking, ('Tracked', 'Untracked'))
+        self.radio_tracking.on_clicked(self.tracking_func)
 
         self.rax_digitise = plt.axes([0.01, 0.7, 0.1, 0.15], facecolor=self.axcolor)
         self.radio_disitise = RadioButtons(self.rax_digitise, ('Digitise', 'Stop'))
@@ -168,6 +175,10 @@ class Annotate(object):
         label_mapping['VIIRS_FLAGS'] = self.viirs_flags
         label_mapping['TCC'] = self.tcc
         return label_mapping
+
+    def tracking_func(self, label):
+        anno_dict = {'Tracked': True, 'Untracked': False}
+        self.tracking = anno_dict[label]
 
     def annotation_func(self, label):
         anno_dict = {'Digitise': True, 'Stop': False}
@@ -252,6 +263,7 @@ def digitise(tcc, viirs_aod, viirs_flags, orac_aod, orac_cost, viirs_fname):
     plume_polygons = []
     background_polygons = []
     plume_vectors = []
+    tracking = []
 
     do_annotation = True
     while do_annotation:
@@ -277,15 +289,16 @@ def digitise(tcc, viirs_aod, viirs_flags, orac_aod, orac_cost, viirs_fname):
             plume_polygons.append(plume_pts)
             background_polygons.append(background_pts)
             plume_vectors.append(plume_vector)
+            tracking.append(annotator.tracking)
 
         do_annotation = annotator.do_annotation
 
     plt.close(fig)
 
-    return plume_polygons, background_polygons, plume_vectors
+    return plume_polygons, background_polygons, plume_vectors, tracking
 
 
-def append_to_list(plume, background, vector, fname, plumes_list):
+def append_to_list(plume, background, vector, track, fname, plumes_list):
     row_dict = {}
 
     row_dict['sensor'] = "VIIRS"
@@ -293,6 +306,7 @@ def append_to_list(plume, background, vector, fname, plumes_list):
     row_dict['plume_extent'] = plume
     row_dict['background_extent'] = background
     row_dict['plume_vector'] = vector
+    row_dict['track_plume'] = track
 
     # lastly append to the data dictionary
     plumes_list.append(row_dict)
@@ -381,19 +395,19 @@ def main():
             continue
 
         # do the digitising
-        plume_polygons, background_polygons, plume_vectors = digitise(tcc,
-                                                                      viirs_aod,
-                                                                      viirs_flags,
-                                                                      orac_aod,
-                                                                      orac_cost,
-                                                                      viirs_sdr_fname)
+        plume_polygons, background_polygons, plume_vectors, tracking = digitise(tcc,
+                                                                                viirs_aod,
+                                                                                viirs_flags,
+                                                                                orac_aod,
+                                                                                orac_cost,
+                                                                                viirs_sdr_fname)
         if plume_polygons is None:
             continue
 
         # process plumes and backgrounds
         plumes_list = []
-        for pp, bp, pv in zip(plume_polygons, background_polygons, plume_vectors):
-            append_to_list(pp, bp, pv, viirs_sdr_fname, plumes_list)
+        for pp, bp, pv, t in zip(plume_polygons, background_polygons, plume_vectors, tracking):
+            append_to_list(pp, bp, pv, t, viirs_sdr_fname, plumes_list)
 
         # covert pixel/background lists to dataframes and concatenate to main dataframes
         temp_plume_df = pd.DataFrame(plumes_list)
