@@ -338,13 +338,13 @@ def main():
         try:
             aod_fname = get_viirs_fname(filepaths.path_to_viirs_aod_resampled, timestamp_viirs, viirs_sdr_fname)
         except Exception, e:
-            logger.warning('Could not load aux file for:' + viirs_sdr_fname + '. Failed with ' + str(e))
+            logger.warning('Could not load viirs aod file for:' + viirs_sdr_fname + '. Failed with ' + str(e))
             continue
 
         try:
             orac_fname = get_orac_fname(filepaths.path_to_viirs_orac_resampled, timestamp_viirs, viirs_sdr_fname)
         except Exception, e:
-            logger.warning('Could not load aux file for:' + viirs_sdr_fname + '. Failed with ' + str(e))
+            logger.warning('Could not load orac aod file for:' + viirs_sdr_fname + '. Failed with ' + str(e))
             continue
 
         # load in the data

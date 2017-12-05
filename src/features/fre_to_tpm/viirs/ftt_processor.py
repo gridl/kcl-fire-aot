@@ -111,8 +111,8 @@ def main():
         orac_aod_utm_plume = ut.subset_data(orac_aod_utm, plume_bounding_box)
         orac_cost_utm_plume = ut.subset_data(orac_cost_utm, plume_bounding_box)
 
-        viirs_aod_utm_background = ut.subset_data(viirs_aod_utm, plume_bounding_box)
-        viirs_flag_utm_background = ut.subset_data(viirs_flag_utm, plume_bounding_box)
+        viirs_aod_utm_background = ut.subset_data(viirs_aod_utm, background_bounding_box)
+        viirs_flag_utm_background = ut.subset_data(viirs_flag_utm, background_bounding_box)
 
         # reproject vector data
         utm_resampler_plume = ut.utm_resampler(plume_lats, plume_lons, 750)

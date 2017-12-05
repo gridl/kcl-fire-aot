@@ -1,13 +1,13 @@
 import logging
 import os
 import re
+import glob
 
 import h5py
 import numpy as np
 import scipy.misc as misc
-import scipy.spatial as spatial
 from datetime import datetime
-import time
+from netCDF4 import Dataset
 
 import src.config.filepaths as fp
 import src.features.fre_to_tpm.modis.ftt_utils as ut
@@ -35,6 +35,23 @@ def get_viirs_fname(path, timestamp_viirs, viirs_sdr_fname):
 
 def read_h5(f):
     return h5py.File(f,  "r")
+
+
+def read_nc(f):
+    nc_file = Dataset(f)
+
+    # get geo
+    lon_dims = nc_file['x_range'][:]
+    lat_dims = nc_file['y_range'][:]
+    spacing = nc_file['spacing'][:]
+    lons = np.arange(lon_dims[0], lon_dims[1], spacing[0])
+    lats = np.flipud(np.arange(lat_dims[0], lat_dims[1], spacing[1]))
+    lons, lats = np.meshgrid(lons, lats)
+
+    # get mask
+    z = nc_file['z'][:].reshape([3000, 3000])
+    mask = z > 0
+    return {"mask": mask, "lats": lats, "lons": lons}
 
 
 def create_resampler(viirs_data):
@@ -101,7 +118,7 @@ def fire_positions(fires, resampled_lats, resampled_lons):
 
 
 
-def tcc_viirs(viirs_data, fires, resampler):
+def tcc_viirs(viirs_data, fires, peat_mask, resampler):
     #m1_params = viirs_data['All_Data']['VIIRS-M1-SDR_All']['RadianceFactors']
     m1 = viirs_data['All_Data']['VIIRS-M1-SDR_All']['Radiance'][:]
     #m4_params = viirs_data['All_Data']['VIIRS-M1-SDR_All']['RadianceFactors']
@@ -129,13 +146,21 @@ def tcc_viirs(viirs_data, fires, resampler):
     g = np.round((g * (255 / np.max(g))) * 1).astype('uint8')
     b = np.round((b * (255 / np.max(b))) * 1).astype('uint8')
 
+    rgb = np.dstack((r, g, b))
+
+    # blend the mask and the image
+    blend_ratio = 0.3
+    color_mask = np.dstack((peat_mask * 205, peat_mask * 74, peat_mask * 74))
+    for i in xrange(rgb.shape[2]):
+        rgb[:, :, i] = blend_ratio * color_mask[:, :, i] + (1 - blend_ratio) * rgb[:, :, i]
+
     fy, fx = fire_positions(fires, resampled_lats, resampled_lons)
     if fy:
-        r[fy, fx] = 255
-        g[fy, fx] = 0
-        b[fy, fx] = 0
+        rgb[fy, fx, 0] = 255
+        rgb[fy, fx, 1] = 0
+        rgb[fy, fx, 2] = 0
 
-    rgb = np.dstack((r, g, b))
+
     return rgb
 
 
@@ -183,10 +208,39 @@ def extract_aod_flags(viirs_aod, resampler):
     return resampled_flags
 
 
+def get_peat_mask(peat_map_dict, utm_resampler):
+
+    sum_array = None
+
+    # extract three peat maps for the image
+    for pm in peat_map_dict:
+
+        resampled_mask = utm_resampler.resample_image(peat_map_dict[pm]['mask'],
+                                                      peat_map_dict[pm]['lats'],
+                                                      peat_map_dict[pm]['lons'],
+                                                      fill_value=0)
+
+        if sum_array is None:
+            sum_array = resampled_mask.astype(int)
+        else:
+            sum_array += resampled_mask.astype(int)
+
+    # merge the three peat maps
+    return sum_array > 0
+
+
 def main():
 
     # load in himawari fires for visualisation
     frp_df = ut.read_frp_df(fp.path_to_himawari_frp)
+
+    # load in the peat maps
+    peat_map_dict = {}
+    peat_maps_paths = glob.glob(fp.path_to_peat_maps + '*/*/*.nc')
+    for peat_maps_path in peat_maps_paths:
+        peat_map_key = peat_maps_path.split("/")[-1].split(".")[0]
+        peat_map_dict[peat_map_key] = read_nc(peat_maps_path)
+
 
     for viirs_sdr_fname in os.listdir(fp.path_to_viirs_sdr):
 
@@ -225,36 +279,33 @@ def main():
             logger.warning('Could not load aux file for:' + viirs_sdr_fname + '. Failed with ' + str(e))
             continue
 
-        if not aod_fname:
-            continue
-
-        # load in viirs aod
-        viirs_aod = None
         if aod_fname:
-            try:
-                viirs_aod_data = read_h5(os.path.join(fp.path_to_viirs_aod, aod_fname))
-                viirs_aod = extract_aod(viirs_aod_data, utm_resampler)
-                aod_flags = extract_aod_flags(viirs_aod_data, utm_resampler)
+            # load in viirs aod
+            if aod_fname:
+                try:
+                    #viirs_aod_data = read_h5(os.path.join(fp.path_to_viirs_aod, aod_fname))
+                    #viirs_aod = extract_aod(viirs_aod_data, utm_resampler)
+                    #aod_flags = extract_aod_flags(viirs_aod_data, utm_resampler)
 
-            except Exception, e:
-                logger.warning('Could not read aod file: ' + aod_fname)
-        if viirs_aod is None:
-            continue
+                    #misc.imsave(os.path.join(fp.path_to_viirs_aod_resampled, aod_fname.replace('h5', 'png')), viirs_aod)
+                    #misc.imsave(os.path.join(fp.path_to_viirs_aod_flags_resampled, aod_fname.replace('h5', 'png')),
+                    #            aod_flags)
+                    a=1
+
+
+                except Exception, e:
+                    logger.warning('Could not display aod file: ' + aod_fname)
 
         try:
             # setup resampler adn extract true colour
             t = datetime.strptime(timestamp_viirs, 'd%Y%m%d_t%H%M%S')
 
+            peat_mask = get_peat_mask(peat_map_dict, utm_resampler)
             fires = ff.fire_locations_for_digitisation(frp_df, t)
-            tcc = tcc_viirs(viirs_sdr, fires, utm_resampler)
+            tcc = tcc_viirs(viirs_sdr, fires, peat_mask, utm_resampler)
+            misc.imsave(os.path.join(fp.path_to_viirs_sdr_resampled, viirs_sdr_fname.replace('h5', 'png')), tcc)
         except Exception, e:
             logger.warning('Could make image for file: ' + viirs_sdr_fname + '. Failed with ' + str(e))
-            continue
-
-        # save the outputs
-        misc.imsave(os.path.join(fp.path_to_viirs_sdr_resampled, viirs_sdr_fname.replace('h5', 'png')), tcc)
-        misc.imsave(os.path.join(fp.path_to_viirs_aod_resampled, aod_fname.replace('h5', 'png')), viirs_aod)
-        misc.imsave(os.path.join(fp.path_to_viirs_aod_flags_resampled, aod_fname.replace('h5', 'png')), aod_flags)
 
 
 if __name__ == "__main__":
