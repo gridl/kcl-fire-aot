@@ -10,6 +10,7 @@ import os
 import logging
 from functools import partial
 from datetime import datetime
+import re
 
 import pandas as pd
 import numpy as np
@@ -21,7 +22,10 @@ from shapely.geometry import Polygon, Point, MultiPoint, LineString
 from shapely.ops import transform
 import pyresample as pr
 import pyproj
-import re
+from skimage.measure import grid_points_in_poly
+
+import matplotlib.pyplot as plt
+
 
 log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=log_fmt)
@@ -240,6 +244,44 @@ def fires_in_plume(fires, plume_polygon):
     return inbound_fires_y, inbound_fires_x
 
 
+def extract_subset_geo_bounds(ext, bounds, lats, lons):
+    # adjust plume extent for the subset
+    extent = [[x - bounds['min_x'], y - bounds['min_y']] for x, y in ext]
+
+    # when digitising points are appended (x,y).  However, arrays are accessed
+    # in numpy as row, col which is y, x.  So we need to switch
+    bounding_lats = [lats[point[1], point[0]] for point in extent]
+    bounding_lons = [lons[point[1], point[0]] for point in extent]
+    return bounding_lats, bounding_lons
+
+
+def extract_geo_bounds(extent, lats, lons):
+    # these points are generated as y, x
+    bounding_lats = [lats[int(point[0]), int(point[1])] for point in extent]
+    bounding_lons = [lons[int(point[0]), int(point[1])] for point in extent]
+    return bounding_lats, bounding_lons
+
+def construct_shapely_points(bounding_lats, bounding_lons):
+    return MultiPoint(zip(bounding_lons, bounding_lats))
+
+
+def construct_shapely_polygon(bounding_lats, bounding_lons):
+    return Polygon(zip(bounding_lons, bounding_lats))
+
+
+def construct_shapely_vector(bounding_lats, bounding_lons):
+    return LineString(zip(bounding_lons[0:2], bounding_lats[0:2]))
+
+
+def reproject_shapely(shapely_object, utm_resampler):
+    project = partial(
+        pyproj.transform,
+        pyproj.Proj(init='epsg:4326'),  # source coordinate system (geographic coords)
+        utm_resampler.proj)  # destination coordinate system
+
+    return transform(project, shapely_object)  # apply projection
+
+
 def _extract_geo_from_bounds(ext, bounds, lats, lons):
     # adjust plume extent for the subset
     extent = [[x - bounds['min_x'], y - bounds['min_y']] for x, y in ext]
@@ -275,6 +317,82 @@ def reproject_shapely(shapely_object, utm_resampler):
     return transform(project, shapely_object)  # apply projection
 
 
+def compute_perpendicular_slope(vector):
+    head = np.array(vector[1])
+    tail = np.array(vector[0])
+    deltas = head - tail
+    slope = float(deltas[1]) / deltas[0]  # dy/ dx
+    return -1 / slope  # perpendicular slope
+
+
+def split_plume_polgons(plume_vector, utm_plume_vector, flow_vector, resampler, plume_lats, plume_lons,
+                        plume_mask):
+
+    # compute orthogonal slope of plume vector in pixels
+    perp_slope = compute_perpendicular_slope(plume_vector)
+
+    y_shape, x_shape = plume_lats.shape
+
+    # set up iterator variables
+    a = [0, 0]  # ll
+    b = [0, 0]  # ul
+    c = [0, x_shape-1]  # ur
+    d = [0, x_shape-1]  # lr
+    tail_position = np.array(utm_plume_vector.coords[0])
+
+    # set up list to hold polygon corners
+    polygon_corner_dict = {}
+
+    display = np.zeros(plume_mask.shape)
+
+    # iterate over UTM points
+    for i, position in enumerate(flow_vector):
+
+        # add current position onto tail
+        tail_position += position
+
+        # convert UTM point to lat lon
+        flow_lon, flow_lat = resampler.resample_point_to_geo(tail_position[1], tail_position[0])
+
+        # convert lat lon to pixel index
+        dists = np.abs(flow_lat - plume_lats) + np.abs(flow_lon - plume_lons)
+        sub_y, sub_x = divmod(dists.argmin(), x_shape)
+
+        # using slope compute y position at x min and x max
+        min_y = sub_y - perp_slope*sub_x   # b = y - mx, and when x=0, y=b
+        max_y = perp_slope*x_shape + min_y  # y at x = n
+
+        # set up polygon
+        a[0] = min_y
+        d[0] = max_y
+
+        # define mask
+        polygon_corner_dict[i] = [a[:], b[:], c[:], d[:]]
+        mask = grid_points_in_poly([y_shape, x_shape], [a, b, c, d])
+        display[mask*plume_mask] = i+1
+
+        # update polygon corner arrays
+        b = a[:]
+        c = d[:]
+
+    # now get the final part of the plume
+    a[0] = y_shape-1
+    d[0] = y_shape-1
+    polygon_corner_dict[i] = [a, b, c, d]
+    mask = grid_points_in_poly([y_shape, x_shape], [a, b, c, d])
+    display[mask*plume_mask] = i + 1
+
+    # plt.imshow(display)
+    # plt.colorbar()
+    # plt.show()
+
+    return polygon_corner_dict
+
+
+def sub_mask(shape, poly, plume_mask):
+    return grid_points_in_poly(shape, poly) * plume_mask
+
+
 class utm_resampler(object):
     def __init__(self, lats, lons, pixel_size, resolution=0.01):
         self.lats = lats
@@ -307,8 +425,8 @@ class utm_resampler(object):
         return (min_x, min_y, max_x, max_y)
 
     def __utm_grid_size(self):
-        x_size = int(np.ceil((self.extent[2] - self.extent[0]) / self.pixel_size))
-        y_size = int(np.ceil((self.extent[3] - self.extent[1]) / self.pixel_size))
+        x_size = int(np.round((self.extent[2] - self.extent[0]) / self.pixel_size))
+        y_size = int(np.round((self.extent[3] - self.extent[1]) / self.pixel_size))
         return x_size, y_size
 
     def __construct_area_def(self):
@@ -324,7 +442,7 @@ class utm_resampler(object):
         return pr.kd_tree.resample_nearest(swath_def,
                                            image,
                                            self.area_def,
-                                           radius_of_influence=1000,
+                                           radius_of_influence=1500,
                                            fill_value=fill_value)
 
     def resample_points_to_utm(self, point_lats, point_lons):
