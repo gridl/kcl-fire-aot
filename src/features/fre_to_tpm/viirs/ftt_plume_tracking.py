@@ -17,6 +17,7 @@ import src.visualization.ftt_visualiser as vis
 import src.features.fre_to_tpm.viirs.ftt_fre as ff
 import src.features.fre_to_tpm.viirs.ftt_utils as ut
 
+import matplotlib.pyplot as plt
 
 log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=log_fmt)

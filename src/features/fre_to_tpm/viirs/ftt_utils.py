@@ -256,10 +256,25 @@ def extract_subset_geo_bounds(ext, bounds, lats, lons):
 
 
 def extract_geo_bounds(extent, lats, lons):
+
+    # the extent can be outside of the lat/lon grid, so we need to adjust any
+    # indexes that are outside of this extent.
+    shape_y, shape_x = lats.shape
+    for point in extent:
+        if point[0] >= shape_y:
+            point[0] = shape_y - 1
+        if point[0] < 0:
+            point[0] = 0
+        if point[1] >= shape_y:
+            point[1] = shape_x - 1
+        if point[1] < 0:
+            point[1] = 0
+
     # these points are generated as y, x
     bounding_lats = [lats[int(point[0]), int(point[1])] for point in extent]
     bounding_lons = [lons[int(point[0]), int(point[1])] for point in extent]
     return bounding_lats, bounding_lons
+
 
 def construct_shapely_points(bounding_lats, bounding_lons):
     return MultiPoint(zip(bounding_lons, bounding_lats))
@@ -325,8 +340,10 @@ def compute_perpendicular_slope(vector):
     return -1 / slope  # perpendicular slope
 
 
-def split_plume_polgons(plume_vector, utm_plume_vector, flow_vector, resampler, plume_lats, plume_lons,
-                        plume_mask):
+def split_plume_polgons(plume_logging_path, bb,
+                        plume_vector, utm_plume_vector,
+                        flow_vector, resampler, plume_lats, plume_lons,
+                        plume_mask, plot=True):
 
     # compute orthogonal slope of plume vector in pixels
     perp_slope = compute_perpendicular_slope(plume_vector)
@@ -343,7 +360,10 @@ def split_plume_polgons(plume_vector, utm_plume_vector, flow_vector, resampler, 
     # set up list to hold polygon corners
     polygon_corner_dict = {}
 
-    display = np.zeros(plume_mask.shape)
+    if plot:
+        display = np.zeros(plume_mask.shape)
+        sub_x_positions = []
+        sub_y_positions = []
 
     # iterate over UTM points
     for i, position in enumerate(flow_vector):
@@ -362,14 +382,16 @@ def split_plume_polgons(plume_vector, utm_plume_vector, flow_vector, resampler, 
         min_y = sub_y - perp_slope*sub_x   # b = y - mx, and when x=0, y=b
         max_y = perp_slope*x_shape + min_y  # y at x = n
 
-        # set up polygon
         a[0] = min_y
         d[0] = max_y
 
         # define mask
         polygon_corner_dict[i] = [a[:], b[:], c[:], d[:]]
-        mask = grid_points_in_poly([y_shape, x_shape], [a, b, c, d])
-        display[mask*plume_mask] = i+1
+        if plot:
+            mask = grid_points_in_poly([y_shape, x_shape], [a, b, c, d])
+            display[mask] = i
+            sub_x_positions.append(sub_x)
+            sub_y_positions.append(sub_y)
 
         # update polygon corner arrays
         b = a[:]
@@ -378,13 +400,23 @@ def split_plume_polgons(plume_vector, utm_plume_vector, flow_vector, resampler, 
     # now get the final part of the plume
     a[0] = y_shape-1
     d[0] = y_shape-1
-    polygon_corner_dict[i] = [a, b, c, d]
-    mask = grid_points_in_poly([y_shape, x_shape], [a, b, c, d])
-    display[mask*plume_mask] = i + 1
+    polygon_corner_dict[i] = [a[:], b[:], c[:], d[:]]
 
-    # plt.imshow(display)
-    # plt.colorbar()
-    # plt.show()
+    if plot:
+        mask = grid_points_in_poly([y_shape, x_shape], [a, b, c, d])
+        display[mask] = i
+        display[~plume_mask] = np.nan
+        plt.imshow(display)
+        plt.colorbar()
+        for x, y in zip(sub_x_positions, sub_y_positions):
+            plt.plot(x,y, 'r.')
+
+        extent = [[x - bb['min_x'], y - bb['min_y']] for x, y in plume_vector]
+        t = extent[0]
+        h = extent[1]
+        plt.plot((t[0], h[0]), (t[1], h[1]), 'k-')
+        plt.savefig(os.path.join(plume_logging_path, 'plumes_subsets.png'), bbox_inches='tight', dpi=300)
+        plt.close()
 
     return polygon_corner_dict
 

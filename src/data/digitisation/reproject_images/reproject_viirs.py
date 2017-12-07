@@ -290,8 +290,6 @@ def main():
                     #misc.imsave(os.path.join(fp.path_to_viirs_aod_resampled, aod_fname.replace('h5', 'png')), viirs_aod)
                     #misc.imsave(os.path.join(fp.path_to_viirs_aod_flags_resampled, aod_fname.replace('h5', 'png')),
                     #            aod_flags)
-                    a=1
-
 
                 except Exception, e:
                     logger.warning('Could not display aod file: ' + aod_fname)
