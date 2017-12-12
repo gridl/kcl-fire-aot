@@ -283,13 +283,13 @@ def main():
             # load in viirs aod
             if aod_fname:
                 try:
-                    #viirs_aod_data = read_h5(os.path.join(fp.path_to_viirs_aod, aod_fname))
-                    #viirs_aod = extract_aod(viirs_aod_data, utm_resampler)
-                    #aod_flags = extract_aod_flags(viirs_aod_data, utm_resampler)
+                    viirs_aod_data = read_h5(os.path.join(fp.path_to_viirs_aod, aod_fname))
+                    viirs_aod = extract_aod(viirs_aod_data, utm_resampler)
+                    aod_flags = extract_aod_flags(viirs_aod_data, utm_resampler)
 
-                    #misc.imsave(os.path.join(fp.path_to_viirs_aod_resampled, aod_fname.replace('h5', 'png')), viirs_aod)
-                    #misc.imsave(os.path.join(fp.path_to_viirs_aod_flags_resampled, aod_fname.replace('h5', 'png')),
-                    #            aod_flags)
+                    misc.imsave(os.path.join(fp.path_to_viirs_aod_resampled, aod_fname.replace('h5', 'png')), viirs_aod)
+                    misc.imsave(os.path.join(fp.path_to_viirs_aod_flags_resampled, aod_fname.replace('h5', 'png')),
+                               aod_flags)
 
                 except Exception, e:
                     logger.warning('Could not display aod file: ' + aod_fname)

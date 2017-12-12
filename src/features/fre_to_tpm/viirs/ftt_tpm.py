@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 
 
 def build_output_dict():
@@ -34,21 +35,37 @@ def extract_best_mean_aod(d,
     updated_plume_mask = plume_mask & (flag_mask | aod_mask)
 
     if plot:
-        plt.imshow(np.ma.masked_array(viirs_aod, ~updated_plume_mask), vmin=0)
+        plt.imshow(np.ma.masked_array(viirs_aod, ~updated_plume_mask), vmin=0, vmax=2)
         plt.colorbar()
         plt.savefig(os.path.join(sub_plume_logging_path, 'viirs_sub_plume_aod.png'))
         plt.close()
-        plt.imshow(np.ma.masked_array(viirs_flag, ~updated_plume_mask))
-        plt.colorbar()
+
+        ax = plt.imshow(np.ma.masked_array(viirs_flag, ~updated_plume_mask))
+        cmap = cm.get_cmap('Set1', 4)
+        ax.set_cmap(cmap)
+        cb = plt.colorbar()
         plt.savefig(os.path.join(sub_plume_logging_path, 'viirs_sub_plume_flag.png'))
         plt.close()
-        plt.imshow(np.ma.masked_array(orac_aod, ~updated_plume_mask))
+
+        plt.imshow(np.ma.masked_array(orac_aod, ~updated_plume_mask), vmin=0, vmax=2)
         plt.colorbar()
         plt.savefig(os.path.join(sub_plume_logging_path, 'viirs_sub_plume_orac.png'))
         plt.close()
-        plt.imshow(np.ma.masked_array(orac_cost, ~updated_plume_mask), vmax=100)
+
+        plt.imshow(np.ma.masked_array(orac_cost, ~updated_plume_mask), vmax=100, cmap='plasma')
         plt.colorbar()
         plt.savefig(os.path.join(sub_plume_logging_path, 'viirs_sub_plume_orac_cose.png'))
+        plt.close()
+
+        viirs_mask = updated_plume_mask & (viirs_flag <= 1)
+        orac_mask = updated_plume_mask & (viirs_flag > 1) & (orac_cost <= 50)
+        combined = np.zeros(viirs_mask.shape)
+        combined[orac_mask] = orac_aod[orac_mask]
+        combined[viirs_mask] = viirs_aod[viirs_mask]
+        mask = combined == 0
+        plt.imshow(np.ma.masked_array(combined, mask), vmin=0, vmax=2)
+        plt.colorbar()
+        plt.savefig(os.path.join(sub_plume_logging_path, 'combined_aod.png'))
         plt.close()
 
     # now extract the plume data
@@ -68,6 +85,8 @@ def extract_best_mean_aod(d,
     viirs_aod_subset = viirs_aod[viirs_good]
     orac_aod_subset = orac_aod[orac_good & ~viirs_good]
     aod = np.concatenate((viirs_aod_subset, orac_aod_subset))
+
+
 
     # stats
     d['n_plume_pixels'] = np.sum(updated_plume_mask)
@@ -108,16 +127,9 @@ def extract_bg_aod(viirs_aod, viirs_flag, mask):
 def compute_tpm(viirs_aod_utm_plume, viirs_flag_utm_plume,
                 orac_aod_utm_plume, orac_cost_utm_plume,
                 utm_plume_polygon, utm_plume_mask, bg_aod_dict,
-                plume_logging_path, sub_plume_number, plot=True):
+                sub_plume_logging_path, plot=True):
 
     d = build_output_dict()
-
-    if plot:
-        sub_plume_logging_path = os.path.join(plume_logging_path, str(sub_plume_number))
-        if not os.path.isdir(sub_plume_logging_path):
-            os.mkdir(sub_plume_logging_path)
-    else:
-        sub_plume_logging_path = ''
 
     try:
         # put background data into d

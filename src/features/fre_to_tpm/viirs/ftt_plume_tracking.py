@@ -567,12 +567,12 @@ def find_flow(p_number, plume_logging_path, utm_plume_points,
     # get bounding box around smoke plume in geostationary imager coordinates
     # and extract the geographic coordinates for the roi, also set up plot stuff
     bb = spatial_subset(plume_lats, plume_lons, geostationary_lats, geostationary_lons)
-    #if plot:
+    if plot:
         # set up this polygon so we can see all fires near to the plume
-        #bounding_lats, bounding_lons = geographic_extent(geostationary_lats, geostationary_lons, bb)
-        #geo_polygon = Polygon(zip(bounding_lons, bounding_lats))
-        #utm_geo_polygon = ut.reproject_shapely(geo_polygon, utm_resampler)
-        #fires = []
+        bounding_lats, bounding_lons = geographic_extent(geostationary_lats, geostationary_lons, bb)
+        geo_polygon = Polygon(zip(bounding_lons, bounding_lats))
+        utm_geo_polygon = ut.reproject_shapely(geo_polygon, utm_resampler_plume)
+        fires = []
     geostationary_lats_subset, geostationary_lons_subset = subset_geograpic_data(geostationary_lats, geostationary_lons,
                                                                                  bb)
 
@@ -624,9 +624,8 @@ def find_flow(p_number, plume_logging_path, utm_plume_points,
                                                               geostationary_lons_subset)]
             fnames = [geostationary_fnames[i]]
         if plot:
-            # t = datetime.strptime(geostationary_fnames[i].split('/')[-1][7:20], '%Y%m%d_%H%M')
-            # fires.append(ff.fire_locations_for_plume_roi(utm_geo_polygon, utm_resampler, frp_df, t))
-            fires = [None] * 72
+            t = datetime.strptime(geostationary_fnames[i].split('/')[-1][7:20], '%Y%m%d_%H%M')
+            fires.append(ff.fire_locations_for_plume_roi(utm_geo_polygon, utm_resampler_plume, frp_df, t))
             plot_images.append(utm_resampler_plume.resample_image(f2_display_subset,
                                                                   geostationary_lats_subset,
                                                                   geostationary_lons_subset))
@@ -649,10 +648,10 @@ def find_flow(p_number, plume_logging_path, utm_plume_points,
         if ((length - summed_length) < stopping_thresh) | (summed_length > length):
 
             # if plotting do this stuff
-            # if plot:
-                # also need to get the fires for the last scene
-                # t = datetime.strptime(geostationary_fnames[i + 1].split('/')[-1][7:20], '%Y%m%d_%H%M')
-                # fires.append(ff.fire_locations_for_plume_roi(utm_geo_polygon, utm_resampler, frp_df, t))
+            if plot:
+                #also need to get the fires for the last scene
+                t = datetime.strptime(geostationary_fnames[i + 1].split('/')[-1][7:20], '%Y%m%d_%H%M')
+                fires.append(ff.fire_locations_for_plume_roi(utm_geo_polygon, utm_resampler_plume, frp_df, t))
             break
 
     # save tracking information

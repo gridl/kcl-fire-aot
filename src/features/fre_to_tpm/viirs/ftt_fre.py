@@ -3,6 +3,7 @@ import os
 
 import numpy as np
 from scipy import integrate
+from datetime import datetime
 
 import src.features.fre_to_tpm.viirs.ftt_utils as ut
 
@@ -19,11 +20,8 @@ def temporal_subset(frp_df, start_time, stop_time):
     :param stop_time: The subset stop time
     :return: the subsetted dataframe
     """
-    try:
-        return frp_df.loc[(frp_df['obs_time'] <= stop_time) & (frp_df['obs_time'] >= start_time)]
-    except Exception, e:
-        logger.error('Could not extract time subset, failed with error: ' + str(e))
-        return None
+    return frp_df.loc[(frp_df['obs_time'] <= stop_time) & (frp_df['obs_time'] >= start_time)]
+
 
 
 def temporal_subset_single_time(frp_df, t):
@@ -33,11 +31,8 @@ def temporal_subset_single_time(frp_df, t):
     :param start_time: The subset time of interest
     :return: the subsetted dataframe
     """
-    try:
-        return frp_df.loc[(frp_df['obs_time'] == t)]
-    except Exception, e:
-        logger.error('Could not extract time subset, failed with error: ' + str(e))
-        return None
+    return frp_df.loc[(frp_df['obs_time'] == t)]
+
 
 
 def temporal_subset_single_day(frp_df, t):
@@ -47,12 +42,8 @@ def temporal_subset_single_day(frp_df, t):
     :param t: The subset time of interest
     :return: the subsetted dataframe
     """
+    return frp_df.loc[(frp_df['obs_time'].dt.year == t.year) & (frp_df['obs_time'].dt.day == t.day)]
 
-    try:
-        return frp_df.loc[(frp_df['obs_time'].dt.year == t.year) & (frp_df['obs_time'].dt.day == t.day)]
-    except Exception, e:
-        logger.error('Could not extract time subset, failed with error: ' + str(e))
-        return None
 
 
 def spatial_subset(frp_subset, plume_polygon, utm_resampler):
@@ -64,19 +55,14 @@ def spatial_subset(frp_subset, plume_polygon, utm_resampler):
     :return: The spatially subsetted frp dataframe
     """
     inbounds = []
-    try:
-        for i, (index, frp_pixel) in enumerate(frp_subset.iterrows()):
+    for i, (index, frp_pixel) in enumerate(frp_subset.iterrows()):
 
-            # transform FRP pixel into UTM coordinates
-            projected_fire = ut.reproject_shapely(frp_pixel['point'], utm_resampler)
-            if projected_fire.within(plume_polygon):
-                inbounds.append(i)
+        # transform FRP pixel into UTM coordinates
+        projected_fire = ut.reproject_shapely(frp_pixel['point'], utm_resampler)
+        if projected_fire.within(plume_polygon):
+            inbounds.append(i)
+    return frp_subset.iloc[inbounds]
 
-        if inbounds:
-            return frp_subset.iloc[inbounds]
-    except Exception, e:
-        print 'Could not extract spatial subset, failed with error:', str(e)
-        return None
 
 
 def group_subset(frp_subset):
@@ -105,42 +91,11 @@ def integrate_frp(frp_subset):
     :param frp_subset: The spatial and temporal subset of FRPs
     :return: The integrated FRP values, i.e. the FRE
     """
-    try:
-        t0 = frp_subset.index[0]
-        sample_times = (frp_subset.index - t0).total_seconds()
-    except Exception, e:
-        logger.error('Could not convert to time since t0. Failed with error: ' + str(e))
-        return None
+    t0 = frp_subset.index[0]
+    sample_times = (frp_subset.index - t0).total_seconds()
 
     # now integrate
     return integrate.trapz(frp_subset['FRP_0'], sample_times)
-
-
-def compute_fre(p_number, plume_logging_path,
-                plume_polygon, frp_df, start_time, stop_time, utm_resampler):
-    """
-
-    :param plume_polygon: The smoke plume polygon
-    :param frp_df: The FRP containing dataframe
-    :param start_time: The integration start time
-    :param stop_time: The integratinos stop time
-    :return:  The FRE
-    """
-    try:
-        frp_subset = temporal_subset(frp_df, start_time, stop_time)
-        frp_subset = spatial_subset(frp_subset, plume_polygon, utm_resampler)
-        frp_subset.to_csv(os.path.join(plume_logging_path, str(p_number) + '_fires.csv'))
-
-        grouped_frp_subset = group_subset(frp_subset)
-        grouped_frp_subset.to_csv(os.path.join(plume_logging_path, str(p_number) + '_fires_grouped.csv'))
-
-    except Exception, e:
-        logger.error('FRE calculation failed with error' + str(e))
-        return None
-
-    # integrate to get the fre
-    fre = integrate_frp(grouped_frp_subset)
-    return fre
 
 
 def fire_locations_for_plume_roi(plume_polygon, utm_resampler, frp_df, t):
@@ -162,4 +117,49 @@ def fire_locations_for_digitisation(frp_df, t):
     except Exception, e:
         logger.error('FRE calculation failed with error' + str(e))
         return None
+
+
+def compute_fre(out_dict, geostationary_fname,
+                utm_plume_polygon, frp_df, utm_resampler_plume, sub_plume_logging_path):
+    """
+
+    :param plume_polygon: The smoke plume polygon
+    :param frp_df: The FRP containing dataframe
+    :param start_time: The integration start time
+    :param stop_time: The integratinos stop time
+    :return:  The FRE
+    """
+
+    t = datetime.strptime(geostationary_fname.split('/')[-1][7:20], '%Y%m%d_%H%M')
+
+    try:
+        frp_subset = temporal_subset_single_time(frp_df, t)
+        frp_subset = spatial_subset(frp_subset, utm_plume_polygon, utm_resampler_plume)
+        frp_subset.to_csv(os.path.join(sub_plume_logging_path, 'fires.csv'))
+
+        grouped_frp_subset = group_subset(frp_subset)
+        grouped_frp_subset.to_csv(os.path.join(sub_plume_logging_path, 'fires_grouped.csv'))
+
+        # integrate to get the fre as we are only doing one timestamp
+        # assume that the fires is burning the same for the next ten
+        # minutes
+        fre = grouped_frp_subset['FRP_0'].values[0] * (10 * 60)  #  assume 600 seconds
+
+        out_dict['fre'] = fre
+        out_dict['mean_fire_confience'] = grouped_frp_subset['FIRE_CONFIDENCE_mean']
+        out_dict['std_fire_confience'] = grouped_frp_subset['FIRE_CONFIDENCE_std']
+        out_dict['himawari_file'] = geostationary_fname
+        out_dict['himawari_time'] = t
+
+    except Exception, e:
+        logger.error('FRE calculation failed with error' + str(e))
+
+        out_dict['fre'] = np.nan
+        out_dict['mean_fire_confience'] = np.nan
+        out_dict['std_fire_confience'] = np.nan
+        out_dict['himawari_file'] = geostationary_fname
+        out_dict['himawari_time'] = t
+
+
+
 

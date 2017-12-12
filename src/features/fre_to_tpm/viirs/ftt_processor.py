@@ -14,6 +14,7 @@ import src.data.readers.load_hrit as load_hrit
 import src.features.fre_to_tpm.viirs.ftt_tpm as tt
 
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 
 log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=log_fmt)
@@ -24,11 +25,10 @@ logger = logging.getLogger(__name__)
 
 def main():
 
-    plot = False
+    plot = True
 
     # load in static data
-    #frp_df = ut.read_frp_df(fp.path_to_himawari_frp)
-    frp_df = []
+    frp_df = ut.read_frp_df(fp.path_to_himawari_frp)
 
     plume_df = ut.read_plume_polygons(fp.path_to_smoke_plume_polygons_viirs_csv)
     geo_file = fp.root_path + '/processed/himawari/Himawari_lat_lon.img'
@@ -140,25 +140,33 @@ def main():
         if plot:
             plt.imshow(viirs_png_utm[plume_bounding_box['min_y']:plume_bounding_box['max_y'],
                        plume_bounding_box['min_x']:plume_bounding_box['max_x'], :])
-            plt.savefig(os.path.join(plume_logging_path, 'viirs_plume_tcc.png'))
+            plt.savefig(os.path.join(plume_logging_path, 'viirs_plume_tcc.png'), bbox_inches='tight')
             plt.close()
-            plt.imshow(viirs_aod_utm_plume, vmin=0)
-            plt.colorbar()
-            plt.savefig(os.path.join(plume_logging_path, 'viirs_plume_aod.png'))
-            plt.close()
-            plt.imshow(viirs_flag_utm_plume)
-            plt.colorbar()
-            plt.savefig(os.path.join(plume_logging_path, 'viirs_plume_flag.png'))
-            plt.close()
-            plt.imshow(orac_aod_utm_plume)
-            plt.colorbar()
-            plt.savefig(os.path.join(plume_logging_path, 'viirs_plume_orac.png'))
-            plt.close()
-            plt.imshow(orac_cost_utm_plume, vmax=100)
-            plt.colorbar()
-            plt.savefig(os.path.join(plume_logging_path, 'viirs_plume_orac_cose.png'))
+            plt.imshow(viirs_aod_utm_plume, vmin=0, vmax=2)
+            cb = plt.colorbar()
+            cb.set_label('VIIRS IP AOD')
+            plt.savefig(os.path.join(plume_logging_path, 'viirs_plume_aod.png'), bbox_inches='tight')
             plt.close()
 
+            ax = plt.imshow(viirs_flag_utm_plume)
+            cmap = cm.get_cmap('Set1', 4)
+            ax.set_cmap(cmap)
+            cb = plt.colorbar()
+            cb.set_label('VIIRS IP AOD Flag')
+            plt.savefig(os.path.join(plume_logging_path, 'viirs_plume_flag.png'), bbox_inches='tight')
+            plt.close()
+
+            plt.imshow(orac_aod_utm_plume, vmin=0, vmax=2)
+            cb = plt.colorbar()
+            cb.set_label('VIIRS ORAC AOD')
+            plt.savefig(os.path.join(plume_logging_path, 'viirs_plume_orac.png'), bbox_inches='tight')
+            plt.close()
+
+            plt.imshow(orac_cost_utm_plume, vmax=100, cmap='plasma')
+            cb = plt.colorbar()
+            cb.set_label('VIIRS ORAC AOD COST')
+            plt.savefig(os.path.join(plume_logging_path, 'viirs_plume_orac_cose.png'), bbox_inches='tight')
+            plt.close()
 
         # get the plume sub polygons based on the wind speed
         try:
@@ -173,6 +181,7 @@ def main():
             # most recent part.  To do that, we use the flow speed from the oldest plume extent
             # first, as this gives us the part we are looking for.  Then work back up through time.
             utm_flow_means = utm_flow_means[::-1]
+            geostationary_fnames = geostationary_fnames[::-1]
 
             # now using the flow informatino get the sub polygons on the plume. Each subpolygon
             # contains the pixel positions that correspond to each himawari timestamp.
@@ -192,6 +201,10 @@ def main():
         if plume_sub_polygons:
 
             for sub_p_number, sub_polygon in plume_sub_polygons.iteritems():
+
+                sub_plume_logging_path = os.path.join(plume_logging_path, str(sub_p_number))
+                if not os.path.isdir(sub_plume_logging_path):
+                    os.mkdir(sub_plume_logging_path)
 
                 # make mask for sub polygon
                 sub_plume_mask = ut.sub_mask(plume_lats.shape, sub_polygon, plume_mask)
@@ -216,19 +229,18 @@ def main():
                 out_dict = tt.compute_tpm(viirs_aod_utm_plume, viirs_flag_utm_plume,
                                           orac_aod_utm_plume, orac_cost_utm_plume,
                                           utm_sub_plume_polygon, sub_plume_mask, bg_aod_dict,
-                                          plume_logging_path, sub_p_number, plot=plot)
+                                          sub_plume_logging_path, plot=plot)
 
                 out_dict['main_plume_number'] = p_number
                 out_dict['sub_plume_number'] = sub_p_number
+                out_dict['viirs_time'] = current_timestamp
 
                 # compute FRE
-                #fre.append(ff.compute_fre(p_number, plume_logging_path,
-                #                          utm_plume_polygon, frp_df, start_time, stop_time, utm_resampler_plume))   #CHECK IF THIS IS THE RIGHT RESAMPLER
+                ff.compute_fre(out_dict, geostationary_fnames[sub_p_number],
+                               utm_plume_polygon, frp_df, utm_resampler_plume, sub_plume_logging_path)
 
                 # convert datadict to dataframe and add to list
                 df_list.append(pd.DataFrame(out_dict, index=['i',]))
-
-        continue
 
     # dump data to csv via df
     df = pd.concat(df_list)
