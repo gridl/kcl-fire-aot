@@ -1,27 +1,21 @@
 # -*- coding: utf-8 -*-
-import os
 import logging
-
+import os
 import re
-
-import numpy as np
-import pandas as pd
+from datetime import datetime
 
 import matplotlib
-#matplotlib.use('TkAgg')
-
+import matplotlib.cm as cm
 import matplotlib.pyplot as plt
-from matplotlib.patches import Circle, Rectangle, Polygon
-from matplotlib.lines import Line2D
+import numpy as np
+import pandas as pd
+import scipy.misc as misc
 from matplotlib.collections import PatchCollection
+from matplotlib.lines import Line2D
+from matplotlib.patches import Circle, Polygon
 from matplotlib.widgets import RadioButtons
 
-import scipy.misc as misc
-
-
-
 import src.config.filepaths as filepaths
-import src.features.fre_to_tpm.ftt_utils as ut
 
 
 def load_df(path):
@@ -66,17 +60,33 @@ def get_viirs_fname(path, timestamp_viirs, viirs_sdr_fname):
         return ''
 
 
+def get_orac_fname(path, timestamp_viirs, viirs_sdr_fname):
+    viirs_dt = datetime.strptime(timestamp_viirs, 'd%Y%m%d_t%H%M%S')
+    fname = [f for f in os.listdir(path) if
+             abs((viirs_dt - datetime.strptime(f[37:49], "%Y%m%d%H%M")).total_seconds()) <= 30]
+    if len(fname) > 1:
+        logger.warning("More that one frp granule matched " + viirs_sdr_fname + "selecting 0th option")
+        return fname[0]
+    elif len(fname) == 1:
+        return fname[0]
+    else:
+        return ''
+
+
 def load_image(f, mode='RGB'):
     return misc.imread(f)
 
 
 class Annotate(object):
-    def __init__(self, tcc, viirs_aod, ax,
+    def __init__(self, tcc, viirs_aod, viirs_flags, orac_aod, orac_cost, ax,
                  plume_polygons, background_polygons, plume_vectors):
         self.ax = ax
         self.tcc = tcc
+        self.orac_aod = orac_aod
+        self.orac_cost = orac_cost
         self.viirs_aod = viirs_aod
-        self.im = self.ax.imshow(self.viirs_aod, interpolation='none', cmap='viridis')
+        self.viirs_flags = viirs_flags
+        self.im = self.ax.imshow(self.orac_aod, interpolation='none', cmap='viridis', vmin=0, vmax=10)
         #if fires is not None:
         #    self.plot = self.ax.plot(fires[1], fires[0], 'r.')
         self.background_polygons = self._add_polygons_to_axis(background_polygons, 'Blues_r')
@@ -90,6 +100,9 @@ class Annotate(object):
         self.background_y = []
         self.vector_x = []
         self.vector_y = []
+
+        # set varaible to check if we are using plume tracking on this plume or not
+        self.tracking = True
 
         # set up the digitising patch
         self.plume_p = Circle((1,1))
@@ -107,6 +120,10 @@ class Annotate(object):
 
         # set up radio buttons
         self.axcolor = 'lightgoldenrodyellow'
+
+        self.rax_tracking = plt.axes([0.01, 0.9, 0.1, 0.15], facecolor=self.axcolor)
+        self.radio_tracking = RadioButtons(self.rax_tracking, ('Tracked', 'Untracked'))
+        self.radio_tracking.on_clicked(self.tracking_func)
 
         self.rax_digitise = plt.axes([0.01, 0.7, 0.1, 0.15], facecolor=self.axcolor)
         self.radio_disitise = RadioButtons(self.rax_digitise, ('Digitise', 'Stop'))
@@ -143,15 +160,25 @@ class Annotate(object):
     def _radio_labels(self):
         labels = []
         # FCC and TCC always present
+        labels.append('ORAC_AOD')
+        labels.append('ORAC_COST')
         labels.append('VIIRS_AOD')
+        labels.append('VIIRS_FLAGS')
         labels.append('TCC')
         return tuple(labels)
 
     def _radio_label_mapping(self):
         label_mapping = {}
+        label_mapping['ORAC_AOD'] = self.orac_aod
+        label_mapping['ORAC_COST'] = self.orac_cost
         label_mapping['VIIRS_AOD'] = self.viirs_aod
+        label_mapping['VIIRS_FLAGS'] = self.viirs_flags
         label_mapping['TCC'] = self.tcc
         return label_mapping
+
+    def tracking_func(self, label):
+        anno_dict = {'Tracked': True, 'Untracked': False}
+        self.tracking = anno_dict[label]
 
     def annotation_func(self, label):
         anno_dict = {'Digitise': True, 'Stop': False}
@@ -177,8 +204,18 @@ class Annotate(object):
         self.im.set_data(im_data)
 
         if label == "VIIRS_AOD":
-            self.im.set_clim(vmax=2, vmin=0)
+            self.im.set_clim(vmax=10, vmin=0)
             self.im.set_cmap('viridis')
+        if label == "VIIRS_FLAGS":
+            self.im.set_clim(vmax=4, vmin=0)
+            cmap = cm.get_cmap('Set1', 4)
+            self.im.set_cmap(cmap)
+        if label == "ORAC_AOD":
+            self.im.set_clim(vmax=10, vmin=0)
+            self.im.set_cmap('viridis')
+        if label == "ORAC_COST":
+            self.im.set_clim(vmax=20, vmin=0)
+            self.im.set_cmap('plasma')
         plt.draw()
 
     def click(self, event):
@@ -221,11 +258,12 @@ class Annotate(object):
                 self.ax.figure.canvas.draw()
 
 
-def digitise(tcc, viirs_aod, viirs_fname):
+def digitise(tcc, viirs_aod, viirs_flags, orac_aod, orac_cost, viirs_fname):
 
     plume_polygons = []
     background_polygons = []
     plume_vectors = []
+    tracking = []
 
     do_annotation = True
     while do_annotation:
@@ -236,7 +274,7 @@ def digitise(tcc, viirs_aod, viirs_fname):
         ax.yaxis.set_visible(False)
 
         # first set up the annotator
-        annotator = Annotate(tcc, viirs_aod, ax,
+        annotator = Annotate(tcc, viirs_aod, viirs_flags, orac_aod, orac_cost, ax,
                              plume_polygons, background_polygons, plume_vectors)
 
         # then show the image
@@ -251,22 +289,24 @@ def digitise(tcc, viirs_aod, viirs_fname):
             plume_polygons.append(plume_pts)
             background_polygons.append(background_pts)
             plume_vectors.append(plume_vector)
+            tracking.append(annotator.tracking)
 
         do_annotation = annotator.do_annotation
 
     plt.close(fig)
 
-    return plume_polygons, background_polygons, plume_vectors
+    return plume_polygons, background_polygons, plume_vectors, tracking
 
 
-def append_to_list(plume, background, vector, fname, plumes_list):
+def append_to_list(plume, background, vector, track, fname, plumes_list):
     row_dict = {}
 
-    row_dict['sensor'] = "MYD"
+    row_dict['sensor'] = "VIIRS"
     row_dict['filename'] = fname
     row_dict['plume_extent'] = plume
     row_dict['background_extent'] = background
     row_dict['plume_vector'] = vector
+    row_dict['track_plume'] = track
 
     # lastly append to the data dictionary
     plumes_list.append(row_dict)
@@ -288,16 +328,26 @@ def main():
 
         timestamp_viirs = get_timestamp(viirs_sdr_fname)
         if not timestamp_viirs:
+            print 'timestamp not available'
             continue
 
         if image_seen(viirs_sdr_fname):
             continue
 
+        # get the filenames
         try:
             aod_fname = get_viirs_fname(filepaths.path_to_viirs_aod_resampled, timestamp_viirs, viirs_sdr_fname)
         except Exception, e:
-            logger.warning('Could not load aux file for:' + viirs_sdr_fname + '. Failed with ' + str(e))
+            logger.warning('Could not load viirs aod file for:' + viirs_sdr_fname + '. Failed with ' + str(e))
             continue
+
+        try:
+            orac_fname = get_orac_fname(filepaths.path_to_viirs_orac_resampled, timestamp_viirs, viirs_sdr_fname)
+        except Exception, e:
+            logger.warning('Could not load orac aod file for:' + viirs_sdr_fname + '. Failed with ' + str(e))
+            continue
+
+        # load in the data
 
         try:
             tcc = load_image(os.path.join(filepaths.path_to_viirs_sdr_resampled, viirs_sdr_fname))
@@ -316,23 +366,48 @@ def main():
                 viirs_aod = viirs_aod.astype('float')
                 viirs_aod *= 2.0/viirs_aod.max()
 
+                viirs_flags = load_image(os.path.join(filepaths.path_to_viirs_aod_flags_resampled, aod_fname))
+                viirs_flags = viirs_flags.astype('float')
+                viirs_flags *= 3.0 / viirs_flags.max()
+
             except Exception, e:
                 logger.warning('Could not read aod file: ' + aod_fname + ' error: ' + str(e))
         if viirs_aod is None:
             continue
 
+        orac_aod = None
+        if orac_fname:
+            try:
+                orac_aod = load_image(os.path.join(filepaths.path_to_viirs_orac_resampled, orac_fname))
+                orac_cost = load_image(os.path.join(filepaths.path_to_viirs_orac_cost_resampled, orac_fname))
+
+                # adjust to between 0-10
+                orac_aod = orac_aod.astype('float')
+                orac_aod *= 10.0 / orac_aod.max()
+
+                # adjust to between 0-1000
+                orac_cost = orac_cost.astype('float')
+                orac_cost *= 50.0 / orac_cost.max()
+
+            except Exception, e:
+                logger.warning('Could not read aod file: ' + orac_fname + ' error: ' + str(e))
+        if orac_aod is None:
+            continue
 
         # do the digitising
-        plume_polygons, background_polygons, plume_vectors = digitise(tcc,
-                                                                      viirs_aod,
-                                                                      viirs_sdr_fname)
+        plume_polygons, background_polygons, plume_vectors, tracking = digitise(tcc,
+                                                                                viirs_aod,
+                                                                                viirs_flags,
+                                                                                orac_aod,
+                                                                                orac_cost,
+                                                                                viirs_sdr_fname)
         if plume_polygons is None:
             continue
 
         # process plumes and backgrounds
         plumes_list = []
-        for pp, bp, pv in zip(plume_polygons, background_polygons, plume_vectors):
-            append_to_list(pp, bp, pv, viirs_sdr_fname, plumes_list)
+        for pp, bp, pv, t in zip(plume_polygons, background_polygons, plume_vectors, tracking):
+            append_to_list(pp, bp, pv, t, viirs_sdr_fname, plumes_list)
 
         # covert pixel/background lists to dataframes and concatenate to main dataframes
         temp_plume_df = pd.DataFrame(plumes_list)

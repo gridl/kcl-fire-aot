@@ -4,7 +4,7 @@ import os
 import numpy as np
 from scipy import integrate
 
-import src.features.fre_to_tpm.ftt_utils as ut
+import src.features.fre_to_tpm.modis.ftt_utils as ut
 
 log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=log_fmt)

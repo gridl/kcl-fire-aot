@@ -85,6 +85,9 @@ def main():
     """
     for myd021km_fname in os.listdir(filepaths.path_to_modis_l1b):
 
+        if 'MYD' not in myd021km_fname:
+            continue
+
         logger.info("Visualising modis granule: " + myd021km_fname)
 
         try:
@@ -96,8 +99,10 @@ def main():
             myd14 = read_hdf(os.path.join(filepaths.path_to_modis_frp, myd14_fname))
             fires = fires_myd14(myd14)
 
+            plt.figure(figsize=(18,12))
             plt.imshow(tcc)
             plt.plot(fires[1], fires[0], 'r.')
+            plt.title(myd021km_fname)
             plt.show()
         except:
             continue

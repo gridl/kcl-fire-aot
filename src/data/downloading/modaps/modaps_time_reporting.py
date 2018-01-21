@@ -24,7 +24,7 @@ def extract_log_times(log, time_list):
 
 
 def main():
-    log_dir = '/Users/danielfisher/Projects/kcl-fire-aot/data/nrt_test/viirs/2017'
+    log_dir = '/Users/dnf/Projects/kcl-fire-aot/data/nrt_test/modis/2017'
     log_files = glob.glob(os.path.join(log_dir, '*/doy.log'))
 
     if 'modis' in log_dir:

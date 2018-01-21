@@ -64,8 +64,6 @@ def display_masked_map(img, fires, plume_points, utm_resampler,
     x, y = plume_points.minimum_rotated_rectangle.exterior.xy
     verts = [utm_resampler.resample_point_to_geo(y, x) for (x, y) in zip(x, y)]
 
-    fires = [utm_resampler.resample_point_to_geo(y, x) for (x, y) in fires]
-
     plume_head = utm_resampler.resample_point_to_geo(plume_head[1], plume_head[0])
     plume_tail = utm_resampler.resample_point_to_geo(plume_tail[1], plume_tail[0])
 
@@ -87,8 +85,10 @@ def display_masked_map(img, fires, plume_points, utm_resampler,
     plt.imshow(img, transform=crs, extent=extent, origin='upper', cmap='gray')
     plt.plot([plume_head[0], plume_tail[0]], [plume_head[1], plume_tail[1]], 'k-', linewidth=1)
 
-    for (fx, fy) in fires:
-        plt.plot(fx, fy, 'ro', markersize=1)
+    if fires is not None:
+        for f in fires:
+            fx, fy = f.xy
+            plt.plot(fx, fy, 'ro', markersize=1)
 
     for v1, v2 in zip(verts[:-1], verts[1:]):
         plt.plot([v1[0], v2[0]], [v1[1], v2[1]], 'k-', linewidth=1)
@@ -118,8 +118,6 @@ def display_masked_map_first(img, fires, plume_points, utm_resampler,
     x, y = plume_points.minimum_rotated_rectangle.exterior.xy
     verts = [utm_resampler.resample_point_to_geo(y, x) for (x, y) in zip(x, y)]
 
-    fires = [utm_resampler.resample_point_to_geo(y, x) for (x, y) in fires]
-
     plume_head = utm_resampler.resample_point_to_geo(plume_head[1], plume_head[0])
     plume_tail = utm_resampler.resample_point_to_geo(plume_tail[1], plume_tail[0])
 
@@ -141,8 +139,10 @@ def display_masked_map_first(img, fires, plume_points, utm_resampler,
     plt.imshow(img, transform=crs, extent=extent, origin='upper', cmap='gray')
     plt.plot([plume_head[0], plume_tail[0]], [plume_head[1], plume_tail[1]], 'k-', linewidth=1)
 
-    for (fx, fy) in fires:
-        plt.plot(fx, fy, 'ro', markersize=1)
+    if fires is not None:
+        for f in fires:
+            fx, fy = f.xy
+            plt.plot(fx, fy, 'ro', markersize=1)
 
     for v1, v2 in zip(verts[:-1], verts[1:]):
         plt.plot([v1[0], v2[0]], [v1[1], v2[1]], 'k-', linewidth=1)
@@ -191,15 +191,15 @@ def display_flow(x_flow, y_flow, f1_radiances, utm_resampler, fname):
     plt.close()
 
 
-def run_plot(plot_images, flow_means, projected_flow_means,
-             plume_head, plume_tail, plume_points, fires, utm_resampler,
+def run_plot(plot_images, fires, flow_means, projected_flow_means,
+             plume_head, plume_tail, plume_points, utm_resampler,
              plume_logging_path, fnames, i):
 
     utm_flow_vectors = []
     utm_plume_projected_flow_vectors = [plume_tail.copy()]
 
     display_masked_map_first(plot_images[0],
-                             fires,
+                             fires[0],
                              plume_points,
                              utm_resampler,
                              plume_head,
@@ -211,7 +211,7 @@ def run_plot(plot_images, flow_means, projected_flow_means,
         utm_flow_vectors += [utm_plume_projected_flow_vectors[-1] + flow_means[obs]]
         utm_plume_projected_flow_vectors += [utm_plume_projected_flow_vectors[-1] + projected_flow_means[obs]]
         display_masked_map(plot_images[obs+1],
-                           fires,
+                           fires[obs+1],
                            plume_points,
                            utm_resampler,
                            plume_head,

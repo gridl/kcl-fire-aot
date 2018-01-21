@@ -17,8 +17,8 @@ def load_df(path):
 
 
 def main():
-    myd021km_plume_df = load_df(filepaths.path_to_smoke_plume_polygons_modis)
-    myd021km_plume_df.to_csv(filepaths.path_to_smoke_plume_polygons_modis_csv)
+    myd021km_plume_df = load_df(filepaths.path_to_smoke_plume_polygons_viirs)
+    myd021km_plume_df.to_csv(filepaths.path_to_smoke_plume_polygons_viirs_csv)
     
     # alternative pickle
     pickle.dump(myd021km_plume_df, open('test_pickle.p', 'wb'))

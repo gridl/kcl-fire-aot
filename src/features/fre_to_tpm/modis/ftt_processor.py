@@ -3,13 +3,13 @@ import os
 
 import numpy as np
 import pandas as pd
+import src.features.fre_to_tpm.modis.ftt_fre as ff
+import src.features.fre_to_tpm.modis.ftt_plume_tracking as pt
+import src.features.fre_to_tpm.modis.ftt_utils as ut
 
-import src.features.fre_to_tpm.ftt_tpm as tt
-import src.features.fre_to_tpm.ftt_utils as ut
-import src.features.fre_to_tpm.ftt_plume_tracking as pt
-import src.features.fre_to_tpm.ftt_fre as ff
 import src.config.filepaths as fp
 import src.data.readers.load_hrit as load_hrit
+import src.features.fre_to_tpm.modis.ftt_tpm as tt
 
 log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=log_fmt)
@@ -26,7 +26,7 @@ def main():
     geostationary_lats, geostationary_lons = load_hrit.geo_read(geo_file)
 
     # setup output path to hold csv
-    output_path = os.path.join(fp.path_to_frp_tpm_features, 'model_features.csv')
+    output_path = os.path.join(fp.path_to_frp_tpm_features, 'model_features_modis.csv')
 
     # set up arrays to hold data
     plumes_numbers = []
@@ -38,7 +38,7 @@ def main():
     for p_number, plume in plume_df.iterrows():
 
         # make a directory to hold the plume logging information
-        plume_logging_path = os.path.join(fp.path_to_plume_tracking_visualisations, str(p_number))
+        plume_logging_path = os.path.join(fp.path_to_plume_tracking_visualisations_modis, str(p_number))
         if not os.path.isdir(plume_logging_path):
             os.mkdir(plume_logging_path)
 
