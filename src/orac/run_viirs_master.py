@@ -17,6 +17,8 @@ class ProcParams(object):
 
         self.cldsaddir = '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/sad_dir/viirs-npp_WAT'
         self.cldphs = ['WAT']
+	self.aersaddir = '/home/users/dnfisher/nceo_aerosolfire/data/orac_proc/viirs/luts'
+        self.aerphs = ['AMW']
 
 
 def run_pre(pp):
@@ -68,12 +70,12 @@ def run_pro(pp):
                 # Set up and call ORAC for the defined phases --ret_class ClsAerOx
                 proc_cmd = '-i ' + root \
                            + ' -o ' + pro_dir \
-                           + ' --sad_dir ' + pp.cldsaddir \
+                           + ' --sad_dir ' + pp.aersaddir \
                            + ' --use_channel 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 -a AppCld1L --ret_class ClsAerOx ' \
                            + ' --batch ' \
                            + ' --phase '
 
-                for phs in pp.cldphs:
+                for phs in pp.aerphs:
                     # call orac
                     os.system('./orac_main.py ' + proc_cmd + phs + ' ' + msi_root)
 
