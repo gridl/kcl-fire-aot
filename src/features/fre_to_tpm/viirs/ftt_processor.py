@@ -162,10 +162,10 @@ def main():
             plt.savefig(os.path.join(plume_logging_path, 'viirs_plume_orac.png'), bbox_inches='tight')
             plt.close()
 
-            plt.imshow(orac_cost_utm_plume, vmax=100, cmap='plasma')
+            plt.imshow(orac_cost_utm_plume, vmax=10, cmap='plasma')
             cb = plt.colorbar()
             cb.set_label('VIIRS ORAC AOD COST')
-            plt.savefig(os.path.join(plume_logging_path, 'viirs_plume_orac_cose.png'), bbox_inches='tight')
+            plt.savefig(os.path.join(plume_logging_path, 'viirs_plume_orac_cost.png'), bbox_inches='tight')
             plt.close()
 
         # get the plume sub polygons based on the wind speed
