@@ -52,13 +52,13 @@ def extract_best_mean_aod(d,
         plt.savefig(os.path.join(sub_plume_logging_path, 'viirs_sub_plume_orac.png'))
         plt.close()
 
-        plt.imshow(np.ma.masked_array(orac_cost, ~updated_plume_mask), vmax=100, cmap='plasma')
+        plt.imshow(np.ma.masked_array(orac_cost, ~updated_plume_mask), vmax=10, cmap='plasma')
         plt.colorbar()
         plt.savefig(os.path.join(sub_plume_logging_path, 'viirs_sub_plume_orac_cose.png'))
         plt.close()
 
         viirs_mask = updated_plume_mask & (viirs_flag <= 1)
-        orac_mask = updated_plume_mask & (viirs_flag > 1) & (orac_cost <= 50)
+        orac_mask = updated_plume_mask & (viirs_flag > 1) & (orac_cost <= 3)
         combined = np.zeros(viirs_mask.shape)
         combined[orac_mask] = orac_aod[orac_mask]
         combined[viirs_mask] = viirs_aod[viirs_mask]
@@ -74,9 +74,9 @@ def extract_best_mean_aod(d,
     orac_aod = orac_aod[updated_plume_mask]
     orac_cost = orac_cost[updated_plume_mask]
 
-    # get the good data masks
+    # get the good data masks  # TODO Add to config file
     viirs_good = viirs_flag <= 1
-    orac_good = orac_cost <= 50
+    orac_good = orac_cost <= 3
     both_good = viirs_good & orac_good
     either_good = viirs_good | orac_good
     both_aod_gt_1_lt_2 = (viirs_aod >= 1) & (viirs_aod < 2) & (orac_aod >= 1) & (orac_aod < 2)
