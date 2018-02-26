@@ -3,6 +3,7 @@ Contains the various file paths for the Python scripts
 '''
 
 # TODO replace all + with os.path.join
+import os
 
 sensor = 'himawari'  # goes
 
@@ -87,6 +88,9 @@ path_to_plume_tracking_visualisations_modis = root_path + 'visualisations/modis/
 
 # filelist paths
 path_to_filelists = root_path + 'filelists/'
+
+# dataframe paths
+path_to_dataframes = os.path.join(root_path, 'interim', 'dataframes')
 
 
 
