@@ -54,11 +54,11 @@ def extract_best_mean_aod(d,
 
         plt.imshow(np.ma.masked_array(orac_cost, ~updated_plume_mask), vmax=10, cmap='plasma')
         plt.colorbar()
-        plt.savefig(os.path.join(sub_plume_logging_path, 'viirs_sub_plume_orac_cose.png'))
+        plt.savefig(os.path.join(sub_plume_logging_path, 'viirs_sub_plume_orac_cost.png'))
         plt.close()
 
         viirs_mask = updated_plume_mask & (viirs_flag <= 1)
-        orac_mask = updated_plume_mask & (viirs_flag > 1) & (orac_cost <= 3)
+        orac_mask = updated_plume_mask & (viirs_flag > 1) & (orac_cost <= 1)
         combined = np.zeros(viirs_mask.shape)
         combined[orac_mask] = orac_aod[orac_mask]
         combined[viirs_mask] = viirs_aod[viirs_mask]
@@ -76,7 +76,7 @@ def extract_best_mean_aod(d,
 
     # get the good data masks  # TODO Add to config file
     viirs_good = viirs_flag <= 1
-    orac_good = orac_cost <= 3
+    orac_good = orac_cost <= 1
     both_good = viirs_good & orac_good
     either_good = viirs_good | orac_good
     both_aod_gt_1_lt_2 = (viirs_aod >= 1) & (viirs_aod < 2) & (orac_aod >= 1) & (orac_aod < 2)
@@ -117,11 +117,29 @@ def extract_best_mean_aod(d,
     d['coverage_plume'] = np.sum(updated_plume_mask * 1.) / np.sum(plume_mask)
 
 
-def extract_bg_aod(viirs_aod, viirs_flag, mask):
-    viirs_aod = viirs_aod[mask]
-    viirs_flag = viirs_flag[mask]
-    return {'mean_bg_aod': np.mean(viirs_aod[viirs_flag == 0]),
-            'std_bg_aod': np.std(viirs_aod[viirs_flag == 0])}
+def extract_bg_aod(viirs_aod, viirs_flag, orac_aod, orac_cost, mask):
+    masked_viirs_aod = viirs_aod[mask]
+    masked_viirs_flag = viirs_flag[mask]
+
+    masked_orac_aod = orac_aod[mask]
+    masked_orac_cost = orac_cost[mask]
+
+    if np.min(viirs_flag[mask]) < 2:
+        aod_mean = np.mean(masked_viirs_aod[masked_viirs_flag == 0])
+        aod_std = np.std(masked_viirs_aod[masked_viirs_flag == 0])
+        typ = 'sp'
+    elif np.min(masked_orac_cost[mask] < 3):
+        aod_mean = np.mean(masked_orac_aod[masked_orac_cost < 3])
+        aod_std = np.std(masked_orac_aod[masked_orac_cost < 3])
+        typ = 'sp'
+    else:
+        aod_mean = np.nan
+        aod_std = np.nan
+        typ = 'failed'
+
+    return {'mean_bg_aod': aod_mean,
+            'std_bg_aod': aod_std,
+             'bg_type': typ}
 
 
 def compute_tpm(viirs_aod_utm_plume, viirs_flag_utm_plume,
@@ -135,6 +153,7 @@ def compute_tpm(viirs_aod_utm_plume, viirs_flag_utm_plume,
         # put background data into d
         d['mean_bg_aod'] = bg_aod_dict['mean_bg_aod']
         d['std_bg_aod'] = bg_aod_dict['std_bg_aod']
+        d['bg_type'] = bg_aod_dict['bg_type']
 
         d['pm_factor'] = 4.3  # m2/g TODO add this to a config file
 

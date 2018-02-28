@@ -303,11 +303,11 @@ def angle_between(v1, v2):
     return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
 
 
-def assess_flow(flow, flow_means, flow_sds, flow_nobs, flow_update, tracks, i, current_vector, pix_size=1000):
+def assess_flow(flow, flow_means, flow_sds, flow_nobs, flow_update, tracks, i, current_vector, resampled_pix_size):
     """
 
     :param current_vector: the current flow vector for checking angle of flow vectors
-    :param flow: the current flow vectors from the feature tracking
+    :param flow: the current flowfc vectors from the feature tracking
     :param flow_means: the vector containing the flow means
     :param flow_sds: the vector containing the flow standard deviations
     :param flow_nobs: the vector containing the number of flow observations
@@ -337,8 +337,8 @@ def assess_flow(flow, flow_means, flow_sds, flow_nobs, flow_update, tracks, i, c
         # here is where the flow update occurs
         flow = flow[flow_mask]
 
-        flow_means[i, :] = np.mean(flow, axis=0) * pix_size
-        flow_sds[i, :] = np.std(flow, axis=0) * pix_size
+        flow_means[i, :] = np.mean(flow, axis=0) * resampled_pix_size
+        flow_sds[i, :] = np.std(flow, axis=0) * resampled_pix_size
         flow_nobs[i] = len(tracks)
 
     # check if any flows of zero and update with most recent flow estimate
@@ -412,6 +412,7 @@ def find_integration_start_stop_times(p_number,
                                       utm_resampler,
                                       timestamp,
                                       frp_df,
+                                      resampled_pix_size,
                                       plot=True):
     """
     Main function to compute the time stamps over which we need to integrate the
@@ -463,7 +464,7 @@ def find_integration_start_stop_times(p_number,
     if plot:
         fires = []
 
-    stopping_thresh = 1000  # stopping condition in metres TODO move to config
+    stopping_thresh = resampled_pix_size  # stopping condition in metres TODO move to config
 
     # set time variables that will be returned
     t1 = None
@@ -509,7 +510,7 @@ def find_integration_start_stop_times(p_number,
         tracks, flow = compute_flow(tracks, f2_subset_reproj, f1_subset_reproj)
 
         # compute mean flow for plume and update current flow vector
-        assess_flow(flow, flow_means, flow_sds, flow_nobs, flow_update, tracks, i, current_vector)
+        assess_flow(flow, flow_means, flow_sds, flow_nobs, flow_update, tracks, i, current_vector, resampled_pix_size)
         if (flow_means[i] != 0).any():
             current_vector = flow_means[i, :]
 
@@ -557,7 +558,7 @@ def find_integration_start_stop_times(p_number,
 def find_flow(p_number, plume_logging_path, utm_plume_points,
               utm_plume_vect, plume_lats, plume_lons,
               geostationary_lats, geostationary_lons,
-              timestamp, utm_resampler_plume, frp_df, plot=False):
+              timestamp, utm_resampler_plume, frp_df, resampled_pix_size, plot=False):
 
     # get the utm plume vector and compute its length.  This will
     # be used to check when we hae reached the full length of the plume
@@ -573,6 +574,7 @@ def find_flow(p_number, plume_logging_path, utm_plume_points,
         geo_polygon = Polygon(zip(bounding_lons, bounding_lats))
         utm_geo_polygon = ut.reproject_shapely(geo_polygon, utm_resampler_plume)
         fires = []
+
     geostationary_lats_subset, geostationary_lons_subset = subset_geograpic_data(geostationary_lats, geostationary_lons,
                                                                                  bb)
 
@@ -592,14 +594,15 @@ def find_flow(p_number, plume_logging_path, utm_plume_points,
     flow_means, flow_sds, projected_flow_means = np.zeros([72, 2]), np.zeros([72, 2]), np.zeros([72, 2])
     flow_nobs, flow_update, projected_flow_magnitude = np.zeros([72]), np.zeros([72]), np.zeros(72)
     tracks = []
-    stopping_thresh = 1000  # stopping condition in metres TODO move to config
+    stopping_thresh = resampled_pix_size  # stopping when within one pix
     current_vector = vector.copy()
 
     # iterate over geostationary files
     for i in xrange(len(geostationary_fnames)-1):
 
         # setup imagery for tracking, only reproject both images if we are on the
-        # first iteration, else just reassign and reproject most recent.
+        # first iteration, else just reassign and reproject most recent.  They are
+        # reprojected to the plume so will have the same resolution as the plume resample
         if i == 0:
             f1_subset, f1_display_subset = extract_observation(geostationary_fnames[i], bb, min_image_segment)
             f2_subset, f2_display_subset = extract_observation(geostationary_fnames[i + 1], bb, min_image_segment)
@@ -636,7 +639,7 @@ def find_flow(p_number, plume_logging_path, utm_plume_points,
         tracks, flow = compute_flow(tracks, f2_subset_reproj, f1_subset_reproj)
 
         # compute robust mean flow for plume and update current flow vector
-        assess_flow(flow, flow_means, flow_sds, flow_nobs, flow_update, tracks, i, current_vector)
+        assess_flow(flow, flow_means, flow_sds, flow_nobs, flow_update, tracks, i, current_vector, resampled_pix_size)
         if (flow_means[i] != 0).any():
             current_vector = flow_means[i, :]
 
@@ -664,7 +667,6 @@ def find_flow(p_number, plume_logging_path, utm_plume_points,
         vis.run_plot(plot_images, fires, flow_means, projected_flow_means,
                      plume_head, plume_tail, utm_plume_points, utm_resampler_plume,
                      plume_logging_path, fnames, i)
-
 
     # return the projected flow means in UTM coords, and the list of himawari filenames asspocated with the flows
     return projected_flow_means[:i+1], geostationary_fnames[:i+1]

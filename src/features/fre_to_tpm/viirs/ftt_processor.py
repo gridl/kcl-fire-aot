@@ -22,20 +22,68 @@ logger = logging.getLogger(__name__)
 
 # TODO make some dictionaires to hold all the data and get them out of main
 
+'''
+Still Todo:
+3. Get all fires near to the head of the plume (Say within some radius i.e. 10km).
+
+Algorithm description
+
+Load in data
+Iterate over each hand digitised plume
+    IF current timestamp is different
+        Load in all AOD data
+        Construct UTM resampler for image at 750m resolution from ORAC AOD
+        Build VIIRS no data mask from ORAC AOD
+        Mask out all VIIRS deletions (ORAC AOD, VIIRS AOD, lats, lons, flags, costs)
+    Build bounding box for hand digitsed plume (rectangular box based on (min,max) pos + padding)
+    Get geographic data for plume bounding box
+    Get the lat/lon for the head and tail of the plume direction vector
+    Get the lats/lons for the points of the plume polygon
+    Build binary plume mask for bounding box
+
+    Build a shapely LINESTRING object for plume vector
+    Build a shapely MULTIPOINT object based on plume polygon
+    Build a shape POLYGON object based on plume polygon
+
+    Build bounding box for hand digisited background extent
+    Build binary mask for the background
+
+    Subset all data (AOD, FLAG, COST) to either plume or background bounding boxes
+
+    Construct UTM resampler for plume at 750m resolution from plume lat/lon grid
+    Reproject SHAPELY objects to UTM using plume resampler
+
+    Compute optical flow (see below for approach)
+    Based on mean flow at each time step segemnt the XXX polygon
+
+
+
+
+
+
+
+
+
+'''
+
 
 def main():
 
     plot = True
 
+    # TODO add to config (it is pixe size that resample to)
+    resampled_pix_size = 750
+
     # load in static data
     frp_df = ut.read_frp_df(fp.path_to_himawari_frp)
+    #frp_df = None
 
     plume_df = ut.read_plume_polygons(fp.path_to_smoke_plume_polygons_viirs_csv)
     geo_file = fp.root_path + '/processed/himawari/Himawari_lat_lon.img'
     geostationary_lats, geostationary_lons = load_hrit.geo_read(geo_file)
 
     # setup output path to hold csv
-    output_path = os.path.join(fp.path_to_frp_tpm_features, 'model_features_viirs.csv')
+    output_path = os.path.join(fp.path_to_frp_tpm_features, 'model_features_viirs_OAODlt1.csv')
 
     # set timestamp to check if new data loaded in
     previous_timestamp = ''
@@ -46,7 +94,7 @@ def main():
     # itereate over the plumes
     for p_number, plume in plume_df.iterrows():
 
-        #if p_number != 13: continue
+        if p_number != 21: continue
 
         # make a directory to hold the plume logging information
         plume_logging_path = os.path.join(fp.path_to_plume_tracking_visualisations_viirs, str(p_number))
@@ -56,7 +104,8 @@ def main():
         # get plume time stamp
         current_timestamp = ut.get_timestamp(plume.filename)
 
-        # if working on a new scene. Then set it up
+        # if working on a new scene. Then set it up by applying no
+        # data masks and resampling everything to UTM grid at 750m
         if current_timestamp != previous_timestamp:
 
             try:
@@ -70,7 +119,7 @@ def main():
             # set up resampler
             utm_image_resampler = ut.utm_resampler(orac_aod_data.variables['lat'][:],
                                              orac_aod_data.variables['lon'][:],
-                                             750)
+                                             resampled_pix_size)
 
             # get the mask for the lats and lons and apply
             orac_aod = ut.orac_aod(orac_aod_data)
@@ -78,6 +127,7 @@ def main():
             masked_lats = np.ma.masked_array(utm_image_resampler.lats, mask)
             masked_lons = np.ma.masked_array(utm_image_resampler.lons, mask)
 
+            # resample all the datasets to UTM
             viirs_aod_utm = utm_image_resampler.resample_image(ut.viirs_aod(viirs_aod_data),
                                                          masked_lats, masked_lons, fill_value=0)
             viirs_flag_utm = utm_image_resampler.resample_image(ut.viirs_flags(viirs_aod_data),
@@ -99,18 +149,14 @@ def main():
             plume_lons = ut.subset_data(lons, plume_bounding_box)
 
             vector_lats, vector_lons = ut.extract_subset_geo_bounds(plume.plume_vector, plume_bounding_box,
-                                                                        plume_lats, plume_lons)
-
-
-
-            plume_vector = ut.construct_shapely_vector(vector_lats, vector_lons)
-
+                                                                    plume_lats, plume_lons)
             poly_lats, poly_lons = ut.extract_subset_geo_bounds(plume.plume_extent, plume_bounding_box,
                                                                         plume_lats, plume_lons)
+            plume_mask = ut.construct_mask(plume.plume_extent, plume_bounding_box)
+
+            plume_vector = ut.construct_shapely_vector(vector_lats, vector_lons)
             plume_points = ut.construct_shapely_points(poly_lats, poly_lons)
             plume_polygon = ut.construct_shapely_polygon(poly_lats, poly_lons)
-
-            plume_mask = ut.construct_mask(plume.plume_extent, plume_bounding_box)
 
             background_bounding_box = ut.construct_bounding_box(plume.background_extent)
             background_mask = ut.construct_mask(plume.background_extent, background_bounding_box)
@@ -121,7 +167,6 @@ def main():
             logger.error(str(e))
             continue
 
-
         # subset the data to the rois
         viirs_aod_utm_plume = ut.subset_data(viirs_aod_utm, plume_bounding_box)
         viirs_flag_utm_plume = ut.subset_data(viirs_flag_utm, plume_bounding_box)
@@ -130,9 +175,11 @@ def main():
 
         viirs_aod_utm_background = ut.subset_data(viirs_aod_utm, background_bounding_box)
         viirs_flag_utm_background = ut.subset_data(viirs_flag_utm, background_bounding_box)
+        orac_aod_utm_background = ut.subset_data(orac_aod_utm, background_bounding_box)
+        orac_cost_utm_background = ut.subset_data(orac_cost_utm, background_bounding_box)
 
-        # reproject vector data
-        utm_resampler_plume = ut.utm_resampler(plume_lats, plume_lons, 750)
+        # Reproject Shapely objects to UTM using plume geographic info
+        utm_resampler_plume = ut.utm_resampler(plume_lats, plume_lons, resampled_pix_size)
         utm_plume_points = ut.reproject_shapely(plume_points, utm_resampler_plume)
         utm_plume_polygon = ut.reproject_shapely(plume_polygon, utm_resampler_plume)
         utm_plume_vector = ut.reproject_shapely(plume_vector, utm_resampler_plume)
@@ -174,7 +221,7 @@ def main():
                                                                 utm_plume_vector, plume_lats, plume_lons,
                                                                 geostationary_lats, geostationary_lons,
                                                                 current_timestamp, utm_resampler_plume,
-                                                                frp_df, plot=plot)
+                                                                frp_df, resampled_pix_size, plot=plot)
 
             # the flow is computed back in time from the most recent plume extent to the oldest.
             # We need to work out how much of the oldest plume extent is attributable to the
@@ -214,16 +261,21 @@ def main():
                 sub_plume_polygon = ut.construct_shapely_polygon(bounding_lats, bounding_lons)
                 utm_sub_plume_polygon = ut.reproject_shapely(sub_plume_polygon, utm_resampler_plume)
 
-                # get intersection of plume and sub_plume polygons
+                # get intersection of plume and sub_plume polygons.  The reason for this is that
+                # the plume polygon has the shape of the plume, whilst the sub plume polygon has
+                # the shape of the bounding box (i.e. rectangular).  By taking the intersection
+                # we get the segment from the both the plume and the sub part of the boudning box.
+
                 try:
                     utm_sub_plume_polygon = utm_sub_plume_polygon.intersection(utm_plume_polygon)
                 except Exception, e:
                     logger.error(str(e))
                     continue
 
-
                 # get background aod for sub plume
-                bg_aod_dict = tt.extract_bg_aod(viirs_aod_utm_background, viirs_flag_utm_background, background_mask)
+                bg_aod_dict = tt.extract_bg_aod(viirs_aod_utm_background, viirs_flag_utm_background,
+                                                orac_aod_utm_background, orac_cost_utm_background,
+                                                background_mask)
 
                 # compute TPM
                 out_dict = tt.compute_tpm(viirs_aod_utm_plume, viirs_flag_utm_plume,

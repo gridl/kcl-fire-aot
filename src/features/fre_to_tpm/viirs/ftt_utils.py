@@ -346,15 +346,15 @@ def split_plume_polgons(plume_logging_path, bb,
                         plume_mask, plot=True):
 
     # compute orthogonal slope of plume vector in pixels
-    perp_slope = compute_perpendicular_slope(plume_vector)
+    m = compute_perpendicular_slope(plume_vector)
 
     y_shape, x_shape = plume_lats.shape
 
     # set up iterator variables
     a = [0, 0]  # ll
     b = [0, 0]  # ul
-    c = [0, x_shape-1]  # ur
-    d = [0, x_shape-1]  # lr
+    c = [0, 0]
+    d = [0, 0]
     tail_position = np.array(utm_plume_vector.coords[0])
 
     # set up list to hold polygon corners
@@ -374,16 +374,40 @@ def split_plume_polgons(plume_logging_path, bb,
         # convert UTM point to lat lon
         flow_lon, flow_lat = resampler.resample_point_to_geo(tail_position[1], tail_position[0])
 
-        # convert lat lon to pixel index
+        # convert lat lon to pixel index, to give us a point on the line
         dists = np.abs(flow_lat - plume_lats) + np.abs(flow_lon - plume_lons)
         sub_y, sub_x = divmod(dists.argmin(), x_shape)
 
-        # using slope compute y position at x min and x max
-        min_y = sub_y - perp_slope*sub_x   # b = y - mx, and when x=0, y=b
-        max_y = perp_slope*x_shape + min_y  # y at x = n
+        # using slope, and point on the point, get b so we know have full linear equation
+        slope = sub_y - m*sub_x   # b = y - mx, and when x=0, y=b
 
-        a[0] = min_y
-        d[0] = max_y
+        # using linear equation determine the intersections of the line with the x and y
+        # axes.  If the point of intersection does not exceed the extent of the ROI in the given axis then it is
+        # the direction colinear with the plume, and the segmentation must be performed in
+        # this axis.
+        y0 = m*0 + slope
+        y1 = m*x_shape + slope
+        x0 = (0-slope) / m
+        x1 = (y_shape-slope) / m
+
+        # check if we are updatin in the y direction, else assume x
+        update_y = (y0 > 0) & (y0 < y_shape) & (y1 > 0) & (y1 < y_shape)
+
+        if update_y:
+            # do y parts
+            a[0] = y0
+            d[0] = y1
+            # do x parts
+            c[1] = x_shape-1  # ur
+            d[1] = x_shape-1  # lr
+        else:
+            # do x parts
+            c[1] = x0
+            d[1] = x1
+            # do y parts
+            a[0] = y_shape - 1  # ur
+            d[0] = y_shape - 1  # lr
+
 
         # define mask
         polygon_corner_dict[i] = [a[:], b[:], c[:], d[:]]
@@ -394,12 +418,21 @@ def split_plume_polgons(plume_logging_path, bb,
             sub_y_positions.append(sub_y)
 
         # update polygon corner arrays
-        b = a[:]
-        c = d[:]
+        if update_y:
+            b = a[:]
+            c = d[:]
+        else:
+            b = c[:]
+            a = d[:]
 
     # now get the final part of the plume
-    a[0] = y_shape-1
-    d[0] = y_shape-1
+    if update_y:
+        a[0] = y_shape-1
+        d[0] = y_shape-1
+    else:
+        c[1] = x_shape-1
+        d[1] = x_shape-1
+
     polygon_corner_dict[i] = [a[:], b[:], c[:], d[:]]
 
     if plot:

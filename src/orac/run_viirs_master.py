@@ -17,7 +17,7 @@ class ProcParams(object):
 
         self.cldsaddir = '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/sad_dir/viirs-npp_WAT'
         self.cldphs = ['WAT']
-	self.aersaddir = '/home/users/dnfisher/nceo_aerosolfire/data/orac_proc/viirs/luts'
+        self.aersaddir = '/home/users/dnfisher/nceo_aerosolfire/data/orac_proc/viirs/luts'
         self.aerphs = ['AMW']
 
 
