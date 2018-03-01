@@ -94,7 +94,7 @@ def main():
     # itereate over the plumes
     for p_number, plume in plume_df.iterrows():
 
-        #if p_number != 0: continue
+        #if p_number != 28: continue
 
         # make a directory to hold the plume logging information
         plume_logging_path = os.path.join(fp.path_to_plume_tracking_visualisations_viirs, str(p_number))
@@ -217,11 +217,11 @@ def main():
 
         # get the plume sub polygons based on the wind speed
         try:
-            utm_flow_means, geostationary_fnames = pt.find_flow(p_number, plume_logging_path, utm_plume_points,
-                                                                utm_plume_vector, plume_lats, plume_lons,
-                                                                geostationary_lats, geostationary_lons,
-                                                                current_timestamp, utm_resampler_plume,
-                                                                frp_df, resampled_pix_size, plot=plot)
+            utm_flow_means, geostationary_fnames, t1, t2 = pt.find_flow(p_number, plume_logging_path, utm_plume_points,
+                                                                        utm_plume_vector, plume_lats, plume_lons,
+                                                                        geostationary_lats, geostationary_lons,
+                                                                        current_timestamp, utm_resampler_plume,
+                                                                        frp_df, resampled_pix_size, plot=plot)
 
             # the flow is computed back in time from the most recent plume extent to the oldest.
             # We need to work out how much of the oldest plume extent is attributable to the

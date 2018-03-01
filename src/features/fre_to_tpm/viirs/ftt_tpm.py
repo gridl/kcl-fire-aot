@@ -124,14 +124,15 @@ def extract_bg_aod(viirs_aod, viirs_flag, orac_aod, orac_cost, mask):
     masked_orac_aod = orac_aod[mask]
     masked_orac_cost = orac_cost[mask]
 
-    if np.min(viirs_flag[mask]) < 2:
-        aod_mean = np.mean(masked_viirs_aod[masked_viirs_flag == 0])
-        aod_std = np.std(masked_viirs_aod[masked_viirs_flag == 0])
+    if np.min(viirs_flag[mask]) <= 1:
+        # should we use 1 or 0?
+        aod_mean = np.mean(masked_viirs_aod[masked_viirs_flag <= 1])
+        aod_std = np.std(masked_viirs_aod[masked_viirs_flag <= 1])
         typ = 'sp'
     elif np.min(masked_orac_cost[mask] < 3):
         aod_mean = np.mean(masked_orac_aod[masked_orac_cost < 3])
         aod_std = np.std(masked_orac_aod[masked_orac_cost < 3])
-        typ = 'sp'
+        typ = 'orac'
     else:
         aod_mean = np.nan
         aod_std = np.nan
