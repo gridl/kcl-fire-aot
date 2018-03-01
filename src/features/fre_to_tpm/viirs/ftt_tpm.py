@@ -58,7 +58,7 @@ def extract_best_mean_aod(d,
         plt.close()
 
         viirs_mask = updated_plume_mask & (viirs_flag <= 1)
-        orac_mask = updated_plume_mask & (viirs_flag > 1) & (orac_cost <= 1)
+        orac_mask = updated_plume_mask & (viirs_flag > 1) & (orac_cost <= 3)
         combined = np.zeros(viirs_mask.shape)
         combined[orac_mask] = orac_aod[orac_mask]
         combined[viirs_mask] = viirs_aod[viirs_mask]
@@ -76,7 +76,7 @@ def extract_best_mean_aod(d,
 
     # get the good data masks  # TODO Add to config file
     viirs_good = viirs_flag <= 1
-    orac_good = orac_cost <= 1
+    orac_good = orac_cost <= 3
     both_good = viirs_good & orac_good
     either_good = viirs_good | orac_good
     both_aod_gt_1_lt_2 = (viirs_aod >= 1) & (viirs_aod < 2) & (orac_aod >= 1) & (orac_aod < 2)

@@ -83,7 +83,7 @@ def main():
     geostationary_lats, geostationary_lons = load_hrit.geo_read(geo_file)
 
     # setup output path to hold csv
-    output_path = os.path.join(fp.path_to_frp_tpm_features, 'model_features_viirs_OAODlt1.csv')
+    output_path = os.path.join(fp.path_to_frp_tpm_features, 'model_features_viirs_OAODlt3.csv')
 
     # set timestamp to check if new data loaded in
     previous_timestamp = ''
@@ -94,7 +94,7 @@ def main():
     # itereate over the plumes
     for p_number, plume in plume_df.iterrows():
 
-        if p_number != 21: continue
+        #if p_number != 0: continue
 
         # make a directory to hold the plume logging information
         plume_logging_path = os.path.join(fp.path_to_plume_tracking_visualisations_viirs, str(p_number))
@@ -289,7 +289,8 @@ def main():
 
                 # compute FRE
                 ff.compute_fre(out_dict, geostationary_fnames[sub_p_number],
-                               utm_plume_polygon, frp_df, utm_resampler_plume, sub_plume_logging_path)
+                               utm_plume_polygon, utm_plume_vector,
+                               frp_df, utm_resampler_plume, sub_plume_logging_path)
 
                 # convert datadict to dataframe and add to list
                 df_list.append(pd.DataFrame(out_dict, index=['i',]))

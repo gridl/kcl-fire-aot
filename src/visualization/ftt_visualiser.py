@@ -88,7 +88,7 @@ def display_masked_map(img, fires, plume_points, utm_resampler,
     if fires is not None:
         for f in fires:
             fx, fy = f.xy
-            plt.plot(fx, fy, 'ro', markersize=1)
+            plt.plot(fx, fy, 'ro', markersize=2)
 
     for v1, v2 in zip(verts[:-1], verts[1:]):
         plt.plot([v1[0], v2[0]], [v1[1], v2[1]], 'k-', linewidth=1)
@@ -142,7 +142,7 @@ def display_masked_map_first(img, fires, plume_points, utm_resampler,
     if fires is not None:
         for f in fires:
             fx, fy = f.xy
-            plt.plot(fx, fy, 'ro', markersize=1)
+            plt.plot(fx, fy, 'ro', markersize=2)
 
     for v1, v2 in zip(verts[:-1], verts[1:]):
         plt.plot([v1[0], v2[0]], [v1[1], v2[1]], 'k-', linewidth=1)

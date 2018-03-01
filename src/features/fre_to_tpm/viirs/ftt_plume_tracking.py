@@ -408,6 +408,7 @@ def find_integration_start_stop_times(p_number,
                                       plume_points, plume_mask,
                                       plume_lats, plume_lons,
                                       plume_vect,
+                                      utm_plume_vect,
                                       geostationary_lats, geostationary_lons,
                                       utm_resampler,
                                       timestamp,
@@ -495,7 +496,8 @@ def find_integration_start_stop_times(p_number,
         # if we are plotting get the himawari fires
         if plot:
             t = datetime.strptime(geostationary_fnames[i].split('/')[-1][7:20], '%Y%m%d_%H%M')
-            fires.append(ff.fire_locations_for_plume_roi(utm_geo_polygon, utm_resampler, frp_df, t))
+            fires.append(ff.fire_locations_for_plume_roi(utm_geo_polygon, utm_resampler, frp_df, t,
+                                                         utm_plume_vect))
         if plot & (i == 0):
             plot_images = [utm_resampler.resample_image(f1_display_subset, subset_lats, subset_lons)]
             fnames = [geostationary_fnames[i]]
@@ -525,7 +527,8 @@ def find_integration_start_stop_times(p_number,
 
             if plot:
                 # also need to get the fires for the last scene
-                fires.append(ff.fire_locations_for_plume_roi(utm_geo_polygon, utm_resampler, frp_df, t2))
+                fires.append(ff.fire_locations_for_plume_roi(utm_geo_polygon, utm_resampler, frp_df, t2,
+                                                             utm_plume_vect))
             break
 
     # save tracking information
@@ -628,7 +631,8 @@ def find_flow(p_number, plume_logging_path, utm_plume_points,
             fnames = [geostationary_fnames[i]]
         if plot:
             t = datetime.strptime(geostationary_fnames[i].split('/')[-1][7:20], '%Y%m%d_%H%M')
-            fires.append(ff.fire_locations_for_plume_roi(utm_geo_polygon, utm_resampler_plume, frp_df, t))
+            fires.append(ff.fire_locations_for_plume_roi(utm_geo_polygon, utm_resampler_plume, frp_df, t,
+                                                         utm_plume_vect))
             plot_images.append(utm_resampler_plume.resample_image(f2_display_subset,
                                                                   geostationary_lats_subset,
                                                                   geostationary_lons_subset))
@@ -654,7 +658,8 @@ def find_flow(p_number, plume_logging_path, utm_plume_points,
             if plot:
                 #also need to get the fires for the last scene
                 t = datetime.strptime(geostationary_fnames[i + 1].split('/')[-1][7:20], '%Y%m%d_%H%M')
-                fires.append(ff.fire_locations_for_plume_roi(utm_geo_polygon, utm_resampler_plume, frp_df, t))
+                fires.append(ff.fire_locations_for_plume_roi(utm_geo_polygon, utm_resampler_plume, frp_df, t,
+                                                             utm_plume_vect))
             break
 
     # save tracking information

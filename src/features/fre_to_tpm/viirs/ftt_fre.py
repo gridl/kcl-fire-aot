@@ -46,7 +46,7 @@ def temporal_subset_single_day(frp_df, t):
 
 
 
-def spatial_subset(frp_subset, plume_polygon, utm_resampler):
+def spatial_subset(frp_subset, utm_resampler, utm_plume_vector):
     """
 
     :param frp_subset: The temporally subsetted dataframe
@@ -55,12 +55,19 @@ def spatial_subset(frp_subset, plume_polygon, utm_resampler):
     :return: The spatially subsetted frp dataframe
     """
     inbounds = []
+    max_dist = 10000  # TODO ADD TO CONFIG
     for i, (index, frp_pixel) in enumerate(frp_subset.iterrows()):
 
         # transform FRP pixel into UTM coordinates
         projected_fire = ut.reproject_shapely(frp_pixel['point'], utm_resampler)
-        if projected_fire.within(plume_polygon):
+
+        # get distance between fire head of plume vector
+        fire_coords = np.array(projected_fire.coords[0])
+        head_coords = np.array(utm_plume_vector.coords[1])
+        dist = np.linalg.norm(fire_coords-head_coords)
+        if dist < max_dist:
             inbounds.append(i)
+
     return frp_subset.iloc[inbounds]
 
 
@@ -98,10 +105,10 @@ def integrate_frp(frp_subset):
     return integrate.trapz(frp_subset['FRP_0'], sample_times)
 
 
-def fire_locations_for_plume_roi(plume_polygon, utm_resampler, frp_df, t):
+def fire_locations_for_plume_roi(plume_polygon, utm_resampler, frp_df, t, utm_plume_vector):
     try:
         frp_subset = temporal_subset_single_time(frp_df, t)
-        frp_subset = spatial_subset(frp_subset, plume_polygon, utm_resampler)
+        frp_subset = spatial_subset(frp_subset, plume_polygon, utm_resampler, utm_plume_vector)
         return frp_subset.point.values
 
     except Exception, e:
@@ -120,7 +127,8 @@ def fire_locations_for_digitisation(frp_df, t):
 
 
 def compute_fre(out_dict, geostationary_fname,
-                utm_plume_polygon, frp_df, utm_resampler_plume, sub_plume_logging_path):
+                utm_plume_polygon, utm_plume_vector,
+                frp_df, utm_resampler_plume, sub_plume_logging_path):
     """
 
     :param plume_polygon: The smoke plume polygon
@@ -134,7 +142,7 @@ def compute_fre(out_dict, geostationary_fname,
 
     try:
         frp_subset = temporal_subset_single_time(frp_df, t)
-        frp_subset = spatial_subset(frp_subset, utm_plume_polygon, utm_resampler_plume)
+        frp_subset = spatial_subset(frp_subset, utm_plume_polygon, utm_resampler_plume, utm_plume_vector)
         frp_subset.to_csv(os.path.join(sub_plume_logging_path, 'fires.csv'))
 
         grouped_frp_subset = group_subset(frp_subset)
