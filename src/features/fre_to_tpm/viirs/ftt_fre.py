@@ -108,7 +108,7 @@ def integrate_frp(frp_subset):
 def fire_locations_for_plume_roi(plume_polygon, utm_resampler, frp_df, t, utm_plume_vector):
     try:
         frp_subset = temporal_subset_single_time(frp_df, t)
-        frp_subset = spatial_subset(frp_subset, plume_polygon, utm_resampler, utm_plume_vector)
+        frp_subset = spatial_subset(frp_subset, utm_resampler, utm_plume_vector)
         return frp_subset.point.values
 
     except Exception, e:
@@ -142,7 +142,7 @@ def compute_fre(out_dict, geostationary_fname,
 
     try:
         frp_subset = temporal_subset_single_time(frp_df, t)
-        frp_subset = spatial_subset(frp_subset, utm_plume_polygon, utm_resampler_plume, utm_plume_vector)
+        frp_subset = spatial_subset(frp_subset, utm_resampler_plume, utm_plume_vector)
         frp_subset.to_csv(os.path.join(sub_plume_logging_path, 'fires.csv'))
 
         grouped_frp_subset = group_subset(frp_subset)
