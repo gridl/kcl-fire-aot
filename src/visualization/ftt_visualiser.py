@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import cartopy
 import cartopy.crs as ccrs
 import shapely.geometry as sgeom
@@ -220,3 +221,35 @@ def run_plot(plot_images, fires, flow_means, projected_flow_means,
                            utm_plume_projected_flow_vectors,
                            plume_logging_path,
                            fnames[obs+1].split('/')[-1].split('.')[0] + '_subset.jpg')
+
+
+def plot_plume_data(sat_data_utm, plume_data_utm, plume_bounding_box, plume_logging_path):
+    plt.imshow(sat_data_utm['viirs_png_utm'][plume_bounding_box['min_y']:plume_bounding_box['max_y'],
+               plume_bounding_box['min_x']:plume_bounding_box['max_x'], :])
+    plt.savefig(os.path.join(plume_logging_path, 'viirs_plume_tcc.png'), bbox_inches='tight')
+    plt.close()
+    plt.imshow(plume_data_utm['viirs_aod_utm_plume'], vmin=0, vmax=2)
+    cb = plt.colorbar()
+    cb.set_label('VIIRS IP AOD')
+    plt.savefig(os.path.join(plume_logging_path, 'viirs_plume_aod.png'), bbox_inches='tight')
+    plt.close()
+
+    ax = plt.imshow(plume_data_utm['viirs_flag_utm_plume'])
+    cmap = cm.get_cmap('Set1', 4)
+    ax.set_cmap(cmap)
+    cb = plt.colorbar()
+    cb.set_label('VIIRS IP AOD Flag')
+    plt.savefig(os.path.join(plume_logging_path, 'viirs_plume_flag.png'), bbox_inches='tight')
+    plt.close()
+
+    plt.imshow(plume_data_utm['orac_aod_utm_plume'], vmin=0, vmax=2)
+    cb = plt.colorbar()
+    cb.set_label('VIIRS ORAC AOD')
+    plt.savefig(os.path.join(plume_logging_path, 'viirs_plume_orac.png'), bbox_inches='tight')
+    plt.close()
+
+    plt.imshow(plume_data_utm['orac_cost_utm_plume'], vmax=10, cmap='plasma')
+    cb = plt.colorbar()
+    cb.set_label('VIIRS ORAC AOD COST')
+    plt.savefig(os.path.join(plume_logging_path, 'viirs_plume_orac_cost.png'), bbox_inches='tight')
+    plt.close()

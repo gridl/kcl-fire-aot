@@ -340,42 +340,41 @@ def compute_perpendicular_slope(vector):
     return -1 / slope  # perpendicular slope
 
 
-def split_plume_polgons(plume_logging_path, bb,
-                        plume_vector, utm_plume_vector,
-                        flow_vector, resampler, plume_lats, plume_lons,
-                        plume_mask, plot=True):
+def split_plume_polgons(utm_flow_means, plume_logging_path, plume,
+                        plume_geom_geo, plume_geom_utm, pp):
 
     # compute orthogonal slope of plume vector in pixels
-    m = compute_perpendicular_slope(plume_vector)
+    m = compute_perpendicular_slope(plume.plume_vector)
 
-    y_shape, x_shape = plume_lats.shape
+    y_shape, x_shape = plume_geom_geo['plume_lats'].shape
 
     # set up iterator variables
     a = [0, 0]  # ll
     b = [0, 0]  # ul
     c = [0, 0]
     d = [0, 0]
-    tail_position = np.array(utm_plume_vector.coords[0])
+    tail_position = np.array(plume_geom_utm['utm_plume_vector'].coords[0])
 
     # set up list to hold polygon corners
     polygon_corner_dict = {}
 
-    if plot:
-        display = np.zeros(plume_mask.shape)
+    if pp['plot']:
+        display = np.zeros(plume_geom_geo['plume_mask'].shape)
         sub_x_positions = []
         sub_y_positions = []
 
     # iterate over UTM points
-    for i, position in enumerate(flow_vector):
+    for i, position in enumerate(utm_flow_means):
 
         # add current position onto tail
         tail_position += position
 
         # convert UTM point to lat lon
-        flow_lon, flow_lat = resampler.resample_point_to_geo(tail_position[1], tail_position[0])
+        flow_lon, flow_lat = plume_geom_utm['utm_resampler_plume'].resample_point_to_geo(tail_position[1],
+                                                                                      tail_position[0])
 
         # convert lat lon to pixel index, to give us a point on the line
-        dists = np.abs(flow_lat - plume_lats) + np.abs(flow_lon - plume_lons)
+        dists = np.abs(flow_lat - plume_geom_geo['plume_lats']) + np.abs(flow_lon - plume_geom_geo['plume_lons'])
         sub_y, sub_x = divmod(dists.argmin(), x_shape)
 
         # using slope, and point on the point, get b so we know have full linear equation
@@ -411,7 +410,7 @@ def split_plume_polgons(plume_logging_path, bb,
 
         # define mask
         polygon_corner_dict[i] = [a[:], b[:], c[:], d[:]]
-        if plot:
+        if pp['plot']:
             mask = grid_points_in_poly([y_shape, x_shape], [a, b, c, d])
             display[mask] = i
             sub_x_positions.append(sub_x)
@@ -435,16 +434,17 @@ def split_plume_polgons(plume_logging_path, bb,
 
     polygon_corner_dict[i] = [a[:], b[:], c[:], d[:]]
 
-    if plot:
+    if pp['plot']:
         mask = grid_points_in_poly([y_shape, x_shape], [a, b, c, d])
         display[mask] = i
-        display[~plume_mask] = np.nan
+        display[~plume_geom_geo['plume_mask']] = np.nan
         plt.imshow(display)
         plt.colorbar()
         for x, y in zip(sub_x_positions, sub_y_positions):
             plt.plot(x,y, 'r.')
 
-        extent = [[x - bb['min_x'], y - bb['min_y']] for x, y in plume_vector]
+        extent = [[x - plume_geom_geo['plume_bounding_box']['min_x'],
+                   y - plume_geom_geo['plume_bounding_box']['min_y']] for x, y in plume.plume_vector]
         t = extent[0]
         h = extent[1]
         plt.plot((t[0], h[0]), (t[1], h[1]), 'k-')

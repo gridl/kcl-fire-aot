@@ -46,7 +46,7 @@ def temporal_subset_single_day(frp_df, t):
 
 
 
-def spatial_subset(frp_subset, utm_resampler, utm_plume_vector):
+def spatial_subset(frp_subset, plume_geom_utm):
     """
 
     :param frp_subset: The temporally subsetted dataframe
@@ -59,11 +59,11 @@ def spatial_subset(frp_subset, utm_resampler, utm_plume_vector):
     for i, (index, frp_pixel) in enumerate(frp_subset.iterrows()):
 
         # transform FRP pixel into UTM coordinates
-        projected_fire = ut.reproject_shapely(frp_pixel['point'], utm_resampler)
+        projected_fire = ut.reproject_shapely(frp_pixel['point'], plume_geom_utm['utm_resampler_plume'])
 
         # get distance between fire head of plume vector
         fire_coords = np.array(projected_fire.coords[0])
-        head_coords = np.array(utm_plume_vector.coords[1])
+        head_coords = np.array(plume_geom_utm['utm_plume_vector'].coords[1])
         dist = np.linalg.norm(fire_coords-head_coords)
         if dist < max_dist:
             inbounds.append(i)
@@ -81,14 +81,11 @@ def group_subset(frp_subset):
     :return: the grouped dataframe
     """
 
-    frp_subset['FIRE_CONFIDENCE_mean'] = frp_subset['FIRE_CONFIDENCE']
-    frp_subset['FIRE_CONFIDENCE_std'] = frp_subset['FIRE_CONFIDENCE']
-    frp_subset = frp_subset.groupby('obs_time').agg({'FRP_0': np.sum,
-                                                     'FIRE_CONFIDENCE_mean': np.mean,
-                                                     'FIRE_CONFIDENCE_std': np.std})[['FRP_0',
-                                                                                      'FIRE_CONFIDENCE_mean',
-                                                                                      'FIRE_CONFIDENCE_std']]
-    return frp_subset
+    frp_subset['FIRE_CONFIDENCE_mean'] = frp_subset['FIRE_CONFIDENCE'].copy()
+    frp_subset['FIRE_CONFIDENCE_std'] = frp_subset['FIRE_CONFIDENCE'].copy()
+    agg_dict = {'FRP_0': np.sum, 'FIRE_CONFIDENCE_mean': np.mean, 'FIRE_CONFIDENCE_std': np.std}
+    grouped = frp_subset.groupby('obs_time').agg(agg_dict)
+    return grouped
 
 
 def integrate_frp(frp_subset):
@@ -105,10 +102,10 @@ def integrate_frp(frp_subset):
     return integrate.trapz(frp_subset['FRP_0'], sample_times)
 
 
-def fire_locations_for_plume_roi(plume_polygon, utm_resampler, frp_df, t, utm_plume_vector):
+def fire_locations_for_plume_roi(plume_geo_utm, frp_df, t):
     try:
         frp_subset = temporal_subset_single_time(frp_df, t)
-        frp_subset = spatial_subset(frp_subset, utm_resampler, utm_plume_vector)
+        frp_subset = spatial_subset(frp_subset, plume_geo_utm)
         return frp_subset.point.values
 
     except Exception, e:
@@ -126,11 +123,9 @@ def fire_locations_for_digitisation(frp_df, t):
         return None
 
 
-def compute_fre(out_dict, geostationary_fname,
-                utm_plume_polygon, utm_plume_vector,
-                frp_df, utm_resampler_plume, sub_plume_logging_path):
-    """
+def compute_fre_subset(out_dict, geostationary_fname, plume_geom_utm, frp_df, sub_plume_logging_path):
 
+    """
     :param plume_polygon: The smoke plume polygon
     :param frp_df: The FRP containing dataframe
     :param start_time: The integration start time
@@ -142,7 +137,7 @@ def compute_fre(out_dict, geostationary_fname,
 
     try:
         frp_subset = temporal_subset_single_time(frp_df, t)
-        frp_subset = spatial_subset(frp_subset, utm_resampler_plume, utm_plume_vector)
+        frp_subset = spatial_subset(frp_subset, plume_geom_utm)
         frp_subset.to_csv(os.path.join(sub_plume_logging_path, 'fires.csv'))
 
         grouped_frp_subset = group_subset(frp_subset)
@@ -168,6 +163,33 @@ def compute_fre(out_dict, geostationary_fname,
         out_dict['himawari_file'] = geostationary_fname
         out_dict['himawari_time'] = t
 
+
+def compute_fre_full_plume(t1, t2, frp_df, plume_geom_utm, plume_logging_path, out_dict):
+
+
+    try:
+        frp_subset = temporal_subset(frp_df, t2, t1)
+        frp_subset = spatial_subset(frp_subset, plume_geom_utm)
+        frp_subset.to_csv(os.path.join(plume_logging_path, 'fires.csv'))
+
+        grouped_frp_subset = group_subset(frp_subset)
+        grouped_frp_subset.to_csv(os.path.join(plume_logging_path, 'fires_grouped.csv'))
+
+        # integrate to get the fre as we are only doing one timestamp
+        # assume that the fires is burning the same for the next ten
+        # minutes
+        fre = integrate_frp(grouped_frp_subset)
+
+        out_dict['fre'] = fre
+        out_dict['mean_fire_confience'] = np.mean(grouped_frp_subset['FIRE_CONFIDENCE_mean'])
+        out_dict['std_fire_confience'] = np.mean(grouped_frp_subset['FIRE_CONFIDENCE_std'])
+
+    except Exception, e:
+        logger.error('FRE calculation failed with error' + str(e))
+
+        out_dict['fre'] = np.nan
+        out_dict['mean_fire_confience'] = np.nan
+        out_dict['std_fire_confience'] = np.nan
 
 
 

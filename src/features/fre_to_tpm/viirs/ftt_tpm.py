@@ -18,61 +18,58 @@ def build_output_dict():
     return d
 
 
-def extract_best_mean_aod(d,
-                          viirs_aod,
-                          viirs_flag,
-                          orac_aod,
-                          orac_cost,
+def extract_best_mean_aod_subplume(d,
+                          plume_data_utm,
                           plume_mask,
                           bg_aod_dict,
-                          sub_plume_logging_path,
+                          logging_path,
                           plot=True):
 
     # first redifine the plume mask to be those pixels that are: (not background | failed
     # retrievals (here assumed  due to high AOD and not cloud) ) & are plume_mask
-    flag_mask = viirs_flag > 1
-    aod_mask = viirs_aod > bg_aod_dict['mean_bg_aod'] + 3*bg_aod_dict['std_bg_aod']
+    flag_mask = plume_data_utm['viirs_flag_utm_plume'] > 1
+    aod_mask = plume_data_utm['viirs_aod_utm_plume'] > bg_aod_dict['mean_bg_aod'] + 3*bg_aod_dict['std_bg_aod']
     updated_plume_mask = plume_mask & (flag_mask | aod_mask)
 
     if plot:
-        plt.imshow(np.ma.masked_array(viirs_aod, ~updated_plume_mask), vmin=0, vmax=2)
+        plt.imshow(np.ma.masked_array(plume_data_utm['viirs_aod_utm_plume'], ~updated_plume_mask), vmin=0, vmax=2)
         plt.colorbar()
-        plt.savefig(os.path.join(sub_plume_logging_path, 'viirs_sub_plume_aod.png'))
+        plt.savefig(os.path.join(logging_path, 'viirs_sub_plume_aod.png'))
         plt.close()
 
-        ax = plt.imshow(np.ma.masked_array(viirs_flag, ~updated_plume_mask))
+        ax = plt.imshow(np.ma.masked_array(plume_data_utm['viirs_flag_utm_plume'], ~updated_plume_mask))
         cmap = cm.get_cmap('Set1', 4)
         ax.set_cmap(cmap)
         cb = plt.colorbar()
-        plt.savefig(os.path.join(sub_plume_logging_path, 'viirs_sub_plume_flag.png'))
+        plt.savefig(os.path.join(logging_path, 'viirs_sub_plume_flag.png'))
         plt.close()
 
-        plt.imshow(np.ma.masked_array(orac_aod, ~updated_plume_mask), vmin=0, vmax=2)
+        plt.imshow(np.ma.masked_array(plume_data_utm['orac_aod_utm_plume'], ~updated_plume_mask), vmin=0, vmax=2)
         plt.colorbar()
-        plt.savefig(os.path.join(sub_plume_logging_path, 'viirs_sub_plume_orac.png'))
+        plt.savefig(os.path.join(logging_path, 'viirs_sub_plume_orac.png'))
         plt.close()
 
-        plt.imshow(np.ma.masked_array(orac_cost, ~updated_plume_mask), vmax=10, cmap='plasma')
+        plt.imshow(np.ma.masked_array(plume_data_utm['orac_cost_utm_plume'], ~updated_plume_mask), vmax=10, cmap='plasma')
         plt.colorbar()
-        plt.savefig(os.path.join(sub_plume_logging_path, 'viirs_sub_plume_orac_cost.png'))
+        plt.savefig(os.path.join(logging_path, 'viirs_sub_plume_orac_cost.png'))
         plt.close()
 
-        viirs_mask = updated_plume_mask & (viirs_flag <= 1)
-        orac_mask = updated_plume_mask & (viirs_flag > 1) & (orac_cost <= 3)
+        viirs_mask = updated_plume_mask & (plume_data_utm['viirs_flag_utm_plume'] <= 1)
+        orac_mask = updated_plume_mask & (plume_data_utm['viirs_flag_utm_plume'] > 1) & (plume_data_utm['orac_cost_utm_plume'] <= 3)
         combined = np.zeros(viirs_mask.shape)
-        combined[orac_mask] = orac_aod[orac_mask]
-        combined[viirs_mask] = viirs_aod[viirs_mask]
+        combined[orac_mask] = plume_data_utm['orac_aod_utm_plume'][orac_mask]
+        combined[viirs_mask] = plume_data_utm['viirs_aod_utm_plume'][viirs_mask]
         mask = combined == 0
         plt.imshow(np.ma.masked_array(combined, mask), vmin=0, vmax=2)
         plt.colorbar()
-        plt.savefig(os.path.join(sub_plume_logging_path, 'combined_aod.png'))
+        plt.savefig(os.path.join(logging_path, 'combined_aod.png'))
         plt.close()
 
     # now extract the plume data
-    viirs_aod = viirs_aod[updated_plume_mask]
-    viirs_flag = viirs_flag[updated_plume_mask]
-    orac_aod = orac_aod[updated_plume_mask]
-    orac_cost = orac_cost[updated_plume_mask]
+    viirs_aod = plume_data_utm['viirs_aod_utm_plume'][updated_plume_mask]
+    viirs_flag = plume_data_utm['viirs_flag_utm_plume'][updated_plume_mask]
+    orac_aod = plume_data_utm['orac_aod_utm_plume'][updated_plume_mask]
+    orac_cost = plume_data_utm['orac_cost_utm_plume'][updated_plume_mask]
 
     # get the good data masks  # TODO Add to config file
     viirs_good = viirs_flag <= 1
@@ -85,8 +82,6 @@ def extract_best_mean_aod(d,
     viirs_aod_subset = viirs_aod[viirs_good]
     orac_aod_subset = orac_aod[orac_good & ~viirs_good]
     aod = np.concatenate((viirs_aod_subset, orac_aod_subset))
-
-
 
     # stats
     d['n_plume_pixels'] = np.sum(updated_plume_mask)
@@ -117,14 +112,42 @@ def extract_best_mean_aod(d,
     d['coverage_plume'] = np.sum(updated_plume_mask * 1.) / np.sum(plume_mask)
 
 
-def extract_bg_aod(viirs_aod, viirs_flag, orac_aod, orac_cost, mask):
-    masked_viirs_aod = viirs_aod[mask]
-    masked_viirs_flag = viirs_flag[mask]
+def extract_combined_aod_fullplume(plume_data_utm,
+                                   plume_mask,
+                                   logging_path,
+                                   plot=True):
 
-    masked_orac_aod = orac_aod[mask]
-    masked_orac_cost = orac_cost[mask]
+    # combine plume mask with VIIRS good and ORAC good
+    viirs_good = plume_data_utm['viirs_flag_utm_plume'] <= 1
+    orac_good = plume_data_utm['orac_cost_utm_plume'] <= 3
+    viirs_plume_mask = plume_mask & viirs_good  # viirs contribtuion
+    orac_plume_mask = plume_mask & (orac_good & ~viirs_good)  # ORAC contribution
 
-    if np.min(viirs_flag[mask]) <= 1:
+    if plot:
+        combined = np.zeros(viirs_plume_mask.shape)
+        combined[orac_plume_mask] = plume_data_utm['orac_aod_utm_plume'][orac_plume_mask]
+        combined[viirs_plume_mask] = plume_data_utm['viirs_aod_utm_plume'][viirs_plume_mask]
+        mask = combined == 0
+        plt.imshow(np.ma.masked_array(combined, mask), vmin=0, vmax=2)
+        plt.colorbar()
+        plt.savefig(os.path.join(logging_path, 'combined_aod.png'))
+        plt.close()
+
+    # extract the aod data
+    viirs_aod_subset = plume_data_utm['viirs_aod_utm_plume'][viirs_plume_mask]
+    orac_aod_subset = plume_data_utm['orac_aod_utm_plume'][orac_plume_mask]
+    plume_aod = np.concatenate((viirs_aod_subset, orac_aod_subset))
+    return plume_aod
+
+
+def extract_bg_aod(plume_data_utm, mask):
+    masked_viirs_aod = plume_data_utm['viirs_aod_utm_background'][mask]
+    masked_viirs_flag = plume_data_utm['viirs_flag_utm_background'][mask]
+
+    masked_orac_aod = plume_data_utm['orac_aod_utm_background'][mask]
+    masked_orac_cost = plume_data_utm['orac_cost_utm_background'][mask]
+
+    if np.min(plume_data_utm['viirs_flag_utm_background'][mask]) <= 1:
         # should we use 1 or 0?
         aod_mean = np.mean(masked_viirs_aod[masked_viirs_flag <= 1])
         aod_std = np.std(masked_viirs_aod[masked_viirs_flag <= 1])
@@ -143,10 +166,9 @@ def extract_bg_aod(viirs_aod, viirs_flag, orac_aod, orac_cost, mask):
              'bg_type': typ}
 
 
-def compute_tpm(viirs_aod_utm_plume, viirs_flag_utm_plume,
-                orac_aod_utm_plume, orac_cost_utm_plume,
+def compute_tpm_subset(plume_data_utm,
                 utm_plume_polygon, utm_plume_mask, bg_aod_dict,
-                sub_plume_logging_path, plot=True):
+                sub_plume_logging_path, pp):
 
     d = build_output_dict()
 
@@ -162,8 +184,8 @@ def compute_tpm(viirs_aod_utm_plume, viirs_flag_utm_plume,
         d['plume_area_total'] = utm_plume_polygon.area
 
         # extract mean ORAC plume AOD using plume mask
-        extract_best_mean_aod(d, viirs_aod_utm_plume, viirs_flag_utm_plume, orac_aod_utm_plume, orac_cost_utm_plume,
-                              utm_plume_mask, bg_aod_dict, sub_plume_logging_path, plot=plot)
+        extract_best_mean_aod_subplume(d, plume_data_utm,
+                              utm_plume_mask, bg_aod_dict, sub_plume_logging_path, pp)
 
         d['plume_area_used'] = d['plume_area_total'] * d['coverage_plume']
 
@@ -180,4 +202,47 @@ def compute_tpm(viirs_aod_utm_plume, viirs_flag_utm_plume,
         return d
     except Exception, e:
         print 'tpm extraction failed with error', str(e), 'filling output dict with NaN'
+        return d
+
+
+def compute_tpm_full(plume_data_utm, plume_geom_utm, plume_geom_geo, bg_aod_dict, plume_logging_path):
+
+    d = {}
+
+    try:
+        # put background data into d
+        d['mean_bg_aod'] = bg_aod_dict['mean_bg_aod']
+        d['std_bg_aod'] = bg_aod_dict['std_bg_aod']
+        d['bg_type'] = bg_aod_dict['bg_type']
+
+        d['pm_factor'] = 7.42  # m2/g from 10.1029/2005GL022678 TODO add this to a config file
+
+        # get plume area
+        d['plume_area_total'] = plume_geom_utm['utm_plume_polygon'].area
+
+        # extract mean ORAC plume AOD using plume mask
+        combined_aod = extract_combined_aod_fullplume(plume_data_utm,
+                                                      plume_geom_geo['plume_mask'],
+                                                      plume_logging_path)
+
+        # subtract mean background AOD from mean plume AOD
+        d['mean_plume_aod_bg_adjusted'] = np.mean(combined_aod - d['mean_bg_aod'])
+        d['std_plume_aod_bg_adjusted'] = np.std(combined_aod - d['mean_bg_aod'])
+
+        # we use the mean to calculate the sum as we have a lot of missing optical
+        # depths due to some non-retrieved pixels, using the mean of the observed pixels
+        # and multiply by the number of pixels should mean reduced error (as missing pixels
+        # will still be counted, just replaced with the mean rather than thier actual value)
+        d['summed_plume_aod_adjusted'] = d['mean_plume_aod_bg_adjusted'] * d['plume_area_total']
+
+        # convert to PM using conversion factor
+        plume_pm = d['summed_plume_aod_adjusted'] / d['pm_factor']  # in g/m^2
+
+        # multiply by plume area to get total tpm
+        d['tpm'] = plume_pm * d['plume_area_total']  # g
+
+        # return plume TPM
+        return d
+    except Exception, e:
+        print 'tpm extraction failed with error', str(e)
         return d
