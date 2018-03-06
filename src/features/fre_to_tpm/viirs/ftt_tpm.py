@@ -3,6 +3,8 @@ import os
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
+import src.config.constants as constants
+
 
 def build_output_dict():
     d = {}
@@ -112,10 +114,10 @@ def extract_best_mean_aod_subplume(d,
     d['coverage_plume'] = np.sum(updated_plume_mask * 1.) / np.sum(plume_mask)
 
 
-def extract_combined_aod_fullplume(plume_data_utm,
-                                   plume_mask,
-                                   logging_path,
-                                   plot=True):
+def extract_combined_aod_full_plume(plume_data_utm,
+                                    plume_mask,
+                                    logging_path,
+                                    plot=True):
 
     # combine plume mask with VIIRS good and ORAC good
     viirs_good = plume_data_utm['viirs_flag_utm_plume'] <= 1
@@ -221,22 +223,28 @@ def compute_tpm_full(plume_data_utm, plume_geom_utm, plume_geom_geo, bg_aod_dict
         d['plume_area_total'] = plume_geom_utm['utm_plume_polygon'].area
 
         # extract mean ORAC plume AOD using plume mask
-        combined_aod = extract_combined_aod_fullplume(plume_data_utm,
-                                                      plume_geom_geo['plume_mask'],
-                                                      plume_logging_path)
+        combined_aod = extract_combined_aod_full_plume(plume_data_utm,
+                                                       plume_geom_geo['plume_mask'],
+                                                       plume_logging_path)
 
-        # subtract mean background AOD from mean plume AOD
+        # subtract mean background AOD from plume AODs and then take the mean.
+        # Another approach would be to sum the above background AOD.  But we are missing
+        # some retrieval pixels, so this will lead to a bias, as not retrieved pixels will
+        # likely have raised AOD, but are not observed, so wont be considered in any sum.
+        # taking the mean, we can account for these pixels in the next step.
         d['mean_plume_aod_bg_adjusted'] = np.mean(combined_aod - d['mean_bg_aod'])
+        d['summed_plume_aod_bg_adjusted'] = np.sum(combined_aod - d['mean_bg_aod'])
         d['std_plume_aod_bg_adjusted'] = np.std(combined_aod - d['mean_bg_aod'])
 
-        # we use the mean to calculate the sum as we have a lot of missing optical
-        # depths due to some non-retrieved pixels, using the mean of the observed pixels
-        # and multiply by the number of pixels should mean reduced error (as missing pixels
-        # will still be counted, just replaced with the mean rather than thier actual value)
-        d['summed_plume_aod_adjusted'] = d['mean_plume_aod_bg_adjusted'] * d['plume_area_total']
+        # by multiplying the mean AOD by the area of the plume, we can get a less biased estimate
+        # of the aod contained in the plume.  But, since the AOD is calculated at some grid resolution,
+        # we need to adjust the area of the plume by this grid size.  This in effect gives the total
+        # number of 'pixels' in the plume which we can multiply by the mean to get an effective total.
+        effective_n_aod_pixels = d['plume_area_total'] / constants.utm_grid_size**2
+        d['effective_summed_plume_aod_adj'] = d['mean_plume_aod_bg_adjusted'] * effective_n_aod_pixels
 
         # convert to PM using conversion factor
-        plume_pm = d['summed_plume_aod_adjusted'] / d['pm_factor']  # in g/m^2
+        plume_pm = d['effective_summed_plume_aod_adj'] / d['pm_factor']  # in g/m^2
 
         # multiply by plume area to get total tpm
         d['tpm'] = plume_pm * d['plume_area_total']  # g
