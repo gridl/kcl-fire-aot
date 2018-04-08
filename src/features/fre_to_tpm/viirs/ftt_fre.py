@@ -180,7 +180,12 @@ def compute_fre_full_plume(t1, t2, frp_df, plume_geom_utm, plume_logging_path, o
         # minutes
         fre = integrate_frp(grouped_frp_subset)
 
+        # lets set up an alternative FRE using mean and multiplying by time in seconds
+        alt_fre = frp_subset['FRP_0'].mean() * (frp_subset.index - frp_subset.index[0]).total_seconds()
+
+
         out_dict['fre'] = fre
+        out_dict['alt_fre'] = alt_fre
         out_dict['mean_fire_confience'] = np.mean(grouped_frp_subset['FIRE_CONFIDENCE_mean'])
         out_dict['std_fire_confience'] = np.mean(grouped_frp_subset['FIRE_CONFIDENCE_std'])
 

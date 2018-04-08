@@ -2,17 +2,14 @@ import logging
 import os
 
 import numpy as np
-import pandas as pd
 import scipy.misc as misc
 import scipy.interpolate as interpolate
 from sklearn.gaussian_process import GaussianProcess
-import seaborn as sns
 
 import src.features.fre_to_tpm.viirs.ftt_utils as ut
 
 import src.config.filepaths as fp
 import src.config.constants as constants
-import src.data.readers.load_hrit as load_hrit
 
 import matplotlib.pyplot as plt
 
@@ -192,7 +189,7 @@ def eval_interpolation_methods(plumes, masks):
 
     # plot the cumulative histogram
     fig, ax = plt.subplots(figsize=(8, 4))
-    n_bins = 50
+    n_bins = 500
     lab=True
     for e0, e1, e2 in zip(error_rbf, error_gp, error_mean):
         if lab:

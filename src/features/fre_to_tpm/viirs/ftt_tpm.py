@@ -1,5 +1,7 @@
-import numpy as np
 import os
+
+import numpy as np
+import scipy.interpolate as interpolate
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
@@ -126,10 +128,10 @@ def extract_combined_aod_full_plume(plume_data_utm,
     orac_plume_mask = plume_mask & (orac_good & ~viirs_good)  # ORAC contribution
 
     if plot:
-        combined = np.zeros(viirs_plume_mask.shape)
+        combined = np.zeros(viirs_plume_mask.shape) - 999
         combined[orac_plume_mask] = plume_data_utm['orac_aod_utm_plume'][orac_plume_mask]
         combined[viirs_plume_mask] = plume_data_utm['viirs_aod_utm_plume'][viirs_plume_mask]
-        mask = combined == 0
+        mask = combined == -999
         plt.imshow(np.ma.masked_array(combined, mask), vmin=0, vmax=2)
         plt.colorbar()
         plt.savefig(os.path.join(logging_path, 'combined_aod.png'))
@@ -139,7 +141,7 @@ def extract_combined_aod_full_plume(plume_data_utm,
     viirs_aod_subset = plume_data_utm['viirs_aod_utm_plume'][viirs_plume_mask]
     orac_aod_subset = plume_data_utm['orac_aod_utm_plume'][orac_plume_mask]
     plume_aod = np.concatenate((viirs_aod_subset, orac_aod_subset))
-    return plume_aod
+    return plume_aod, combined
 
 
 def extract_bg_aod(plume_data_utm, mask):
@@ -166,6 +168,34 @@ def extract_bg_aod(plume_data_utm, mask):
     return {'mean_bg_aod': aod_mean,
             'std_bg_aod': aod_std,
              'bg_type': typ}
+
+
+def interp_aod(aod, plume_mask, logging_path, plot=True):
+    '''
+    Interpolate using a radial basis function.  See models
+    that shows thta this is the best approach.
+    '''
+
+    good_mask = aod != -999
+
+    # build the interpolation grid
+    y = np.linspace(0, 1, aod.shape[0])
+    x = np.linspace(0, 1, aod.shape[1])
+    xx, yy = np.meshgrid(x, y)
+
+    # create interpolated grid (can extend to various methods)
+    rbf = interpolate.Rbf(xx[good_mask], yy[good_mask], aod[good_mask], function='linear')
+    interpolated_aod = rbf(xx, yy)
+
+    aod[~good_mask] = interpolated_aod[~good_mask]
+
+    if plot:
+        plt.imshow(np.ma.masked_array(aod, ~plume_mask), vmin=0, vmax=2)
+        plt.colorbar()
+        plt.savefig(os.path.join(logging_path, 'combined_aod_interpolated.png'))
+        plt.close()
+
+    return aod[plume_mask]
 
 
 def compute_tpm_subset(plume_data_utm,
@@ -223,28 +253,27 @@ def compute_tpm_full(plume_data_utm, plume_geom_utm, plume_geom_geo, bg_aod_dict
         d['plume_area_total'] = plume_geom_utm['utm_plume_polygon'].area
 
         # extract mean ORAC plume AOD using plume mask
-        combined_aod = extract_combined_aod_full_plume(plume_data_utm,
-                                                       plume_geom_geo['plume_mask'],
-                                                       plume_logging_path)
+        combined_aod_list, comibined_aod_image = extract_combined_aod_full_plume(plume_data_utm,
+                                                                                 plume_geom_geo['plume_mask'],
+                                                                                 plume_logging_path)
+
+        # create interpolated aod from image
+        interpolated_aod = interp_aod(comibined_aod_image, plume_geom_geo['plume_mask'], plume_logging_path)
 
         # subtract mean background AOD from plume AODs and then take the mean.
         # Another approach would be to sum the above background AOD.  But we are missing
         # some retrieval pixels, so this will lead to a bias, as not retrieved pixels will
         # likely have raised AOD, but are not observed, so wont be considered in any sum.
         # taking the mean, we can account for these pixels in the next step.
-        d['mean_plume_aod_bg_adjusted'] = np.mean(combined_aod - d['mean_bg_aod'])
-        d['summed_plume_aod_bg_adjusted'] = np.sum(combined_aod - d['mean_bg_aod'])
-        d['std_plume_aod_bg_adjusted'] = np.std(combined_aod - d['mean_bg_aod'])
+        d['mean_plume_aod_bg_adjusted'] = np.mean(combined_aod_list - d['mean_bg_aod'])
+        d['summed_plume_aod_bg_adjusted'] = np.sum(combined_aod_list - d['mean_bg_aod'])
+        d['std_plume_aod_bg_adjusted'] = np.std(combined_aod_list - d['mean_bg_aod'])
+        d['mean_interpolated_plume_aod_adjusted'] = np.mean(interpolated_aod - d['mean_bg_aod'])
+        d['summed_interpolated_plume_aod_adjusted'] = np.sum(interpolated_aod - d['mean_bg_aod'])
 
-        # by multiplying the mean AOD by the area of the plume, we can get a less biased estimate
-        # of the aod contained in the plume.  But, since the AOD is calculated at some grid resolution,
-        # we need to adjust the area of the plume by this grid size.  This in effect gives the total
-        # number of 'pixels' in the plume which we can multiply by the mean to get an effective total.
-        effective_n_aod_pixels = d['plume_area_total'] / constants.utm_grid_size**2
-        d['effective_summed_plume_aod_adj'] = d['mean_plume_aod_bg_adjusted'] * effective_n_aod_pixels
 
-        # convert to PM using conversion factor
-        plume_pm = d['effective_summed_plume_aod_adj'] / d['pm_factor']  # in g/m^2
+        # convert to mean PM using conversion factor
+        plume_pm = d['mean_interpolated_plume_aod_adjusted'] / d['pm_factor']  # in g/m^2
 
         # multiply by plume area to get total tpm
         d['tpm'] = plume_pm * d['plume_area_total']  # g
