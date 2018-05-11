@@ -23,8 +23,29 @@ from shapely.ops import transform
 import pyresample as pr
 import pyproj
 from skimage.measure import grid_points_in_poly
+from sklearn.neighbors import BallTree
 
 import matplotlib.pyplot as plt
+
+
+def make_balltree(array_lats, array_lons):
+    array_lat_lon = np.dstack([np.deg2rad(array_lats.flatten()), np.deg2rad(array_lons.flatten())])[0]
+    return BallTree(array_lat_lon, metric='haversine')
+
+
+def spatial_intersection(array_balltree, x_shape, point_lat, point_lon):
+
+    # get the unique flare lats and lons for assessment in kdtree
+    point_location = np.array([np.deg2rad(point_lat), np.deg2rad(point_lon)]).reshape(1,-1)
+
+    # compare the flare locations to the potential locations in the orbit
+    distances, indexes = array_balltree.query(point_location, k=1)
+
+    # set up the dataframe to hold the distances
+    x = indexes[0][0] % x_shape
+    y = indexes[0][0] / x_shape
+    d = distances[0][0]
+    return x, y, np.rad2deg(d)
 
 
 log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'

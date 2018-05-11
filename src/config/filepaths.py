@@ -43,6 +43,7 @@ path_to_viirs = root_path + 'raw/viirs/unprojected/'
 path_to_viirs_sdr = root_path + 'raw/viirs/unprojected/sdr/'
 path_to_viirs_aod = root_path + 'raw/viirs/unprojected/aod/'
 path_to_viirs_orac = root_path + 'processed/orac/viirs/'
+path_to_aeronet = os.path.join(root_path, 'external/aeronet')
 
 path_to_goes_l1b = root_path + 'raw/goes/'
 path_to_himawari_l1b = root_path + 'raw/himawari/'

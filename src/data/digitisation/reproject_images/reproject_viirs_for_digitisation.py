@@ -8,9 +8,10 @@ import numpy as np
 import scipy.misc as misc
 from datetime import datetime
 from netCDF4 import Dataset
+from shapely.geometry import Point
 
 import src.config.filepaths as fp
-import src.features.fre_to_tpm.modis.ftt_utils as ut
+import src.features.fre_to_tpm.viirs.ftt_utils as ut
 import src.features.fre_to_tpm.viirs.ftt_fre as ff
 
 
@@ -34,7 +35,7 @@ def get_viirs_fname(path, timestamp_viirs, viirs_sdr_fname):
 
 
 def read_h5(f):
-    return h5py.File(f,  "r")
+    return h5py.File(f, "r")
 
 
 def read_nc(f):
@@ -65,8 +66,8 @@ def image_histogram_equalization(image, number_bins=256):
 
     # get image histogram
     image_histogram, bins = np.histogram(image[image > 0].flatten(), number_bins, normed=True)
-    cdf = image_histogram.cumsum() # cumulative distribution function
-    cdf = 255 * cdf / cdf[-1] # normalize
+    cdf = image_histogram.cumsum()  # cumulative distribution function
+    cdf = 255 * cdf / cdf[-1]  # normalize
 
     # use linear interpolation of cdf to find new pixel values
     image_equalized = np.interp(image.flatten(), bins[:-1], cdf)
@@ -75,7 +76,6 @@ def image_histogram_equalization(image, number_bins=256):
 
 
 def fire_positions(fires, resampled_lats, resampled_lons):
-
     inverse_lats = resampled_lats * -1  # invert lats for correct indexing
 
     y_size, x_size = resampled_lats.shape
@@ -103,30 +103,29 @@ def fire_positions(fires, resampled_lats, resampled_lons):
         if (x <= padding) | (x >= x_size - padding):
             continue
 
-        lat_subset = resampled_lats[y-padding:y+padding, x-padding:x+padding]
-        lon_subset = resampled_lons[y-padding:y+padding, x-padding:x+padding]
+        lat_subset = resampled_lats[y - padding:y + padding, x - padding:x + padding]
+        lon_subset = resampled_lons[y - padding:y + padding, x - padding:x + padding]
 
         # find the location of the fire in the subset
         dists = np.abs(f_lat - lat_subset) + np.abs(f_lon - lon_subset)
         sub_y, sub_x = divmod(dists.argmin(), dists.shape[1])
 
         # using the subset location get the adjusted location
-        y_coords.append(y-padding+sub_y)
-        x_coords.append(x-padding+sub_x)
+        y_coords.append(y - padding + sub_y)
+        x_coords.append(x - padding + sub_x)
 
     return y_coords, x_coords
 
 
-
-def tcc_viirs(viirs_data, fires, peat_mask, resampler):
-    #m1_params = viirs_data['All_Data']['VIIRS-M1-SDR_All']['RadianceFactors']
+def tcc_viirs(viirs_data, fires, peat_mask, aeronet_stations, resampler):
+    # m1_params = viirs_data['All_Data']['VIIRS-M1-SDR_All']['RadianceFactors']
     m1 = viirs_data['All_Data']['VIIRS-M1-SDR_All']['Radiance'][:]
-    #m4_params = viirs_data['All_Data']['VIIRS-M1-SDR_All']['RadianceFactors']
+    # m4_params = viirs_data['All_Data']['VIIRS-M1-SDR_All']['RadianceFactors']
     m4 = viirs_data['All_Data']['VIIRS-M4-SDR_All']['Radiance'][:]
-    #m5_params = viirs_data['All_Data']['VIIRS-M1-SDR_All']['RadianceFactors']
+    # m5_params = viirs_data['All_Data']['VIIRS-M1-SDR_All']['RadianceFactors']
     m5 = viirs_data['All_Data']['VIIRS-M5-SDR_All']['Radiance'][:]
 
-    mask = m5<0
+    mask = m5 < 0
     masked_lats = np.ma.masked_array(resampler.lats, mask)
     masked_lons = np.ma.masked_array(resampler.lons, mask)
 
@@ -160,6 +159,13 @@ def tcc_viirs(viirs_data, fires, peat_mask, resampler):
         rgb[fy, fx, 1] = 0
         rgb[fy, fx, 2] = 0
 
+    # insert aeronet stations
+    fy, fx = fire_positions(aeronet_stations, resampled_lats, resampled_lons)
+    if fy:
+        for x, y in zip(fx, fy):
+            rgb[y-2:y+3, x-2:x+3, 0] = 0
+            rgb[y-2:y+3, x-2:x+3, 1] = 255
+            rgb[y-2:y+3, x-2:x+3, 2] = 0
 
     return rgb
 
@@ -196,7 +202,7 @@ def extract_aod_flags(viirs_aod, resampler):
     aod = viirs_aod['All_Data']['VIIRS-Aeros-Opt-Thick-IP_All']['faot550'][:]
     aod_quality = viirs_aod['All_Data']['VIIRS-Aeros-Opt-Thick-IP_All']['QF1'][:]
     flags = np.zeros(aod_quality.shape)
-    for k, v in zip(['00', '01', '10', '11'], [0,1,2,3]):
+    for k, v in zip(['00', '01', '10', '11'], [0, 1, 2, 3]):
         mask = get_mask(aod_quality, 0, 2, k)
         flags[mask] = v
 
@@ -209,7 +215,6 @@ def extract_aod_flags(viirs_aod, resampler):
 
 
 def get_peat_mask(peat_map_dict, utm_resampler):
-
     sum_array = None
 
     # extract three peat maps for the image
@@ -229,10 +234,22 @@ def get_peat_mask(peat_map_dict, utm_resampler):
     return sum_array > 0
 
 
-def main():
+def get_aeronet():
+    stations = dict(badung=(-6.888, 107.610), makassar=(-4.998, 119.572), puspiptek=(-6.356, 106.664),
+                    jambi=(-1.632, 103.642), palangkaraya=(-2.228, 113.946), singapore=(1.298, 103.780),
+                    kuching=(1.491, 110.349), pontianak=(0.075, 109.191))
+    stations_points = []
+    for k in stations:
+        p = stations[k]
+        stations_points.append(Point(p[1], p[0]))  # points needs to go in lon/lat
 
+    return stations_points
+
+
+def main():
     # load in himawari fires for visualisation
-    frp_df = ut.read_frp_df(fp.path_to_himawari_frp)
+    #frp_df = ut.read_frp_df(fp.path_to_himawari_frp)
+    frp_df = None
 
     # load in the peat maps
     peat_map_dict = {}
@@ -240,7 +257,6 @@ def main():
     for peat_maps_path in peat_maps_paths:
         peat_map_key = peat_maps_path.split("/")[-1].split(".")[0]
         peat_map_dict[peat_map_key] = read_nc(peat_maps_path)
-
 
     for viirs_sdr_fname in os.listdir(fp.path_to_viirs_sdr):
 
@@ -271,7 +287,6 @@ def main():
             logger.warning('Could make resampler for file: ' + viirs_sdr_fname + '. Failed with ' + str(e))
             continue
 
-
         # get aod filename
         try:
             aod_fname = get_viirs_fname(fp.path_to_viirs_aod, timestamp_viirs, viirs_sdr_fname)
@@ -289,7 +304,7 @@ def main():
 
                     misc.imsave(os.path.join(fp.path_to_viirs_aod_resampled, aod_fname.replace('h5', 'png')), viirs_aod)
                     misc.imsave(os.path.join(fp.path_to_viirs_aod_flags_resampled, aod_fname.replace('h5', 'png')),
-                               aod_flags)
+                                aod_flags)
 
                 except Exception, e:
                     logger.warning('Could not display aod file: ' + aod_fname)
@@ -299,8 +314,10 @@ def main():
             t = datetime.strptime(timestamp_viirs, 'd%Y%m%d_t%H%M%S')
 
             peat_mask = get_peat_mask(peat_map_dict, utm_resampler)
-            fires = ff.fire_locations_for_digitisation(frp_df, t)
-            tcc = tcc_viirs(viirs_sdr, fires, peat_mask, utm_resampler)
+            #fires = ff.fire_locations_for_digitisation(frp_df, t)
+            fires = []
+            aeronet_stations = get_aeronet()
+            tcc = tcc_viirs(viirs_sdr, fires, peat_mask, aeronet_stations, utm_resampler)
             misc.imsave(os.path.join(fp.path_to_viirs_sdr_resampled, viirs_sdr_fname.replace('h5', 'png')), tcc)
         except Exception, e:
             logger.warning('Could make image for file: ' + viirs_sdr_fname + '. Failed with ' + str(e))
