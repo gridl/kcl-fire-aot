@@ -4,9 +4,9 @@ import logging
 import re
 from datetime import datetime
 
-import h5py
 import pandas as pd
 import numpy as np
+import scipy.misc as misc
 
 import src.config.filepaths as fp
 import src.features.fre_to_tpm.viirs.ftt_utils as ut
@@ -49,7 +49,7 @@ def load_aeronet():
 
 def get_orac_timestamp(orac_path):
     orac_fname = orac_path.split('/')[-1]
-    return datetime.strptime(orac_fname[37:47], "%Y%m%d%H%M")
+    return datetime.strptime(orac_fname[37:49], "%Y%m%d%H%M")
 
 
 def aeronet_intersections(timestamp, aeronet_station_data):
@@ -61,11 +61,10 @@ def aeronet_intersections(timestamp, aeronet_station_data):
 
 
 def interpolate_aod550(angstrom, aod):
-    return aod * (550./675)**(-angstrom)
+    return aod * (550. / 675) ** (-angstrom)
 
 
 def collocate_station(station, balltree, x_shape, timestamp):
-
     # first check if any datapoints with the hour
     temporal_df = station[np.abs((station.index - timestamp).total_seconds()) < 3600]
 
@@ -83,7 +82,7 @@ def collocate_station(station, balltree, x_shape, timestamp):
                                       closest_data['Site_Longitude(Degrees)'])
 
     # lets only consider points less than 1 arcminute distant (2km)
-    if d > 1/60.0:
+    if d > 1 / 60.0:
         return 0, 0, 0, 0, 0, 0, 0
 
     # interpolate aod
@@ -95,23 +94,61 @@ def collocate_station(station, balltree, x_shape, timestamp):
     return x, y, d, time_delta, aod550, aod500, aod675
 
 
-# def get_orac_fname(path, timestamp_viirs):
-#     viirs_dt = datetime.strptime(timestamp_viirs, 'd%Y%m%d_t%H%M%S')
-#     fname = [f for f in os.listdir(path) if
-#              abs((viirs_dt - datetime.strptime(f[37:47], "%Y%m%d%H%M")).total_seconds()) <= 30]
-#     if len(fname) > 1:
-#         logger.warning("More that one frp granule matched selecting 0th option")
-#         return fname[0]
-#     elif len(fname) == 1:
-#         return fname[0]
-#     else:
-#         return ''
+def get_fname(path, timestamp):
+    for f in os.listdir(path):
+        viirs_timestamp = re.search("[d][0-9]{8}[_][t][0-9]{6}", f).group()
+        viirs_timestamp = datetime.strptime(viirs_timestamp, 'd%Y%m%d_t%H%M%S')
+        if abs((timestamp - viirs_timestamp).total_seconds()) <= 120:
+            return f
+    return ''
+
+
+def image_histogram_equalization(image, number_bins=256):
+    # from http://www.janeriksolem.net/2009/06/histogram-equalization-with-python-and.html
+
+    # get image histogram
+    image_histogram, bins = np.histogram(image[image > 0].flatten(), number_bins, normed=True)
+    cdf = image_histogram.cumsum()  # cumulative distribution function
+    cdf = 255 * cdf / cdf[-1]  # normalize
+
+    # use linear interpolation of cdf to find new pixel values
+    image_equalized = np.interp(image.flatten(), bins[:-1], cdf)
+
+    return image_equalized.reshape(image.shape)
+
+
+def create_png(viirs_data, utm_rs, masked_lats, masked_lons, image_id):
+
+    # m1_params = viirs_data['All_Data']['VIIRS-M1-SDR_All']['RadianceFactors']
+    m1 = viirs_data['All_Data']['VIIRS-M1-SDR_All']['Radiance'][:]
+    # m4_params = viirs_data['All_Data']['VIIRS-M1-SDR_All']['RadianceFactors']
+    m4 = viirs_data['All_Data']['VIIRS-M4-SDR_All']['Radiance'][:]
+    # m5_params = viirs_data['All_Data']['VIIRS-M1-SDR_All']['RadianceFactors']
+    m5 = viirs_data['All_Data']['VIIRS-M5-SDR_All']['Radiance'][:]
+
+    resampled_m1 = utm_rs.resample_image(m1, masked_lats, masked_lons, fill_value=0)
+    resampled_m4 = utm_rs.resample_image(m4, masked_lats, masked_lons, fill_value=0)
+    resampled_m5 = utm_rs.resample_image(m5, masked_lats, masked_lons, fill_value=0)
+
+    r = image_histogram_equalization(resampled_m5)
+    g = image_histogram_equalization(resampled_m4)
+    b = image_histogram_equalization(resampled_m1)
+
+    r = np.round((r * (255 / np.max(r))) * 1).astype('uint8')
+    g = np.round((g * (255 / np.max(g))) * 1).astype('uint8')
+    b = np.round((b * (255 / np.max(b))) * 1).astype('uint8')
+
+    rgb = np.dstack((r, g, b))
+    misc.imsave(os.path.join(fp.path_to_viirs_sdr_resampled, image_id + 'png'), rgb)
+
 
 def main():
-
     aeronet_station_data = load_aeronet()
-
     viirs_orac_filepaths = glob.glob(fp.path_to_viirs_orac + '*')
+
+    image_id = 0
+    data_dict = dict(x=[], y=[], dist=[], time_delta=[], aod550=[], aod500=[], aod675=[], orac_aod=[], orac_cost=[],
+                     viirs_aod=[], viirs_flag=[], image_id=[], orac_file=[], viirs_file=[], station=[])
 
     # iterate over VIIRS AOD files
     for o_f in viirs_orac_filepaths:
@@ -124,15 +161,24 @@ def main():
         if not aeronet_intersections(timestamp, aeronet_station_data):
             continue
 
-        # load in orac aod data
+        # load in orac data and resample
         orac_ds = ut.read_nc(o_f)
-        lats, lons = ut.read_orac_geo(orac_ds)
         orac_aod = ut.orac_aod(orac_ds)
+        lats, lons = ut.read_orac_geo(orac_ds)
+        utm_rs = ut.utm_resampler(lats, lons, 750)
 
-        # make balltree for orac coord data
-        balltree = ut.make_balltree(lats, lons)
+        null_mask = np.ma.getmask(orac_aod)
+        masked_lats = np.ma.masked_array(utm_rs.lats, null_mask)
+        masked_lons = np.ma.masked_array(utm_rs.lons, null_mask)
+
+        resampled_lats = utm_rs.resample_image(utm_rs.lats, masked_lats, masked_lons, fill_value=0)
+        resampled_lons = utm_rs.resample_image(utm_rs.lons, masked_lats, masked_lons, fill_value=0)
+
+        balltree = ut.make_balltree(resampled_lats, resampled_lons)
+        x_shape = resampled_lats.shape[1]
 
         # iterate aeronet station data
+        ds_loaded = False
         for station in aeronet_station_data:
 
             print station
@@ -140,17 +186,55 @@ def main():
             station_df = aeronet_station_data[station]
 
             # locate aeronet station in scene
-            x, y, dist, time_delta, aod550, aod500, aod675 = collocate_station(station_df, balltree,
-                                                                               lats.shape[1], timestamp)
+            x, y, dist, time_delta, aod550, aod500, aod675 = collocate_station(station_df, balltree, x_shape, timestamp)
 
             # if nothing in scene continue
             if not x:
                 continue
 
+            # load datasets if not done already
+            if not ds_loaded:
 
-    # visualise
+                r_orac_aod = utm_rs.resample_image(orac_aod, masked_lats, masked_lons, fill_value=0)
+                r_orac_cost = utm_rs.resample_image(ut.orac_cost(orac_ds), masked_lats, masked_lons, fill_value=0)
 
+                viirs_aod_fname = get_fname(fp.path_to_viirs_aod, timestamp)
+                viirs_aod_ds = ut.read_h5(os.path.join(fp.path_to_viirs_aod, viirs_aod_fname))
+                r_viirs_aod = utm_rs.resample_image(ut.viirs_aod(viirs_aod_ds), masked_lats, masked_lons, fill_value=0)
+                r_viirs_flag = utm_rs.resample_image(ut.viirs_flags(viirs_aod_ds), masked_lats, masked_lons,
+                                                     fill_value=0)
 
+                viirs_sdr_fname = get_fname(fp.path_to_viirs_sdr, timestamp)
+                viirs_sdr_ds = ut.read_h5(os.path.join(fp.path_to_viirs_sdr, viirs_sdr_fname))
+                ds_loaded = True
+
+            # sort out image
+            # create_png(viirs_sdr_ds, utm_rs, masked_lats, masked_lons, image_id)
+
+            # append to dict
+            data_dict['x'].append(x)
+            data_dict['y'].append(y)
+            data_dict['dist'].append(dist)
+            data_dict['dist'].append(dist)
+            data_dict['time_delta'].append(time_delta)
+            data_dict['aod550'].append(aod550)
+            data_dict['aod500'].append(aod500)
+            data_dict['aod675'].append(aod675)
+            data_dict['orac_aod'].append(r_orac_aod[y, x])
+            data_dict['orac_cost'].append(r_orac_cost[y, x])
+            data_dict['viirs_aod'].append(r_viirs_aod[y, x])
+            data_dict['viirs_flag'].append(r_viirs_flag[y, x])
+            data_dict['image_id'].append(image_id)
+            data_dict['orac_file'].append(o_f)
+            data_dict['viirs_file'].append(viirs_aod_fname)
+            data_dict['station'].append(station)
+
+            # update image
+            image_id += 1
+
+            # convert dict to dataframe
+
+            # dump to csv
 
 
 if __name__ == "__main__":

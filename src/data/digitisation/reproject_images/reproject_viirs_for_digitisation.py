@@ -248,8 +248,7 @@ def get_aeronet():
 
 def main():
     # load in himawari fires for visualisation
-    #frp_df = ut.read_frp_df(fp.path_to_himawari_frp)
-    frp_df = None
+    frp_df = ut.read_frp_df(fp.path_to_himawari_frp)
 
     # load in the peat maps
     peat_map_dict = {}
@@ -314,8 +313,7 @@ def main():
             t = datetime.strptime(timestamp_viirs, 'd%Y%m%d_t%H%M%S')
 
             peat_mask = get_peat_mask(peat_map_dict, utm_resampler)
-            #fires = ff.fire_locations_for_digitisation(frp_df, t)
-            fires = []
+            fires = ff.fire_locations_for_digitisation(frp_df, t)
             aeronet_stations = get_aeronet()
             tcc = tcc_viirs(viirs_sdr, fires, peat_mask, aeronet_stations, utm_resampler)
             misc.imsave(os.path.join(fp.path_to_viirs_sdr_resampled, viirs_sdr_fname.replace('h5', 'png')), tcc)
