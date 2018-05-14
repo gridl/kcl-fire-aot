@@ -27,9 +27,18 @@ from sklearn.neighbors import BallTree
 
 import matplotlib.pyplot as plt
 
+log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+logging.basicConfig(level=logging.INFO, format=log_fmt)
+logger = logging.getLogger(__name__)
+
 
 def make_balltree(array_lats, array_lons):
     array_lat_lon = np.dstack([np.deg2rad(array_lats.flatten()), np.deg2rad(array_lons.flatten())])[0]
+    return BallTree(array_lat_lon, metric='haversine')
+
+
+def make_balltree_subset(array_lats_flat, array_lons_flat):
+    array_lat_lon = np.dstack([np.deg2rad(array_lats_flat), np.deg2rad(array_lons_flat)])[0]
     return BallTree(array_lat_lon, metric='haversine')
 
 
@@ -48,9 +57,19 @@ def spatial_intersection(array_balltree, x_shape, point_lat, point_lon):
     return x, y, np.rad2deg(d)
 
 
-log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-logging.basicConfig(level=logging.INFO, format=log_fmt)
-logger = logging.getLogger(__name__)
+def spatial_intersection_subset(array_balltree, point_lat, point_lon, x_positions_flat, y_positions_flat):
+    # get the unique flare lats and lons for assessment in kdtree
+    point_location = np.array([np.deg2rad(point_lat), np.deg2rad(point_lon)]).reshape(1, -1)
+
+    # compare the flare locations to the potential locations in the orbit
+    distance, index = array_balltree.query(point_location, k=1)
+
+    # get indexes
+    x = x_positions_flat[index][0][0]
+    y = y_positions_flat[index][0][0]
+    d = distance[0][0]
+
+    return x, y, np.rad2deg(d)
 
 
 def get_timestamp(viirs_sdr_fname):

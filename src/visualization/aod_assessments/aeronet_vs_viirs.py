@@ -64,7 +64,7 @@ def interpolate_aod550(angstrom, aod):
     return aod * (550. / 675) ** (-angstrom)
 
 
-def collocate_station(station, balltree, x_shape, timestamp):
+def collocate_station(station, balltree, cols, rows, timestamp):
     # first check if any datapoints with the hour
     temporal_df = station[np.abs((station.index - timestamp).total_seconds()) < 3600]
 
@@ -77,9 +77,13 @@ def collocate_station(station, balltree, x_shape, timestamp):
     closest_data = temporal_df.iloc[closest_pos]
 
     # check if scene intersects
-    x, y, d = ut.spatial_intersection(balltree, x_shape,
-                                      closest_data['Site_Latitude(Degrees)'],
-                                      closest_data['Site_Longitude(Degrees)'])
+    x, y, d = ut.spatial_intersection_subset(balltree,
+                                             closest_data['Site_Latitude(Degrees)'],
+                                             closest_data['Site_Longitude(Degrees)'],
+                                             cols, rows)
+
+    print 'station lat', closest_data['Site_Latitude(Degrees)']
+    print 'station lon', closest_data['Site_Longitude(Degrees)']
 
     # lets only consider points less than 1 arcminute distant (2km)
     if d > 1 / 60.0:
@@ -171,11 +175,22 @@ def main():
         masked_lats = np.ma.masked_array(utm_rs.lats, null_mask)
         masked_lons = np.ma.masked_array(utm_rs.lons, null_mask)
 
-        resampled_lats = utm_rs.resample_image(utm_rs.lats, masked_lats, masked_lons, fill_value=0)
-        resampled_lons = utm_rs.resample_image(utm_rs.lons, masked_lats, masked_lons, fill_value=0)
+        resampled_lats = utm_rs.resample_image(utm_rs.lats, masked_lats, masked_lons, fill_value=-999)
+        resampled_lons = utm_rs.resample_image(utm_rs.lons, masked_lats, masked_lons, fill_value=-999)
 
-        balltree = ut.make_balltree(resampled_lats, resampled_lons)
-        x_shape = resampled_lats.shape[1]
+        # generate coordinate array from resampled grid
+        rows = np.arange(resampled_lats.shape[0])
+        cols = np.arange(resampled_lats.shape[1])
+        cols, rows = np.meshgrid(cols, rows)
+
+        # mask all points to valid
+        mask = resampled_lats != -999
+        resampled_lats_sub = resampled_lats[mask]
+        resampled_lons_sub = resampled_lons[mask]
+        cols = cols[mask]
+        rows = rows[mask]
+
+        balltree = ut.make_balltree_subset(resampled_lats_sub, resampled_lons_sub)
 
         # iterate aeronet station data
         ds_loaded = False
@@ -186,7 +201,12 @@ def main():
             station_df = aeronet_station_data[station]
 
             # locate aeronet station in scene
-            x, y, dist, time_delta, aod550, aod500, aod675 = collocate_station(station_df, balltree, x_shape, timestamp)
+            x, y, dist, time_delta, aod550, aod500, aod675 = collocate_station(station_df,
+                                                                               balltree, cols, rows,
+                                                                               timestamp)
+
+            print 'image lat', resampled_lats[y, x]
+            print 'image lon', resampled_lons[y, x]
 
             # if nothing in scene continue
             if not x:
