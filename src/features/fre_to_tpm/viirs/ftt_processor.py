@@ -60,11 +60,11 @@ def proc_params():
     d = {}
 
     d['full_plume'] = True
-    d['plot'] = True
+    d['plot'] = False
 
     d['resampled_pix_size'] = 750  # size of UTM grid in meters
-    d['frp_df'] = ut.read_frp_df(fp.path_to_himawari_frp)
-    #d['frp_df'] = None
+    #d['frp_df'] = ut.read_frp_df(fp.path_to_himawari_frp)
+    d['frp_df'] = None
     d['plume_df'] = ut.read_plume_polygons(fp.path_to_smoke_plume_polygons_viirs_csv)
 
     geo_file = fp.root_path + '/processed/himawari/Himawari_lat_lon.img'
@@ -256,7 +256,7 @@ def process_plume_full(t1, t2, pp, plume_data_utm, plume_geom_utm, plume_geom_ge
     bg_aod_dict = tt.extract_bg_aod(plume_data_utm, plume_geom_geo['background_mask'])
 
     # compute tpm
-    out_dict = tt.compute_tpm_full(plume_data_utm, plume_geom_utm, plume_geom_geo, bg_aod_dict, plume_logging_path)
+    out_dict = tt.compute_tpm_full(plume_data_utm, plume_geom_utm, plume_geom_geo, bg_aod_dict, plume_logging_path, pp)
     out_dict['plume_number'] = p_number
 
     # compute fre

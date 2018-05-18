@@ -27,7 +27,7 @@ def extract_best_mean_aod_subplume(d,
                           plume_mask,
                           bg_aod_dict,
                           logging_path,
-                          plot=True):
+                          pp):
 
     # first redifine the plume mask to be those pixels that are: (not background | failed
     # retrievals (here assumed  due to high AOD and not cloud) ) & are plume_mask
@@ -35,7 +35,7 @@ def extract_best_mean_aod_subplume(d,
     aod_mask = plume_data_utm['viirs_aod_utm_plume'] > bg_aod_dict['mean_bg_aod'] + 3*bg_aod_dict['std_bg_aod']
     updated_plume_mask = plume_mask & (flag_mask | aod_mask)
 
-    if plot:
+    if pp['plot']:
         plt.imshow(np.ma.masked_array(plume_data_utm['viirs_aod_utm_plume'], ~updated_plume_mask), vmin=0, vmax=2)
         plt.colorbar()
         plt.savefig(os.path.join(logging_path, 'viirs_sub_plume_aod.png'))
@@ -119,7 +119,7 @@ def extract_best_mean_aod_subplume(d,
 def extract_combined_aod_full_plume(plume_data_utm,
                                     plume_mask,
                                     logging_path,
-                                    plot=True):
+                                    pp):
 
     # combine plume mask with VIIRS good and ORAC good
     viirs_good = plume_data_utm['viirs_flag_utm_plume'] <= 1
@@ -127,10 +127,12 @@ def extract_combined_aod_full_plume(plume_data_utm,
     viirs_plume_mask = plume_mask & viirs_good  # viirs contribtuion
     orac_plume_mask = plume_mask & (orac_good & ~viirs_good)  # ORAC contribution
 
-    if plot:
-        combined = np.zeros(viirs_plume_mask.shape) - 999
-        combined[orac_plume_mask] = plume_data_utm['orac_aod_utm_plume'][orac_plume_mask]
-        combined[viirs_plume_mask] = plume_data_utm['viirs_aod_utm_plume'][viirs_plume_mask]
+    # make combine product
+    combined = np.zeros(viirs_plume_mask.shape) - 999
+    combined[orac_plume_mask] = plume_data_utm['orac_aod_utm_plume'][orac_plume_mask]
+    combined[viirs_plume_mask] = plume_data_utm['viirs_aod_utm_plume'][viirs_plume_mask]
+
+    if pp['plot']:
         mask = combined == -999
         plt.imshow(np.ma.masked_array(combined, mask), vmin=0, vmax=2)
         plt.colorbar()
@@ -170,7 +172,7 @@ def extract_bg_aod(plume_data_utm, mask):
              'bg_type': typ}
 
 
-def interp_aod(aod, plume_mask, logging_path, plot=True):
+def interp_aod(aod, plume_mask, logging_path, pp):
     '''
     Interpolate using a radial basis function.  See models
     that shows thta this is the best approach.
@@ -189,7 +191,7 @@ def interp_aod(aod, plume_mask, logging_path, plot=True):
 
     aod[~good_mask] = interpolated_aod[~good_mask]
 
-    if plot:
+    if pp['plot']:
         plt.imshow(np.ma.masked_array(aod, ~plume_mask), vmin=0, vmax=2)
         plt.colorbar()
         plt.savefig(os.path.join(logging_path, 'combined_aod_interpolated.png'))
@@ -237,7 +239,7 @@ def compute_tpm_subset(plume_data_utm,
         return d
 
 
-def compute_tpm_full(plume_data_utm, plume_geom_utm, plume_geom_geo, bg_aod_dict, plume_logging_path):
+def compute_tpm_full(plume_data_utm, plume_geom_utm, plume_geom_geo, bg_aod_dict, plume_logging_path, pp):
 
     d = {}
 
@@ -253,23 +255,29 @@ def compute_tpm_full(plume_data_utm, plume_geom_utm, plume_geom_geo, bg_aod_dict
         d['plume_area_total'] = plume_geom_utm['utm_plume_polygon'].area
 
         # extract mean ORAC plume AOD using plume mask
-        combined_aod_list, comibined_aod_image = extract_combined_aod_full_plume(plume_data_utm,
+        combined_aod_list, combined_aod_image = extract_combined_aod_full_plume(plume_data_utm,
                                                                                  plume_geom_geo['plume_mask'],
-                                                                                 plume_logging_path)
+                                                                                 plume_logging_path, pp)
 
         # create interpolated aod from image
-        interpolated_aod = interp_aod(comibined_aod_image, plume_geom_geo['plume_mask'], plume_logging_path)
+        interpolated_aod = interp_aod(combined_aod_image, plume_geom_geo['plume_mask'], plume_logging_path, pp)
 
         # subtract mean background AOD from plume AODs and then take the mean.
         # Another approach would be to sum the above background AOD.  But we are missing
         # some retrieval pixels, so this will lead to a bias, as not retrieved pixels will
         # likely have raised AOD, but are not observed, so wont be considered in any sum.
         # taking the mean, we can account for these pixels in the next step.
-        d['mean_plume_aod_bg_adjusted'] = np.mean(combined_aod_list - d['mean_bg_aod'])
-        d['summed_plume_aod_bg_adjusted'] = np.sum(combined_aod_list - d['mean_bg_aod'])
-        d['std_plume_aod_bg_adjusted'] = np.std(combined_aod_list - d['mean_bg_aod'])
-        d['mean_interpolated_plume_aod_adjusted'] = np.mean(interpolated_aod - d['mean_bg_aod'])
-        d['summed_interpolated_plume_aod_adjusted'] = np.sum(interpolated_aod - d['mean_bg_aod'])
+        combined_aod_diff = combined_aod_list - d['mean_bg_aod']
+        combined_aod_diff[combined_aod_diff < 0] = 0
+
+        interpolated_aod_diff = interpolated_aod - d['mean_bg_aod']
+        interpolated_aod_diff[interpolated_aod_diff < 0] = 0
+
+        d['mean_plume_aod_bg_adjusted'] = np.mean(combined_aod_diff)
+        d['summed_plume_aod_bg_adjusted'] = np.sum(combined_aod_diff)
+        d['std_plume_aod_bg_adjusted'] = np.std(combined_aod_diff)
+        d['mean_interpolated_plume_aod_adjusted'] = np.mean(interpolated_aod_diff)
+        d['summed_interpolated_plume_aod_adjusted'] = np.sum(interpolated_aod_diff)
 
 
         # convert to mean PM using conversion factor

@@ -86,6 +86,7 @@ path_to_rf_model = root_path + 'models/rf_model_64_trees.pickle'
 path_to_orac_visuals = root_path + 'visualisations/orac/'
 path_to_plume_tracking_visualisations_viirs = root_path + 'visualisations/viirs/plume_tracking/'
 path_to_plume_tracking_visualisations_modis = root_path + 'visualisations/modis/plume_tracking/'
+path_to_aeronet_visuals = os.path.join(root_path, 'visualisations/aeronet/')
 
 # filelist paths
 path_to_filelists = root_path + 'filelists/'
