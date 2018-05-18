@@ -6,9 +6,10 @@ import glob
 import h5py
 import numpy as np
 import scipy.misc as misc
-from datetime import datetime
+from datetime import datetime, timedelta
 from netCDF4 import Dataset
 from shapely.geometry import Point
+import pandas as pd
 
 import src.config.filepaths as fp
 import src.features.fre_to_tpm.viirs.ftt_utils as ut
@@ -75,7 +76,7 @@ def image_histogram_equalization(image, number_bins=256):
     return image_equalized.reshape(image.shape)
 
 
-def fire_positions(fires, resampled_lats, resampled_lons):
+def get_image_coords(fires, resampled_lats, resampled_lons):
     inverse_lats = resampled_lats * -1  # invert lats for correct indexing
 
     y_size, x_size = resampled_lats.shape
@@ -117,7 +118,76 @@ def fire_positions(fires, resampled_lats, resampled_lons):
     return y_coords, x_coords
 
 
-def tcc_viirs(viirs_data, fires, peat_mask, aeronet_stations, resampler):
+def get_arcmin(x):
+    '''
+    rounds the data decimal fraction of a degree
+    to the nearest arc minute
+    '''
+    neg_values = x < 0
+
+    abs_x = np.abs(x)
+    floor_x = np.floor(abs_x)
+    decile = abs_x - floor_x
+    minute = np.around(decile * 60)  # round to nearest arcmin
+    minute_fraction = minute * 0.01  # convert to fractional value (ranges from 0 to 0.6)
+
+    max_minute = minute_fraction > 0.59
+
+    floor_x[neg_values] *= -1
+    floor_x[neg_values] -= minute_fraction[neg_values]
+    floor_x[~neg_values] += minute_fraction[~neg_values]
+
+    # deal with edge cases, and just round them all up
+    if np.sum(max_minute) > 0:
+        floor_x[max_minute] = np.around(floor_x[max_minute])
+
+    # now to get rid of rounding errors and allow comparison multiply by 100 and convert to int
+    floor_x = (floor_x * 100).astype(int)
+
+    # round now to nearest 2 arcmin
+    #floor_x = myround(floor_x, base=3)
+
+    return floor_x
+
+
+def myround(x, dec=20, base=.000005):
+    return np.round(base * np.round(x / base), dec)
+
+
+def fire_sampling(frp_df, time_stamp):
+
+    # restrict to only fires within one hour of the overpass
+    stop_time = time_stamp
+    start_time = time_stamp - timedelta(minutes=70)
+    frp_subset = ff.temporal_subset(frp_df, start_time, stop_time)
+    frp_subset['occurrences'] = 1
+    frp_subset['lons'] = [l.xy[0][0] for l in frp_subset.point.values]
+    frp_subset['lats'] = [l.xy[1][0] for l in frp_subset.point.values]
+
+    # round lats and lons to nearest arcminute
+    frp_subset['lons_arcmin'] = get_arcmin(frp_subset['lons'].values)
+    frp_subset['lats_arcmin'] = get_arcmin(frp_subset['lats'].values)
+
+    # find all unique fire locations and count occurences
+    agg_dict = {'occurrences': np.sum}
+    grouped = frp_subset.groupby(['lons_arcmin', 'lats_arcmin'], as_index=False).agg(agg_dict)
+
+    # get the point values back in the df
+    points = frp_subset[['lats_arcmin', 'lons_arcmin', 'point']]
+    points.drop_duplicates(['lats_arcmin', 'lons_arcmin'], inplace=True)
+    grouped = pd.merge(grouped, points, on=['lats_arcmin', 'lons_arcmin'])
+
+    return grouped
+
+
+def fires_for_occurrence_level(frp_df, occurrences):
+
+    # find and return fires with at least given number of occurence
+    mask = frp_df.occurrences >= occurrences
+    return frp_df[mask]
+
+
+def tcc_viirs(viirs_data, fires_for_day, peat_mask, aeronet_stations, resampler, viirs_overpass_time):
     # m1_params = viirs_data['All_Data']['VIIRS-M1-SDR_All']['RadianceFactors']
     m1 = viirs_data['All_Data']['VIIRS-M1-SDR_All']['Radiance'][:]
     # m4_params = viirs_data['All_Data']['VIIRS-M1-SDR_All']['RadianceFactors']
@@ -149,23 +219,33 @@ def tcc_viirs(viirs_data, fires, peat_mask, aeronet_stations, resampler):
 
     # blend the mask and the image
     blend_ratio = 0.3
-    color_mask = np.dstack((peat_mask * 205, peat_mask * 74, peat_mask * 74))
+    colour_mask = np.dstack((peat_mask * 205, peat_mask * 74, peat_mask * 74))
     for i in xrange(rgb.shape[2]):
-        rgb[:, :, i] = blend_ratio * color_mask[:, :, i] + (1 - blend_ratio) * rgb[:, :, i]
+        rgb[:, :, i] = blend_ratio * colour_mask[:, :, i] + (1 - blend_ratio) * rgb[:, :, i]
 
-    fy, fx = fire_positions(fires, resampled_lats, resampled_lons)
-    if fy:
-        rgb[fy, fx, 0] = 255
-        rgb[fy, fx, 1] = 0
-        rgb[fy, fx, 2] = 0
+    # insert fires with colours based on sampling
+    fire_occurrence_df = fire_sampling(fires_for_day, viirs_overpass_time)
+    occurrences = [1, 3, 5, 6]  # number of himawari images fire is present in prior to overpass
+    colour_sets = [[127, 76, 76], [255, 0, 0], [253, 106, 2], [0, 255, 0]]  # red/gray, red, orange, green
+    for occurrence, colours in zip(occurrences, colour_sets):
+
+        fires_with_occurrence = fires_for_occurrence_level(fire_occurrence_df, occurrence)
+
+        if not fires_with_occurrence.empty:
+            fy, fx = get_image_coords(fires_with_occurrence.point.values,
+                                      resampled_lats, resampled_lons)
+            if fy:
+                rgb[fy, fx, 0] = colours[0]
+                rgb[fy, fx, 1] = colours[1]
+                rgb[fy, fx, 2] = colours[2]
 
     # insert aeronet stations
-    fy, fx = fire_positions(aeronet_stations, resampled_lats, resampled_lons)
+    fy, fx = get_image_coords(aeronet_stations, resampled_lats, resampled_lons)
     if fy:
         for x, y in zip(fx, fy):
             rgb[y-2:y+3, x-2:x+3, 0] = 0
             rgb[y-2:y+3, x-2:x+3, 1] = 255
-            rgb[y-2:y+3, x-2:x+3, 2] = 0
+            rgb[y-2:y+3, x-2:x+3, 2] = 255
 
     return rgb
 
@@ -313,9 +393,9 @@ def main():
             t = datetime.strptime(timestamp_viirs, 'd%Y%m%d_t%H%M%S')
 
             peat_mask = get_peat_mask(peat_map_dict, utm_resampler)
-            fires = ff.fire_locations_for_digitisation(frp_df, t)
+            fires_for_day = ff.fire_locations_for_digitisation(frp_df, t)
             aeronet_stations = get_aeronet()
-            tcc = tcc_viirs(viirs_sdr, fires, peat_mask, aeronet_stations, utm_resampler)
+            tcc = tcc_viirs(viirs_sdr, fires_for_day, peat_mask, aeronet_stations, utm_resampler, t)
             misc.imsave(os.path.join(fp.path_to_viirs_sdr_resampled, viirs_sdr_fname.replace('h5', 'png')), tcc)
         except Exception, e:
             logger.warning('Could make image for file: ' + viirs_sdr_fname + '. Failed with ' + str(e))
