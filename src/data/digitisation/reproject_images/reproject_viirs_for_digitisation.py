@@ -216,12 +216,13 @@ def tcc_viirs(viirs_data, fires_for_day, peat_mask, aeronet_stations, resampler,
     b = np.round((b * (255 / np.max(b))) * 1).astype('uint8')
 
     rgb = np.dstack((r, g, b))
+    rgb_peat = rgb.copy()
 
     # blend the mask and the image
     blend_ratio = 0.3
     colour_mask = np.dstack((peat_mask * 205, peat_mask * 74, peat_mask * 74))
-    for i in xrange(rgb.shape[2]):
-        rgb[:, :, i] = blend_ratio * colour_mask[:, :, i] + (1 - blend_ratio) * rgb[:, :, i]
+    for i in xrange(rgb_peat.shape[2]):
+        rgb_peat[:, :, i] = blend_ratio * colour_mask[:, :, i] + (1 - blend_ratio) * rgb_peat[:, :, i]
 
     # insert fires with colours based on sampling
     fire_occurrence_df = fire_sampling(fires_for_day, viirs_overpass_time)
@@ -239,6 +240,10 @@ def tcc_viirs(viirs_data, fires_for_day, peat_mask, aeronet_stations, resampler,
                 rgb[fy, fx, 1] = colours[1]
                 rgb[fy, fx, 2] = colours[2]
 
+                rgb_peat[fy, fx, 0] = colours[0]
+                rgb_peat[fy, fx, 1] = colours[1]
+                rgb_peat[fy, fx, 2] = colours[2]
+
     # insert aeronet stations
     fy, fx = get_image_coords(aeronet_stations, resampled_lats, resampled_lons)
     if fy:
@@ -247,7 +252,11 @@ def tcc_viirs(viirs_data, fires_for_day, peat_mask, aeronet_stations, resampler,
             rgb[y-2:y+3, x-2:x+3, 1] = 255
             rgb[y-2:y+3, x-2:x+3, 2] = 255
 
-    return rgb
+            rgb_peat[y - 2:y + 3, x - 2:x + 3, 0] = 0
+            rgb_peat[y - 2:y + 3, x - 2:x + 3, 1] = 255
+            rgb_peat[y - 2:y + 3, x - 2:x + 3, 2] = 255
+
+    return rgb, rgb_peat
 
 
 def extract_aod(viirs_aod, resampler):
@@ -395,8 +404,10 @@ def main():
             peat_mask = get_peat_mask(peat_map_dict, utm_resampler)
             fires_for_day = ff.fire_locations_for_digitisation(frp_df, t)
             aeronet_stations = get_aeronet()
-            tcc = tcc_viirs(viirs_sdr, fires_for_day, peat_mask, aeronet_stations, utm_resampler, t)
+            tcc, tcc_peat = tcc_viirs(viirs_sdr, fires_for_day, peat_mask, aeronet_stations, utm_resampler, t)
             misc.imsave(os.path.join(fp.path_to_viirs_sdr_resampled, viirs_sdr_fname.replace('h5', 'png')), tcc)
+            misc.imsave(os.path.join(fp.path_to_viirs_sdr_resampled,
+                                     viirs_sdr_fname.replace('.h5', '_peat.png')), tcc_peat)
         except Exception, e:
             logger.warning('Could make image for file: ' + viirs_sdr_fname + '. Failed with ' + str(e))
 
