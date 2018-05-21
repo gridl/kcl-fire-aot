@@ -522,3 +522,142 @@ def find_flow(p_number, plume_logging_path, plume_geom_utm, plume_geom_geo, pp, 
 
     # return the projected flow means in UTM coords, and the list of himawari filenames asspocated with the flows
     return projected_flow_means[:i + 1], geostationary_fnames[:i + 1], t1, t2
+
+
+def find_flow_simplified(p_number, plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
+
+    '''
+
+    This method make various simplifications versus the old plume tracking approach.
+    The main simplification is that it is now assumed that the wind is blowing in the
+    same direction for time period.  The flow magnitude is then assumed to be in the direction
+    of the plume.  This means that we just need to calculate the mean flow magnitude across a set
+    of himawari images and take thier mean.  Using this to calculate how lon it takes to produce
+    the flow.
+    '''
+
+    # get the utm plume vector and compute its length.  This will
+    # be used to check when we hae reached the full length of the plume
+    plume_head, plume_tail, vector = compute_plume_vector(plume_geom_utm['utm_plume_vector'])
+    plume_length = np.linalg.norm(vector)  # plume length in metres that we want to reach
+
+    # get bounding box around smoke plume in geostationary imager coordinates
+    # and extract the geographic coordinates for the roi, also set up plot stuff
+    bbox = spatial_subset(plume_geom_geo['plume_lats'], plume_geom_geo['plume_lons'],
+                          pp['geostationary_lats'], pp['geostationary_lons'])
+
+    geostationary_lats_subset, geostationary_lons_subset = subset_geograpic_data(pp['geostationary_lats'],
+                                                                                 pp['geostationary_lons'],
+                                                                                 bbox)
+
+    # himwari images are split into segments of 1100 pixels in the latitudinal direction.
+    # Find the segment which corresponds to the bounding box, also adjust bounding box for segment.
+    min_image_segment = find_min_himawari_image_segment(bbox)
+    adjust_bb_for_segment(bbox, min_image_segment - 1)
+
+    # find the relevant himawari images for the VIIRS overpass
+    plume_time = get_plume_time(timestamp)
+    geostationary_fnames = setup_geostationary_files(plume_time, min_image_segment)
+
+    # set up feature detector
+    fast = cv2.FastFeatureDetector_create(threshold=constants.fast_threshold)
+
+    if pp['plot']:
+        fires = []
+
+    # set up iteration variables
+    flow_means, flow_sds, projected_flow_means = np.zeros([72, 2]), np.zeros([72, 2]), np.zeros([72, 2])
+    flow_nobs, flow_update, projected_flow_magnitude = np.zeros([72]), np.zeros([72]), np.zeros(72)
+    tracks = []
+    current_vector = vector.copy()
+
+    # iterate over geostationary files
+    for i, fname in enumerate(geostationary_fnames):
+
+        # setup imagery for tracking, only reproject both images if we are on the
+        # first iteration, else just reassign and reproject most recent.  They are
+        # reprojected to the plume so will have the same resolution as the plume resample
+        if i == 0:
+            f1_subset, f1_display_subset = extract_observation(geostationary_fnames[i], bbox, min_image_segment)
+            f2_subset, f2_display_subset = extract_observation(geostationary_fnames[i + 1], bbox, min_image_segment)
+
+            # subset to the plume
+            f1_subset_reproj = plume_geom_utm['utm_resampler_plume'].resample_image(f1_subset,
+                                                                                 geostationary_lats_subset,
+                                                                                 geostationary_lons_subset)
+            f2_subset_reproj = plume_geom_utm['utm_resampler_plume'].resample_image(f2_subset,
+                                                                                 geostationary_lats_subset,
+                                                                                 geostationary_lons_subset)
+        else:
+            f1_subset_reproj, f1_display_subset = f2_subset_reproj, f2_display_subset
+            f2_subset, f2_display_subset = extract_observation(geostationary_fnames[i + 1], bbox, min_image_segment)
+
+            # subset to the plume
+            f2_subset_reproj = plume_geom_utm['utm_resampler_plume'].resample_image(f2_subset,
+                                                                                 geostationary_lats_subset,
+                                                                                 geostationary_lons_subset)
+
+        # if we are plotting do this stuff
+        if pp['plot'] & (i == 0):
+            plot_images = [plume_geom_utm['utm_resampler_plume'].resample_image(f1_display_subset,
+                                                                                geostationary_lats_subset,
+                                                                                geostationary_lons_subset)]
+            fnames = [geostationary_fnames[i]]
+        elif pp['plot']:
+            t = datetime.strptime(geostationary_fnames[i].split('/')[-1][7:20], '%Y%m%d_%H%M')
+            fires.append(ff.fire_locations_for_plume_roi(plume_geom_utm, pp['frp_df'], t))
+            plot_images.append(plume_geom_utm['utm_resampler_plume'].resample_image(f2_display_subset,
+                                                                                    geostationary_lats_subset,
+                                                                                    geostationary_lons_subset))
+            fnames.append(geostationary_fnames[i + 1])
+
+
+        # detect features and compute flow
+        feature_detector(fast, f2_subset_reproj, tracks)  # tracks updated inplace
+        tracks, flow = compute_flow(tracks, f2_subset_reproj, f1_subset_reproj)
+
+        # compute robust mean flow for plume and update current flow vector
+        assess_flow(flow, flow_means, flow_sds, flow_nobs, flow_update, tracks, i, current_vector,
+                    constants.utm_grid_size)
+        if (flow_means[i] != 0).any():
+            current_vector = flow_means[i, :]
+
+        # now project mean flow vector onto plume vector to get flow projected along plume direction
+        project_flow(vector, flow_means, projected_flow_means, projected_flow_magnitude, i)
+
+        # lets get the last hour of observations for the plume
+        # then break out of the iteration and compute some stats
+        if i == 5:
+
+            # if plotting do this stuff
+            if pp['plot']:
+                # also need to get the fires for the last scene
+                t = datetime.strptime(geostationary_fnames[i + 1].split('/')[-1][7:20], '%Y%m%d_%H%M')
+                fires.append(ff.fire_locations_for_plume_roi(plume_geom_utm, pp['frp_df'], t))
+
+            break
+
+    # plot plume
+    if pp['plot']:
+        vis.run_plot(plot_images, fires, flow_means, projected_flow_means,
+                     plume_head, plume_tail, plume_geom_utm['utm_plume_points'],
+                     plume_geom_utm['utm_resampler_plume'],
+                     plume_logging_path, fnames, i)
+
+    # compute the mean magnitude the plume
+    mean_magnitude_flow = np.linalg.norm(np.ma.masked_array(flow_means, flow_means == 0).mean(axis=0))
+
+    # use magnitude to estimate integration stop time (rounded to smallest 10 interval for himawari)
+    index = int(plume_length / mean_magnitude_flow)
+    t1 = datetime.strptime(geostationary_fnames[0].split('/')[-1][7:20], '%Y%m%d_%H%M')
+    t2 = datetime.strptime(geostationary_fnames[index].split('/')[-1][7:20], '%Y%m%d_%H%M')
+
+    # save tracking information
+    dump_tracking_data(index, flow_means, projected_flow_means, flow_sds,
+                       projected_flow_magnitude, flow_nobs, flow_update,
+                       geostationary_fnames, plume_logging_path, p_number)
+
+    # return the projected flow means in UTM coords, and the list of himawari filenames asspocated with the flows
+    return projected_flow_means[:i + 1], geostationary_fnames[:i + 1], t1, t2
+
+

@@ -53,7 +53,8 @@ path_to_landcover = root_path.replace(region, 'Global') + 'land_cover/ESACCI-LC-
 path_to_peat_maps = root_path + 'external/peat_maps'
 
 # resampled viirs for digitsing
-path_to_viirs_sdr_resampled = root_path + 'raw/viirs/selected_resampled/sdr/'
+path_to_viirs_sdr_resampled_peat = root_path + 'raw/viirs/selected_resampled/sdr/peat/'
+path_to_viirs_sdr_resampled_no_peat = root_path + 'raw/viirs/selected_resampled/sdr/no_peat/'
 path_to_viirs_aod_resampled = root_path + 'raw/viirs/selected_resampled/aod/'
 path_to_viirs_aod_flags_resampled = root_path + 'raw/viirs/selected_resampled/aod_flags/'
 path_to_viirs_orac_resampled = root_path + 'raw/viirs/selected_resampled/orac/'

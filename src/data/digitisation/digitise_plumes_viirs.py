@@ -121,9 +121,9 @@ class Annotate(object):
         # set up radio buttons
         self.axcolor = 'lightgoldenrodyellow'
 
-        self.rax_tracking = plt.axes([0.01, 0.9, 0.1, 0.15], facecolor=self.axcolor)
-        self.radio_tracking = RadioButtons(self.rax_tracking, ('Tracked', 'Untracked'))
-        self.radio_tracking.on_clicked(self.tracking_func)
+        self.rax_peat = plt.axes([0.01, 0.9, 0.1, 0.15], facecolor=self.axcolor)
+        self.radio_peat = RadioButtons(self.rax_peat, ('Peat', 'Not'))
+        self.radio_peat.on_clicked(self.peat_func)
 
         self.rax_digitise = plt.axes([0.01, 0.7, 0.1, 0.15], facecolor=self.axcolor)
         self.radio_disitise = RadioButtons(self.rax_digitise, ('Digitise', 'Stop'))
@@ -176,8 +176,8 @@ class Annotate(object):
         label_mapping['TCC'] = self.tcc
         return label_mapping
 
-    def tracking_func(self, label):
-        anno_dict = {'Tracked': True, 'Untracked': False}
+    def peat_func(self, label):
+        anno_dict = {'Peat': True, 'Not': False}
         self.tracking = anno_dict[label]
 
     def annotation_func(self, label):
@@ -319,7 +319,7 @@ def main():
     """
     viirs_plume_df = load_df(filepaths.path_to_smoke_plume_polygons_viirs)
 
-    for viirs_sdr_fname in os.listdir(filepaths.path_to_viirs_sdr_resampled):
+    for viirs_sdr_fname in os.listdir(filepaths.path_to_viirs_sdr_resampled_peat):
 
         logger.info("Processing viirs file: " + viirs_sdr_fname)
 
@@ -350,7 +350,7 @@ def main():
         # load in the data
 
         try:
-            tcc = load_image(os.path.join(filepaths.path_to_viirs_sdr_resampled, viirs_sdr_fname))
+            tcc = load_image(os.path.join(filepaths.path_to_viirs_sdr_resampled_peat, viirs_sdr_fname))
 
         except Exception, e:
             logger.warning('Could not read the input file: ' + viirs_sdr_fname + '. Failed with ' + str(e))
@@ -373,6 +373,7 @@ def main():
             except Exception, e:
                 logger.warning('Could not read aod file: ' + aod_fname + ' error: ' + str(e))
         if viirs_aod is None:
+            logger.info('no viirs aod file for sdr: ' + viirs_sdr_fname + ' continuing')
             continue
 
         orac_aod = None
@@ -392,6 +393,7 @@ def main():
             except Exception, e:
                 logger.warning('Could not read aod file: ' + orac_fname + ' error: ' + str(e))
         if orac_aod is None:
+            logger.info('no orac aod file for sdr: ' + viirs_sdr_fname + ' continuing')
             continue
 
         # do the digitising
@@ -402,6 +404,7 @@ def main():
                                                                                 orac_cost,
                                                                                 viirs_sdr_fname)
         if plume_polygons is None:
+            logger.info('no polygons for sdr: ' + viirs_sdr_fname + ' continuing')
             continue
 
         # process plumes and backgrounds

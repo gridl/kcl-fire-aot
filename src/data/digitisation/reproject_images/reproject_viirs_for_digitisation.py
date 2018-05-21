@@ -10,6 +10,8 @@ from datetime import datetime, timedelta
 from netCDF4 import Dataset
 from shapely.geometry import Point
 import pandas as pd
+import matplotlib.pyplot as plt
+import cartopy.crs as ccrs
 
 import src.config.filepaths as fp
 import src.features.fre_to_tpm.viirs.ftt_utils as ut
@@ -87,7 +89,7 @@ def get_image_coords(fires, resampled_lats, resampled_lons):
     min_lon = np.min(resampled_lons)
     range_lon = np.max(resampled_lons[resampled_lons < 1000]) - min_lon
 
-    padding = 10
+    padding = 60
 
     x_coords = []
     y_coords = []
@@ -195,6 +197,7 @@ def tcc_viirs(viirs_data, fires_for_day, peat_mask, aeronet_stations, resampler,
     # m5_params = viirs_data['All_Data']['VIIRS-M1-SDR_All']['RadianceFactors']
     m5 = viirs_data['All_Data']['VIIRS-M5-SDR_All']['Radiance'][:]
 
+
     mask = m5 < 0
     masked_lats = np.ma.masked_array(resampler.lats, mask)
     masked_lons = np.ma.masked_array(resampler.lons, mask)
@@ -243,6 +246,7 @@ def tcc_viirs(viirs_data, fires_for_day, peat_mask, aeronet_stations, resampler,
                 rgb_peat[fy, fx, 0] = colours[0]
                 rgb_peat[fy, fx, 1] = colours[1]
                 rgb_peat[fy, fx, 2] = colours[2]
+
 
     # insert aeronet stations
     fy, fx = get_image_coords(aeronet_stations, resampled_lats, resampled_lons)
@@ -338,6 +342,7 @@ def get_aeronet():
 def main():
     # load in himawari fires for visualisation
     frp_df = ut.read_frp_df(fp.path_to_himawari_frp)
+    #frp_df = None
 
     # load in the peat maps
     peat_map_dict = {}
@@ -349,7 +354,7 @@ def main():
     for viirs_sdr_fname in os.listdir(fp.path_to_viirs_sdr):
 
         if os.path.isfile(os.path.join(
-                fp.path_to_viirs_sdr_resampled, viirs_sdr_fname.replace('h5', 'png'))):
+                fp.path_to_viirs_sdr_resampled_no_peat, viirs_sdr_fname.replace('h5', 'png'))):
             print viirs_sdr_fname, 'already resampled'
             continue
 
@@ -403,10 +408,11 @@ def main():
 
             peat_mask = get_peat_mask(peat_map_dict, utm_resampler)
             fires_for_day = ff.fire_locations_for_digitisation(frp_df, t)
+            #fires_for_day = None
             aeronet_stations = get_aeronet()
             tcc, tcc_peat = tcc_viirs(viirs_sdr, fires_for_day, peat_mask, aeronet_stations, utm_resampler, t)
-            misc.imsave(os.path.join(fp.path_to_viirs_sdr_resampled, viirs_sdr_fname.replace('h5', 'png')), tcc)
-            misc.imsave(os.path.join(fp.path_to_viirs_sdr_resampled,
+            misc.imsave(os.path.join(fp.path_to_viirs_sdr_resampled_no_peat, viirs_sdr_fname.replace('h5', 'png')), tcc)
+            misc.imsave(os.path.join(fp.path_to_viirs_sdr_resampled_peat,
                                      viirs_sdr_fname.replace('.h5', '_peat.png')), tcc_peat)
         except Exception, e:
             logger.warning('Could make image for file: ' + viirs_sdr_fname + '. Failed with ' + str(e))

@@ -60,11 +60,11 @@ def proc_params():
     d = {}
 
     d['full_plume'] = True
-    d['plot'] = False
+    d['plot'] = True
 
     d['resampled_pix_size'] = 750  # size of UTM grid in meters
-    #d['frp_df'] = ut.read_frp_df(fp.path_to_himawari_frp)
-    d['frp_df'] = None
+    d['frp_df'] = ut.read_frp_df(fp.path_to_himawari_frp)
+    #d['frp_df'] = None
     d['plume_df'] = ut.read_plume_polygons(fp.path_to_smoke_plume_polygons_viirs_csv)
 
     geo_file = fp.root_path + '/processed/himawari/Himawari_lat_lon.img'
@@ -92,7 +92,7 @@ def resample_satellite_datasets(plume, current_timestamp, pp):
         viirs_aod_data = ut.load_viirs(fp.path_to_viirs_aod, current_timestamp, plume.filename)
         orac_aod_data = ut.load_orac(fp.path_to_viirs_orac, current_timestamp)
         if pp['plot']:
-            d['viirs_png_utm'] = misc.imread(os.path.join(fp.path_to_viirs_sdr_resampled, plume.filename))
+            d['viirs_png_utm'] = misc.imread(os.path.join(fp.path_to_viirs_sdr_resampled_peat, plume.filename))
     except Exception, e:
         logger.info('Could not load AOD data with error: ' + str(e))
         return None
@@ -302,7 +302,7 @@ def main():
 
         # get the plume sub polygons / start stop times based on the wind speed
         try:
-            utm_flow_means, geostationary_fnames, t1, t2 = pt.find_flow(p_number, plume_logging_path,
+            utm_flow_means, geostationary_fnames, t1, t2 = pt.find_flow_simplified(p_number, plume_logging_path,
                                                                         plume_geom_utm,
                                                                         plume_geom_geo,
                                                                         pp,
