@@ -63,8 +63,8 @@ def proc_params():
     d['plot'] = True
 
     d['resampled_pix_size'] = 750  # size of UTM grid in meters
-    d['frp_df'] = ut.read_frp_df(fp.path_to_himawari_frp)
-    #d['frp_df'] = None
+    #d['frp_df'] = ut.read_frp_df(fp.path_to_himawari_frp)
+    d['frp_df'] = None
     d['plume_df'] = ut.read_plume_polygons(fp.path_to_smoke_plume_polygons_viirs_csv)
 
     geo_file = fp.root_path + '/processed/himawari/Himawari_lat_lon.img'
@@ -300,25 +300,24 @@ def main():
         # Reproject plume shapely objects to UTM
         plume_geom_utm = resample_plume_geom_to_utm(plume_geom_geo)
 
-        # get the plume sub polygons / start stop times based on the wind speed
-        try:
-            utm_flow_means, geostationary_fnames, t1, t2 = pt.find_flow_simplified(p_number, plume_logging_path,
-                                                                        plume_geom_utm,
-                                                                        plume_geom_geo,
-                                                                        pp,
-                                                                        current_timestamp)
-        except Exception, e:
-            logger.error(str(e))
-            continue
+        # # get the plume sub polygons / start stop times based on the wind speed
+        # try:
+        #     utm_flow_means, geostationary_fnames, t1, t2 = pt.find_flow_simplified(p_number, plume_logging_path,
+        #                                                                 plume_geom_utm,
+        #                                                                 plume_geom_geo,
+        #                                                                 pp,
+        #                                                                 current_timestamp)
+        # except Exception, e:
+        #     logger.error(str(e))
+        #     continue
 
-        # now one of two processing options full plume or subsets
-        if pp['full_plume']:
-            process_plume_full(t1, t2, pp, plume_data_utm, plume_geom_utm, plume_geom_geo, plume_logging_path,
-                               p_number, df_list)
-        else:
-            process_plume_subsets(utm_flow_means, geostationary_fnames, plume_logging_path, plume_geom_geo,
-                          plume, plume_geom_utm, pp, plume_data_utm, p_number, current_timestamp,
-                          df_list)
+        # load in times for plume number
+        t1, t2 = [], []
+
+
+        process_plume_full(t1, t2, pp, plume_data_utm, plume_geom_utm, plume_geom_geo, plume_logging_path,
+                           p_number, df_list)
+
 
     # dump data to csv via df
     df = pd.concat(df_list)

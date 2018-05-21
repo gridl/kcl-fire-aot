@@ -208,7 +208,7 @@ def run_plot(plot_images, fires, flow_means, projected_flow_means,
                              plume_logging_path,
                              fnames[0].split('/')[-1].split('.')[0] + '_subset.jpg')
 
-    for obs in np.arange(i + 1):
+    for obs in np.arange(i-1):
         utm_flow_vectors += [utm_plume_projected_flow_vectors[-1] + flow_means[obs]]
         utm_plume_projected_flow_vectors += [utm_plume_projected_flow_vectors[-1] + projected_flow_means[obs]]
         display_masked_map(plot_images[obs+1],
