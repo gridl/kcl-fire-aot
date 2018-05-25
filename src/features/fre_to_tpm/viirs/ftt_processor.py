@@ -4,6 +4,7 @@ import os
 import numpy as np
 import pandas as pd
 import scipy.misc as misc
+from datetime import datetime
 
 import src.features.fre_to_tpm.viirs.ftt_fre as ff
 import src.features.fre_to_tpm.viirs.ftt_plume_tracking as pt
@@ -14,7 +15,6 @@ import src.config.constants as constants
 import src.data.readers.load_hrit as load_hrit
 import src.features.fre_to_tpm.viirs.ftt_tpm as tt
 import src.visualization.ftt_visualiser as vis
-
 
 log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=log_fmt)
@@ -63,8 +63,8 @@ def proc_params():
     d['plot'] = True
 
     d['resampled_pix_size'] = 750  # size of UTM grid in meters
-    #d['frp_df'] = ut.read_frp_df(fp.path_to_himawari_frp)
-    d['frp_df'] = None
+    d['frp_df'] = ut.read_frp_df(fp.path_to_himawari_frp)
+    #d['frp_df'] = None
     d['plume_df'] = ut.read_plume_polygons(fp.path_to_smoke_plume_polygons_viirs_csv)
 
     geo_file = fp.root_path + '/processed/himawari/Himawari_lat_lon.img'
@@ -74,6 +74,73 @@ def proc_params():
 
     d['output_path'] = os.path.join(fp.path_to_frp_tpm_features, 'model_features_viirs_full_plumes.csv')
     d['df_list'] = []
+
+    d['t_start_stop'] = {0: [datetime.strptime('20150706_0600', '%Y%m%d_%H%M'),
+                             datetime.strptime('20150706_0510', '%Y%m%d_%H%M')],
+                         1: [datetime.strptime('20150706_0600', '%Y%m%d_%H%M'),
+                             datetime.strptime('20150706_0520', '%Y%m%d_%H%M')],
+                         2: [datetime.strptime('20150706_0600', '%Y%m%d_%H%M'),
+                             datetime.strptime('20150706_0530', '%Y%m%d_%H%M')],
+                         3: [datetime.strptime('20150807_0600', '%Y%m%d_%H%M'),
+                             datetime.strptime('20150807_0510', '%Y%m%d_%H%M')],
+                         4: [datetime.strptime('20150807_0600', '%Y%m%d_%H%M'),
+                             datetime.strptime('20150807_0510', '%Y%m%d_%H%M')],
+                         5: [datetime.strptime('20150807_0600', '%Y%m%d_%H%M'),
+                             datetime.strptime('20150807_0530', '%Y%m%d_%H%M')],
+                         6: [datetime.strptime('20150814_0340', '%Y%m%d_%H%M'),
+                             datetime.strptime('20150814_0300', '%Y%m%d_%H%M')],
+                         7: [datetime.strptime('20150814_0340', '%Y%m%d_%H%M'),
+                             datetime.strptime('20150814_0240', '%Y%m%d_%H%M')],
+                         8: [datetime.strptime('20150902_0610', '%Y%m%d_%H%M'),
+                             datetime.strptime('20150902_0520', '%Y%m%d_%H%M')],
+                         9: [datetime.strptime('20150903_0410', '%Y%m%d_%H%M'),
+                             datetime.strptime('20150903_0330', '%Y%m%d_%H%M')],
+                         10: [datetime.strptime('20150908_0600', '%Y%m%d_%H%M'),
+                             datetime.strptime('20150908_0520', '%Y%m%d_%H%M')],
+                         11: [datetime.strptime('20150908_0600', '%Y%m%d_%H%M'),
+                             datetime.strptime('20150908_0500', '%Y%m%d_%H%M')],
+                         12: [datetime.strptime('20150909_0540', '%Y%m%d_%H%M'),
+                             datetime.strptime('20150909_0500', '%Y%m%d_%H%M')],
+                         13: [datetime.strptime('20150909_0540', '%Y%m%d_%H%M'),
+                             datetime.strptime('20150909_0450', '%Y%m%d_%H%M')],
+                         14: [datetime.strptime('20150909_0540', '%Y%m%d_%H%M'),
+                             datetime.strptime('20150909_0450', '%Y%m%d_%H%M')],
+                         15: [datetime.strptime('20150909_0540', '%Y%m%d_%H%M'),
+                             datetime.strptime('20150909_0500', '%Y%m%d_%H%M')],
+                         16: [datetime.strptime('20150909_0540', '%Y%m%d_%H%M'),
+                             datetime.strptime('20150909_0500', '%Y%m%d_%H%M')],
+                         17: [datetime.strptime('20150909_0540', '%Y%m%d_%H%M'),
+                             datetime.strptime('20150909_0520', '%Y%m%d_%H%M')],
+                         18: [datetime.strptime('20150909_0540', '%Y%m%d_%H%M'),
+                             datetime.strptime('20150909_0510', '%Y%m%d_%H%M')],
+                         19: [datetime.strptime('20150918_0610', '%Y%m%d_%H%M'),
+                             datetime.strptime('20150918_0540', '%Y%m%d_%H%M')],
+                         20: [datetime.strptime('20150918_0610', '%Y%m%d_%H%M'),
+                             datetime.strptime('20150918_0540', '%Y%m%d_%H%M')],
+                         21: [datetime.strptime('20150918_0610', '%Y%m%d_%H%M'),
+                             datetime.strptime('20150918_0520', '%Y%m%d_%H%M')],
+                         22: [datetime.strptime('20151002_0650', '%Y%m%d_%H%M'),
+                             datetime.strptime('20151002_0630', '%Y%m%d_%H%M')],
+                         23: [datetime.strptime('20151002_0650', '%Y%m%d_%H%M'),
+                             datetime.strptime('20151002_0610', '%Y%m%d_%H%M')],
+                         24: [datetime.strptime('20151003_0630', '%Y%m%d_%H%M'),
+                             datetime.strptime('20151003_0540', '%Y%m%d_%H%M')],
+                         25: [datetime.strptime('20151003_0630', '%Y%m%d_%H%M'),
+                             datetime.strptime('20151003_0550', '%Y%m%d_%H%M')],
+                         26: [datetime.strptime('20151004_0610', '%Y%m%d_%H%M'),
+                             datetime.strptime('20151004_0530', '%Y%m%d_%H%M')],
+                         27: [datetime.strptime('20151004_0610', '%Y%m%d_%H%M'),
+                             datetime.strptime('20151004_0520', '%Y%m%d_%H%M')],
+                         28: [datetime.strptime('20151004_0610', '%Y%m%d_%H%M'),
+                             datetime.strptime('20151004_0550', '%Y%m%d_%H%M')],
+                         29: [datetime.strptime('20151017_0340', '%Y%m%d_%H%M'),
+                             datetime.strptime('20151017_0250', '%Y%m%d_%H%M')],
+                         30: [datetime.strptime('20151017_0340', '%Y%m%d_%H%M'),
+                             datetime.strptime('20151017_0300', '%Y%m%d_%H%M')],
+                         31: [datetime.strptime('20151019_0630', '%Y%m%d_%H%M'),
+                             datetime.strptime('20151019_0530', '%Y%m%d_%H%M')],
+                         }
+
     return d
 
 
@@ -85,7 +152,6 @@ def create_logger_path(p_number):
 
 
 def resample_satellite_datasets(plume, current_timestamp, pp):
-
     d = {}
 
     try:
@@ -99,8 +165,8 @@ def resample_satellite_datasets(plume, current_timestamp, pp):
 
     # set up resampler
     utm_rs = ut.utm_resampler(orac_aod_data.variables['lat'][:],
-                                           orac_aod_data.variables['lon'][:],
-                                           constants.utm_grid_size)
+                              orac_aod_data.variables['lon'][:],
+                              constants.utm_grid_size)
 
     # get the mask for the lats and lons and apply
     orac_aod = ut.orac_aod(orac_aod_data)
@@ -132,7 +198,6 @@ def setup_plume_data(plume, ds_utm):
         # get plume polygon geographic data
         poly_lats, poly_lons = ut.extract_subset_geo_bounds(plume.plume_extent, d['plume_bounding_box'],
                                                             d['plume_lats'], d['plume_lons'])
-
 
         # get plume mask
         d['plume_mask'] = ut.construct_mask(plume.plume_extent, d['plume_bounding_box'])
@@ -183,7 +248,6 @@ def resample_plume_geom_to_utm(plume_geom_geo):
 def process_plume_subsets(utm_flow_means, geostationary_fnames, plume_logging_path, plume_geom_geo,
                           plume, plume_geom_utm, pp, plume_data_utm, p_number, current_timestamp,
                           df_list):
-
     # the flow is computed back in time from the most recent plume extent to the oldest.
     # We need to work out how much of the oldest plume extent is attributable to the
     # most recent part.  To do that, we use the flow speed from the oldest plume extent
@@ -195,7 +259,6 @@ def process_plume_subsets(utm_flow_means, geostationary_fnames, plume_logging_pa
     # contains the pixel positions that correspond to each himawari timestamp.
     plume_sub_polygons = ut.split_plume_polgons(utm_flow_means, plume_logging_path, plume,
                                                 plume_geom_geo, plume_geom_utm, pp)
-
 
     # get the variables of interest
     if plume_sub_polygons:
@@ -234,8 +297,8 @@ def process_plume_subsets(utm_flow_means, geostationary_fnames, plume_logging_pa
 
             # compute TPM
             out_dict = tt.compute_tpm_subset(plume_data_utm,
-                                      utm_sub_plume_polygon, sub_plume_mask, bg_aod_dict,
-                                      sub_plume_logging_path, pp)
+                                             utm_sub_plume_polygon, sub_plume_mask, bg_aod_dict,
+                                             sub_plume_logging_path, pp)
 
             out_dict['main_plume_number'] = p_number
             out_dict['sub_plume_number'] = sub_p_number
@@ -251,7 +314,6 @@ def process_plume_subsets(utm_flow_means, geostationary_fnames, plume_logging_pa
 
 def process_plume_full(t1, t2, pp, plume_data_utm, plume_geom_utm, plume_geom_geo, plume_logging_path, p_number,
                        df_list):
-
     # get background aod for sub plume
     bg_aod_dict = tt.extract_bg_aod(plume_data_utm, plume_geom_geo['background_mask'])
 
@@ -264,7 +326,6 @@ def process_plume_full(t1, t2, pp, plume_data_utm, plume_geom_utm, plume_geom_ge
 
     # convert datadict to dataframe and add to list
     df_list.append(pd.DataFrame(out_dict, index=['i', ]))
-
 
 
 def main():
@@ -312,12 +373,10 @@ def main():
         #     continue
 
         # load in times for plume number
-        t1, t2 = [], []
-
+        t1, t2 = pp['t_start_stop'][p_number]
 
         process_plume_full(t1, t2, pp, plume_data_utm, plume_geom_utm, plume_geom_geo, plume_logging_path,
                            p_number, df_list)
-
 
     # dump data to csv via df
     df = pd.concat(df_list)
