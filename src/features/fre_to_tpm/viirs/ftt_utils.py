@@ -184,7 +184,8 @@ def _build_frp_df(path):
     frp_df = pd.concat(df_from_each_file, ignore_index=True)
 
     # keep only columns on interest
-    frp_df = frp_df[['FIRE_CONFIDENCE', 'FRP_0', 'LATITUDE', 'LONGITUDE', 'year', 'month', 'day', 'time']]
+    frp_df = frp_df[['FIRE_CONFIDENCE', 'ABS_line', 'ABS_samp', 'BT_MIR', 'BT_TIR',
+                     'FRP_0', 'LATITUDE', 'LONGITUDE', 'year', 'month', 'day', 'time']]
 
     # make geocoords into shapely points
     points = [Point(p[0], p[1]) for p in zip(frp_df['LONGITUDE'].values, frp_df['LATITUDE'].values)]
@@ -206,7 +207,7 @@ def _build_frp_df(path):
     frp_df['obs_date'] = frp_df['obs_time'].dt.date
 
     # drop columns we dont needs
-    frp_df.drop(['LONGITUDE', 'LATITUDE'], axis=1, inplace=True)
+    #frp_df.drop(['LONGITUDE', 'LATITUDE'], axis=1, inplace=True)
     frp_df.drop(['year', 'month', 'day', 'time'], axis=1, inplace=True)
 
     frp_df.to_pickle(path + 'frp_df.p')

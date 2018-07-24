@@ -171,6 +171,11 @@ def static_read(file_dict, verbose=False):
             d[data_key] = data[1, :, :].astype(dtype)
     # pixel size
     d['pixsize'] = ((2.0 ** 2) * 1000.0 ** 2) * (1 / np.cos(np.radians(d['vza'])))
+
+    # # adjust sampled area based on blocks used
+    # for k in d.keys():
+    #     d[k] = d[k][start_pix:stop_pix, :]
+
     return d
 
 
@@ -271,7 +276,7 @@ def H8_file_read(file, verbose=False):
 
     # Read in the head blocks
 
-    print "processing %s" % file
+    #print "processing %s" % file
     total_len = 0
     # read in the file as binary see python struct for help
     for bb in xrange(11):
@@ -294,7 +299,7 @@ def H8_file_read(file, verbose=False):
         elif Block_no == 3:
             fh.seek(total_len + 3)
             sub_lon = struct.unpack('d', fh.read(8))[0]
-            print 'central longitude %r' % sub_lon
+            #print 'central longitude %r' % sub_lon
             fh.seek(total_len + 11)
             CFAC = struct.unpack('I', fh.read(4))[0]
             fh.seek(total_len + 15)
@@ -362,13 +367,13 @@ def H8_file_read(file, verbose=False):
         BT = Cal_info[2] + Cal_info[3] * temperature + Cal_info[4] * \
                                                        temperature * temperature
     else:
-        # if samps > 12000:  # hard coded should find a better way later
-        #     # Resampled by a factor of 0.25 with bilinear interpolation
-        #     # sub = radiance[4300*4:4700*4,2500*4:2900*4]
-        #     # d['vis_full'] = sub
-        #     radiance = rebin(radiance, (lines / 4, samps / 4))
-        # elif samps > 5500:
-        #     radiance = rebin(radiance, (lines / 2, samps / 2))
+        if samps > 12000:  # hard coded should find a better way later
+            # Resampled by a factor of 0.25 with bilinear interpolation
+            # sub = radiance[4300*4:4700*4,2500*4:2900*4]
+            # d['vis_full'] = sub
+            radiance = rebin(radiance, (lines / 4, samps / 4))
+        elif samps > 5500:
+            radiance = rebin(radiance, (lines / 2, samps / 2))
 
         # for visible band this is Albedo
         BT = radiance * Cal_info[2]
@@ -428,11 +433,13 @@ def get_path(root, band, time_key=None, path_tree=None):
         dt_time = dt_time_key.strftime('%H%M')
         # keys = [dt_date, dt_time, band]  # Realtime EO channels
         if path_tree in ['HSFD']:
-            root = root + \
-                   '/'.join([dt_time_key.strftime('%Y%m'), \
-                             dt_time_key.strftime('%d'), \
-                             dt_time_key.strftime('%Y%m%d%H') + '00', \
-                             dt_time_key.strftime('%M'), band]) + '/'
+            root = os.path.join(root,
+                                dt_time_key.strftime('%Y%m'),
+                                dt_time_key.strftime('%d'),
+                                dt_time_key.strftime('%Y%m%d%H') + '00',
+                                dt_time_key.strftime('%M'),
+                                band + '/')
+
             # 500m resolution data
             band_vis_05 = band + "_FLDK_R05_S"
             # 2km resolution data
@@ -444,8 +451,8 @@ def get_path(root, band, time_key=None, path_tree=None):
     else:
         root = root + "lcov/"
         band_vis_05 = band
-    print "root: %s" % root
-    print "band: %s" % band
+    #print "root: %s" % root
+    #print "band: %s" % band
     # now iterate over root path
     if os.path.exists(root):
         filepath = []
@@ -483,17 +490,17 @@ def paths(root, time_key=None, path_tree=None, mode=0):
         # for fire detection model
         if mode == 0:
             d["red_path"] = [get_path(root, "B03", \
-                                      time_key=time_key, path_tree=path_tree), 'vis', 'redrad']
+                                     time_key=time_key, path_tree=path_tree), 'vis', 'redrad']
             # d["nir_path"] = [get_path(root, "B04", \
             #     time_key=time_key,path_tree=path_tree), 'nir', 'nirrad']
-            d["sir_path"] = [get_path(root, "B06", \
-                                      time_key=time_key, path_tree=path_tree), 'sir', 'sirrad']
+            # d["sir_path"] = [get_path(root, "B06", \
+            #                           time_key=time_key, path_tree=path_tree), 'sir', 'sirrad']
+            d["tir86_path"] = [get_path(root, "B11", \
+                                        time_key=time_key, path_tree=path_tree), 'ir86', 'ir86rad']
         d["mir_path"] = [get_path(root, "B07", \
                                   time_key=time_key, path_tree=path_tree), 'ir39', 'ir39rad']
         d["tir11_path"] = [get_path(root, "B14", \
                                     time_key=time_key, path_tree=path_tree), 'ir11', 'ir11rad']
-        d["tir12_path"] = [get_path(root, "B15", \
-                                    time_key=time_key, path_tree=path_tree), 'ir12', 'ir12rad']
     else:
         d["latlon_path"] = [get_path(root, "lat_lon.img"), 'lat', 'lon']
         d["sat_view_angle_path"] = [get_path(root, "vza_vaa.img"), 'vza', 'vaa']
@@ -503,12 +510,23 @@ def paths(root, time_key=None, path_tree=None, mode=0):
     return d
 
 
+def find_start_stop(EO_path_dict):
+    mult = 550
+    first_path = EO_path_dict['mir_path'][0][0]
+    last_path = EO_path_dict['mir_path'][0][-1]
+    first_block = int(first_path.split('_')[-1][1:3])
+    last_block = int(last_path.split('_')[-1][1:3]) + 1
+
+    return first_block * mult, last_block * mult
+
+
 def load_h8(in_root, time_key, path_tree=None, mode=0):
     """
     load all the data and put them in a dictionary
     """
     # firstly setup the path dictionary
     EO_path_dict = paths(in_root, time_key=time_key, path_tree=path_tree, mode=0)
+
     # readin all the Himawari files here
     EO_data = Himawari_read(EO_path_dict)
     # construt a static data dictionary
@@ -543,15 +561,12 @@ def load_h8(in_root, time_key, path_tree=None, mode=0):
     return data
 
 
-
-
-
 if __name__ == '__main__':
     user_home = os.environ['HOME']
-    in_root = user_home + '/data/Himawari8/'
+    in_root = '/Volumes/INTENSO/Asia/raw/himawari/'
     # root for the output files
     out_root = in_root + 'fire_result/'
     # slot time YYYYMMDDHHMM
-    time_key = "201510040230"
+    time_key = "201507020920"
     data = load_h8(in_root, time_key, path_tree="HSFD")
-
+    hold = 1
