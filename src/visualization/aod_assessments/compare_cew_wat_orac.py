@@ -70,9 +70,10 @@ def main():
     try:
 
         wat_dd = pickle.load(open(filepaths.path_to_orac_visuals + 'wat_dd.p', 'rb'))
-        cew_dd = pickle.load(open(filepaths.path_to_orac_visuals + 'amz_dd.p', 'rb'))
-
-    except:
+        cew_dd = pickle.load(open(filepaths.path_to_orac_visuals + 'cew_dd.p', 'rb'))
+        print 'here'
+    except Exception, e:
+        print 'error:', str(e)
 
         wat_dd = {'cot': [], 'cer': [], 'costjm': []}
         cew_dd = {'cot': [], 'cer': [], 'costjm': []}
@@ -106,7 +107,7 @@ def main():
 
     # lets do the plotting
 
-    mask = (np.array(wat_dd['costjm']) > 0) & (np.array(cew_dd['costjm']) > 00)
+    mask = (np.array(wat_dd['costjm']) > 0) & (np.array(cew_dd['costjm']) > 0)
     masked_wat_costjm = np.array(wat_dd['costjm'])[mask]
     masked_cew_costjm = np.array(cew_dd['costjm'])[mask]
 
