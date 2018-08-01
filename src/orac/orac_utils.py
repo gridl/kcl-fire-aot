@@ -1179,10 +1179,10 @@ def build_preproc_driver(args):
 
     # Select previous surface reflectance and emissivity files
     alb = date_back_search(args.mcd43c3_dir, inst.time,
-                           '/%Y/MCD43C3.A%Y%j.005.*.hdf')
+                           '/%Y/MCD43C3.A%Y%j.006.*.hdf')
     if not args.lambertian:
         brdf = date_back_search(args.mcd43c1_dir, inst.time,
-                                '/%Y/MCD43C1.A%Y%j.005.*.hdf')
+                                '/%Y/MCD43C1.A%Y%j.006.*.hdf')
     if not args.use_modis_emis:
         emis = date_back_search(args.emis_dir, inst.time,
                                 '/global_emis_inf10_monthFilled_MYD11C3.A%Y%j.041.nc')
