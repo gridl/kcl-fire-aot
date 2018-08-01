@@ -9,11 +9,11 @@ from datetime import datetime
 class ProcParams(object):
     def __init__(self):
         self.sensor = "viirs"
-        self.proc_level = 'pro'
+        self.proc_level = 'pre'
 
-        self.data_dir = '/home/users/dnfisher/nceo_aerosolfire/data/orac_proc/viirs/sdr/'
-        self.geo_dir = '/home/users/dnfisher/nceo_aerosolfire/data/orac_proc/viirs/geo/'
-        self.output_dir = '/group_workspaces/cems/nceo_aerosolfire/data/orac_proc/viirs/'
+        self.data_dir = '/group_workspaces/jasmin2/nceo_aerosolfire/data/orac_proc/viirs/sdr/sumatra_roi/'
+        self.geo_dir = '/group_workspaces/jasmin2/nceo_aerosolfire/data/orac_proc/viirs/geo/sumatra_roi/'
+        self.output_dir = '/group_workspaces/jasmin2/nceo_aerosolfire/data/orac_proc/viirs/outputs/sumatra_roi/'
 
         self.cldsaddir = '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/sad_dir/viirs-npp_WAT'
         self.cldphs = ['WAT']
@@ -39,8 +39,8 @@ def run_pre(pp):
                   + ' -o ' + output_file_path \
                   + ' -g ' + pp.geo_dir \
                   + ' -c 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 ' \
-                  + ' --skip_ecmwf_hr ' \
-                  + ' --batch '
+                  + ' --skip_ecmwf_hr ' #\
+                  #+ ' --batch '
         os.system('./orac_preproc.py ' + pre_cmd)
 
 

@@ -6,10 +6,10 @@ from os import environ
 ecmwf_flag  = '2'
 
 # Paths
-aer_sad_dir = '/group_workspaces/cems/nceo_aerosolfire/luts'
+aer_sad_dir = '/group_workspaces/jasmin2/nceo_aerosolfire/luts'
 sad_dir     = '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/sad_dir/viirs-npp_WAT/'
 atlas_dir   = '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/rttov/emis_data'
-calib_file  = '/group_workspaces/cems/aerosol_cci/aux/aatsr_calibration/AATSR_VIS_DRIFT_V03-00.DAT'
+calib_file  = '/group_workspaces/jasmin2/aerosol_cci/aux/aatsr_calibration/AATSR_VIS_DRIFT_V03-00.DAT'
 coef_dir    = '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/coeffs'
 emis_dir    = '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/emissivity'
 emos_dir    = '/home/users/dnfisher/soft/orac/libraries/emos_data'
@@ -19,7 +19,7 @@ hr_dir      = '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/ecmwf'
 mcd43c3_dir = '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/modis/MCD43C3_MODIS_Albedo_neu/'
 mcd43c1_dir = '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/modis/MCD43C1_MODIS_BRDF_neu/'
 nise_dir    = '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/ice_snow'
-occci_dir   = '/group_workspaces/cems/aerosol_cci/aux/oceancolour_cci/geographic_iop_v2.0'
+occci_dir   = '/group_workspaces/jasmin2/aerosol_cci/aux/oceancolour_cci/geographic_iop_v2.0'
 orac_lib    = environ['ORAC_LIB']
 orac_trunk  = '/home/users/dnfisher/soft/orac/trunk'
 spam_dir    = '/badc/ecmwf-era-interim/data/sp/am'
