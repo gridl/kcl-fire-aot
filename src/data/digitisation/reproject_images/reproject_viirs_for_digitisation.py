@@ -102,13 +102,13 @@ def setup_data(base_name):
     # get timestampe
     ts = get_timestamp(base_name)
 
-    data_dict['m3'] = read_ds(fp.path_to_viirs_sdr, ts, 'M3')
-    data_dict['m4'] = read_ds(fp.path_to_viirs_sdr, ts, 'M4')
-    data_dict['m5'] = read_ds(fp.path_to_viirs_sdr, ts, 'M5')
-    data_dict['aod'] = read_ds(fp.path_to_viirs_aod, ts, 'aod')
-    data_dict['flag'] = read_ds(fp.path_to_viirs_aod, ts, 'flag')
-    data_dict['lat'] = read_ds(fp.path_to_viirs_geo, ts, 'lat')
-    data_dict['lon'] = read_ds(fp.path_to_viirs_geo, ts, 'lon')
+    data_dict['m3'] = read_ds(fp.path_to_viirs_sdr, ts, 'M03')
+    data_dict['m4'] = read_ds(fp.path_to_viirs_sdr, ts, 'M04')
+    data_dict['m5'] = read_ds(fp.path_to_viirs_sdr, ts, 'M05')
+    data_dict['aod'] = read_ds(fp.path_to_viirs_aod, ts, 'AOT')
+    data_dict['flag'] = read_ds(fp.path_to_viirs_aod, ts, 'AOT')
+    data_dict['lat'] = read_ds(fp.path_to_viirs_geo, ts, 'TCO')
+    data_dict['lon'] = read_ds(fp.path_to_viirs_geo, ts, 'TCO')
     return data_dict
 
 
