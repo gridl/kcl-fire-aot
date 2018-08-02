@@ -224,7 +224,9 @@ def read_frp_df(path):
     :return: the frp holding dataframe
     '''
     try:
+        print path
         df_path = glob.glob(path + 'frp_df.p')[0]
+        print df_path
         frp_df = pd.read_pickle(df_path)
     except Exception, e:
         print('could not load frp dataframe, failed with error ' + str(e) + ' building anew')
