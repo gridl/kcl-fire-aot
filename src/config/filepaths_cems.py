@@ -10,8 +10,8 @@ path_to_viirs_orac = os.path.join(data_root, 'outputs/sumatra_roi/main/')
 path_to_viirs_aod = os.path.join(home_root, 'viirs_aod')
 
 
-path_to_himawari_frp = os.path.join(home_root, 'frp/frp_df.p')
-path_to_peat_maps = os.path.join(home_root, 'peat_maps')
+path_to_himawari_frp = os.path.join(home_root, 'frp/')
+path_to_peat_maps = os.path.join(home_root, 'peat_maps/')
 
 path_to_viirs_sdr_resampled_peat = os.path.join(png_root, 'peat/')
 path_to_viirs_sdr_resampled_no_peat = os.path.join(png_root, 'no_peat/')
