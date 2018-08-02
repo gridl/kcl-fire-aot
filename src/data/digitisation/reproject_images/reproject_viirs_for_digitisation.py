@@ -387,6 +387,7 @@ def get_aeronet():
 
 def main():
     # load in himawari fires for visualisation
+    print fp.path_to_himawari_frp
     frp_df = ut.read_frp_df(fp.path_to_himawari_frp)
     #frp_df = None
 
