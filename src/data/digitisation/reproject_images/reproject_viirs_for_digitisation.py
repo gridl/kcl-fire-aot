@@ -84,10 +84,10 @@ def read_ds(path, ts, key):
 
     # get filename
     fname = get_viirs_fname(path, ts, key)
-    print fname
 
     # read h5
     ds = read_h5(os.path.join(path, fname))
+    print ds
 
     # return dataset
     return ds['All_Data'][p['k1']][p['k2']][:]
