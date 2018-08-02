@@ -529,7 +529,10 @@ class utm_resampler(object):
         return pyproj.Proj(proj='utm', zone=self.zone, ellps='WGS84', datum='WGS84')
 
     def __utm_extent(self):
-        x, y = self.proj(self.lons, self.lats)
+        lats = self.lats
+        lons = self.lons
+        mask = (lats < 90) & (lats > -90) & (lons < 180) & (lons > -180)
+        x, y = self.proj(lons[mask], lats[mask])
         min_x, max_x = np.min(x), np.max(x)
         min_y, max_y = np.min(y), np.max(y)
         return (min_x, min_y, max_x, max_y)
