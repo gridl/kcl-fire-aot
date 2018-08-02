@@ -63,7 +63,6 @@ def ds_names_dict(key):
 def get_viirs_fname(path, timestamp_viirs, key):
     fname = [f for f in os.listdir(path) if
              ((timestamp_viirs in f) and (key in f))]
-    print fname
     if len(fname) > 1:
         logger.warning("More that one frp granule matched STOP and check why")
         return fname[0]
@@ -80,13 +79,12 @@ def read_h5(f):
 
 def read_ds(path, ts, key):
 
-    print path, ts, key
-
     # setup key
     p = ds_names_dict(key)
 
     # get filename
     fname = get_viirs_fname(path, ts, key)
+    print fname
 
     # read h5
     ds = read_h5(os.path.join(path, fname))
