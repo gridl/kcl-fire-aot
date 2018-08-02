@@ -9,7 +9,7 @@ from datetime import datetime
 class ProcParams(object):
     def __init__(self):
         self.sensor = "viirs"
-        self.proc_level = 'pre'
+        self.proc_level = 'pro'
 
         self.data_dir = '/group_workspaces/jasmin2/nceo_aerosolfire/data/orac_proc/viirs/sdr/sumatra_roi/'
         self.geo_dir = '/group_workspaces/jasmin2/nceo_aerosolfire/data/orac_proc/viirs/geo/sumatra_roi/'
@@ -17,7 +17,7 @@ class ProcParams(object):
 
         self.cldsaddir = '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/sad_dir/viirs-npp_WAT'
         self.cldphs = ['WAT']
-        self.aersaddir = '/home/users/dnfisher/nceo_aerosolfire/data/orac_proc/viirs/luts'
+        self.aersaddir = '/group_workspaces/jasmin2/nceo_aerosolfire/data/orac_proc/viirs/luts'
         self.aerphs = ['AMW']
 
 
@@ -39,8 +39,8 @@ def run_pre(pp):
                   + ' -o ' + output_file_path \
                   + ' -g ' + pp.geo_dir \
                   + ' -c 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 ' \
-                  + ' --skip_ecmwf_hr ' #\
-                  #+ ' --batch '
+                  + ' --skip_ecmwf_hr ' \
+                  + ' --batch '
         os.system('./orac_preproc.py ' + pre_cmd)
 
 
@@ -71,7 +71,7 @@ def run_pro(pp):
                 proc_cmd = '-i ' + root \
                            + ' -o ' + pro_dir \
                            + ' --sad_dir ' + pp.aersaddir \
-                           + ' --use_channel 0 0 0 1 1 0 1 0 0 0 1 0 0 0 0 0 -a AppCld1L --ret_class ClsAerOx ' \
+                           + ' --use_channel 0 0 1 1 1 0 1 0 0 0 1 0 0 0 0 0 -a AppCld1L --ret_class ClsAerOx ' \
                            + '  --batch ' \
                            + ' --phase '
 
