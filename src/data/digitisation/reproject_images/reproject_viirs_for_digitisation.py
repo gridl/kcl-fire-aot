@@ -10,35 +10,10 @@ from datetime import datetime, timedelta
 from netCDF4 import Dataset
 from shapely.geometry import Point
 import pandas as pd
-import matplotlib.pyplot as plt
-import cartopy.crs as ccrs
 
-import src.config.filepaths as fp
+import src.config.filepaths_cems as fp
 import src.features.fre_to_tpm.viirs.ftt_utils as ut
 import src.features.fre_to_tpm.viirs.ftt_fre as ff
-
-
-def get_timestamp(viirs_sdr_fname):
-    try:
-        return re.search("[d][0-9]{8}[_][t][0-9]{6}", viirs_sdr_fname).group()
-    except Exception, e:
-        logger.warning("Could not extract time stamp from: " + viirs_sdr_fname + " with error: " + str(e))
-        return ''
-
-
-def get_viirs_fname(path, timestamp_viirs, viirs_sdr_fname):
-    fname = [f for f in os.listdir(path) if timestamp_viirs in f]
-    if len(fname) > 1:
-        logger.warning("More that one frp granule matched " + viirs_sdr_fname + "selecting 0th option")
-        return fname[0]
-    elif len(fname) == 1:
-        return fname[0]
-    else:
-        return ''
-
-
-def read_h5(f):
-    return h5py.File(f, "r")
 
 
 def read_nc(f):
@@ -58,10 +33,84 @@ def read_nc(f):
     return {"mask": mask, "lats": lats, "lons": lons}
 
 
-def create_resampler(viirs_data):
-    lats = viirs_data['All_Data']['VIIRS-MOD-GEO_All']['Latitude'][:]
-    lons = viirs_data['All_Data']['VIIRS-MOD-GEO_All']['Longitude'][:]
-    return ut.utm_resampler(lats, lons, 750)
+def get_timestamp(viirs_sdr_fname):
+    try:
+        return re.search("[d][0-9]{8}[_][t][0-9]{6}", viirs_sdr_fname).group()
+    except Exception, e:
+        logger.warning("Could not extract time stamp from: " + viirs_sdr_fname + " with error: " + str(e))
+        return ''
+
+
+def ds_names_dict(key):
+    if key == 'm3':
+        return {'k1': 'VIIRS-M3-SDR_All', 'k2': 'Radiance'}
+    if key == 'm4':
+        return {'k1': 'VIIRS-M4-SDR_All', 'k2': 'Radiance'}
+    if key == 'm5':
+        return {'k1': 'VIIRS-M5-SDR_All', 'k2': 'Radiance'}
+    if key == 'lat':
+        return {'k1': 'VIIRS-MOD-GEO_All', 'k2': 'Latitude'}
+    if key == 'lon':
+        return {'k1': 'VIIRS-MOD-GEO_All', 'k2': 'Longitude'}
+    if key == 'aod':
+        return {'k1': 'VIIRS-Aeros-Opt-Thick-IP_All', 'k2': 'faot550'}
+    if key == 'flag':
+        return {'k1': 'VIIRS-Aeros-Opt-Thick-IP_All', 'k2': 'QF1'}
+
+
+def get_viirs_fname(path, timestamp_viirs, key):
+    fname = [f for f in os.listdir(path) if
+             ((timestamp_viirs in f) and (key in f))]
+    if len(fname) > 1:
+        logger.warning("More that one frp granule matched STOP and check why")
+        return fname[0]
+    elif len(fname) == 1:
+        return fname[0]
+    else:
+        logger.warning("No matching granule STOP and check why")
+        return None
+
+
+def read_h5(f):
+    return h5py.File(f, "r")
+
+
+def read_ds(path, ts, key):
+
+    # setup key
+    p = ds_names_dict(key)
+
+    # get filename
+    fname = get_viirs_fname(path, ts, key)
+
+    # read h5
+    ds = read_h5(os.path.join(path, fname))
+
+    # return dataset
+    return ds['All_Data'][p['k1']][p['k2']][:]
+
+
+def setup_data(base_name):
+
+    data_dict = {}
+
+    # get timestampe
+    ts = get_timestamp(base_name)
+
+    data_dict['m3'] = read_ds(fp.path_to_viirs_sdr, ts, 'm3')
+    data_dict['m4'] = read_ds(fp.path_to_viirs_sdr, ts, 'm4')
+    data_dict['m5'] = read_ds(fp.path_to_viirs_sdr, ts, 'm5')
+    data_dict['aod'] = read_ds(fp.path_to_viirs_aod, ts, 'aod')
+    data_dict['flag'] = read_ds(fp.path_to_viirs_aod, ts, 'flag')
+    data_dict['lat'] = read_ds(fp.path_to_viirs_geo, ts, 'lat')
+    data_dict['lon'] = read_ds(fp.path_to_viirs_geo, ts, 'lon')
+    return data_dict
+
+
+def create_resampler(data_dict):
+    return ut.utm_resampler(data_dict['lats'],
+                            data_dict['lons'],
+                            750)
 
 
 def image_histogram_equalization(image, number_bins=256):
@@ -189,20 +238,16 @@ def fires_for_occurrence_level(frp_df, occurrences):
     return frp_df[mask]
 
 
-def tcc_viirs(viirs_data, fires_for_day, peat_mask, aeronet_stations, resampler, viirs_overpass_time):
-    # m1_params = viirs_data['All_Data']['VIIRS-M1-SDR_All']['RadianceFactors']
-    m1 = viirs_data['All_Data']['VIIRS-M1-SDR_All']['Radiance'][:]
-    # m4_params = viirs_data['All_Data']['VIIRS-M1-SDR_All']['RadianceFactors']
-    m4 = viirs_data['All_Data']['VIIRS-M4-SDR_All']['Radiance'][:]
-    # m5_params = viirs_data['All_Data']['VIIRS-M1-SDR_All']['RadianceFactors']
-    m5 = viirs_data['All_Data']['VIIRS-M5-SDR_All']['Radiance'][:]
-
+def tcc_viirs(data_dict, fires_for_day, peat_mask, aeronet_stations, resampler, viirs_overpass_time):
+    m3 = data_dict['m3']
+    m4 = data_dict['m4']
+    m5 = data_dict['m5']
 
     mask = m5 < 0
     masked_lats = np.ma.masked_array(resampler.lats, mask)
     masked_lons = np.ma.masked_array(resampler.lons, mask)
 
-    resampled_m1 = resampler.resample_image(m1, masked_lats, masked_lons, fill_value=0)
+    resampled_m3 = resampler.resample_image(m3, masked_lats, masked_lons, fill_value=0)
     resampled_m4 = resampler.resample_image(m4, masked_lats, masked_lons, fill_value=0)
     resampled_m5 = resampler.resample_image(m5, masked_lats, masked_lons, fill_value=0)
 
@@ -212,7 +257,7 @@ def tcc_viirs(viirs_data, fires_for_day, peat_mask, aeronet_stations, resampler,
 
     r = image_histogram_equalization(resampled_m5)
     g = image_histogram_equalization(resampled_m4)
-    b = image_histogram_equalization(resampled_m1)
+    b = image_histogram_equalization(resampled_m3)
 
     r = np.round((r * (255 / np.max(r))) * 1).astype('uint8')
     g = np.round((g * (255 / np.max(g))) * 1).astype('uint8')
@@ -263,8 +308,7 @@ def tcc_viirs(viirs_data, fires_for_day, peat_mask, aeronet_stations, resampler,
     return rgb, rgb_peat
 
 
-def extract_aod(viirs_aod, resampler):
-    aod = viirs_aod['All_Data']['VIIRS-Aeros-Opt-Thick-IP_All']['faot550'][:]
+def extract_aod(aod, resampler):
     mask = aod < -1
     masked_lats = np.ma.masked_array(resampler.lats, mask)
     masked_lons = np.ma.masked_array(resampler.lons, mask)
@@ -291,9 +335,9 @@ def get_mask(arr, bit_pos, bit_len, value):
     return mask
 
 
-def extract_aod_flags(viirs_aod, resampler):
-    aod = viirs_aod['All_Data']['VIIRS-Aeros-Opt-Thick-IP_All']['faot550'][:]
-    aod_quality = viirs_aod['All_Data']['VIIRS-Aeros-Opt-Thick-IP_All']['QF1'][:]
+def extract_aod_flags(data_dict, resampler):
+    aod = data_dict['aod']
+    aod_quality = data_dict['flags']
     flags = np.zeros(aod_quality.shape)
     for k, v in zip(['00', '01', '10', '11'], [0, 1, 2, 3]):
         mask = get_mask(aod_quality, 0, 2, k)
@@ -351,72 +395,54 @@ def main():
         peat_map_key = peat_maps_path.split("/")[-1].split(".")[0]
         peat_map_dict[peat_map_key] = read_nc(peat_maps_path)
 
-    for viirs_sdr_fname in os.listdir(fp.path_to_viirs_sdr):
+    # get SDR data
+    viirs_sdr_paths = glob.glob(fp.path_to_viirs_sdr + 'SVM01*')
+    for viirs_sdr_path in viirs_sdr_paths:
+
+        viirs_sdr_filename = viirs_sdr_path.split('/')[-1]
+
+        if 'DS' in viirs_sdr_filename:
+            continue
+        logger.info("Processing viirs file: " + viirs_sdr_filename)
 
         if os.path.isfile(os.path.join(
-                fp.path_to_viirs_sdr_resampled_no_peat, viirs_sdr_fname.replace('h5', 'png'))):
-            print viirs_sdr_fname, 'already resampled'
+                fp.path_to_viirs_sdr_resampled_no_peat, viirs_sdr_filename.replace('h5', 'png'))):
+            logger.info( '...already resampled')
             continue
 
-        logger.info("Processing viirs file: " + viirs_sdr_fname)
-
-        if 'DS' in viirs_sdr_fname:
-            continue
-
-        timestamp_viirs = get_timestamp(viirs_sdr_fname)
-        if not timestamp_viirs:
-            continue
-
+        # read in the needed SDR data and create a data dict
         try:
-            viirs_sdr = read_h5(os.path.join(fp.path_to_viirs_sdr, viirs_sdr_fname))
+            data_dict = setup_data(viirs_sdr_filename)
         except Exception, e:
-            logger.warning('Could not read the input file: ' + viirs_sdr_fname + '. Failed with ' + str(e))
+            logger.warning('Could load data. Failed with ' + str(e))
             continue
 
         try:
             # setup resampler adn extract true colour
-            utm_resampler = create_resampler(viirs_sdr)
+            utm_resampler = create_resampler(data_dict)
         except Exception, e:
-            logger.warning('Could make resampler for file: ' + viirs_sdr_fname + '. Failed with ' + str(e))
+            logger.warning('Could not make resampler for file. Failed with ' + str(e))
             continue
 
-        # get aod filename
-        try:
-            aod_fname = get_viirs_fname(fp.path_to_viirs_aod, timestamp_viirs, viirs_sdr_fname)
-        except Exception, e:
-            logger.warning('Could not load aux file for:' + viirs_sdr_fname + '. Failed with ' + str(e))
-            continue
+        viirs_aod = extract_aod(data_dict['aod'], utm_resampler)
+        aod_flags = extract_aod_flags(data_dict, utm_resampler)
+        misc.imsave(os.path.join(fp.path_to_viirs_aod_resampled, viirs_sdr_path.replace('h5', 'png')), viirs_aod)
+        misc.imsave(os.path.join(fp.path_to_viirs_aod_flags_resampled, viirs_sdr_path.replace('h5', 'png')),
+                    aod_flags)
 
-        if aod_fname:
-            # load in viirs aod
-            if aod_fname:
-                try:
-                    viirs_aod_data = read_h5(os.path.join(fp.path_to_viirs_aod, aod_fname))
-                    viirs_aod = extract_aod(viirs_aod_data, utm_resampler)
-                    aod_flags = extract_aod_flags(viirs_aod_data, utm_resampler)
 
-                    misc.imsave(os.path.join(fp.path_to_viirs_aod_resampled, aod_fname.replace('h5', 'png')), viirs_aod)
-                    misc.imsave(os.path.join(fp.path_to_viirs_aod_flags_resampled, aod_fname.replace('h5', 'png')),
-                                aod_flags)
+        # setup resampler adn extract true colour
+        t = datetime.strptime(get_timestamp(viirs_sdr_filename), 'd%Y%m%d_t%H%M%S')
 
-                except Exception, e:
-                    logger.warning('Could not display aod file: ' + aod_fname)
+        peat_mask = get_peat_mask(peat_map_dict, utm_resampler)
+        fires_for_day = ff.fire_locations_for_digitisation(frp_df, t)
 
-        try:
-            # setup resampler adn extract true colour
-            t = datetime.strptime(timestamp_viirs, 'd%Y%m%d_t%H%M%S')
-
-            peat_mask = get_peat_mask(peat_map_dict, utm_resampler)
-            fires_for_day = ff.fire_locations_for_digitisation(frp_df, t)
-            #fires_for_day = None
-            aeronet_stations = get_aeronet()
-            tcc, tcc_peat = tcc_viirs(viirs_sdr, fires_for_day, peat_mask, aeronet_stations, utm_resampler, t)
-            misc.imsave(os.path.join(fp.path_to_viirs_sdr_resampled_no_peat, viirs_sdr_fname.replace('h5', 'png')), tcc)
-            misc.imsave(os.path.join(fp.path_to_viirs_sdr_resampled_peat,
-                                     viirs_sdr_fname.replace('.h5', '_peat.png')), tcc_peat)
-        except Exception, e:
-            logger.warning('Could make image for file: ' + viirs_sdr_fname + '. Failed with ' + str(e))
-
+        aeronet_stations = get_aeronet()
+        tcc, tcc_peat = tcc_viirs(data_dict, fires_for_day, peat_mask, aeronet_stations, utm_resampler, t)
+        misc.imsave(os.path.join(fp.path_to_viirs_sdr_resampled_no_peat, viirs_sdr_path.replace('h5', 'png')), tcc)
+        misc.imsave(os.path.join(fp.path_to_viirs_sdr_resampled_peat,
+                                 viirs_sdr_path.replace('.h5', '_peat.png')), tcc_peat)
+        
 
 if __name__ == "__main__":
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'

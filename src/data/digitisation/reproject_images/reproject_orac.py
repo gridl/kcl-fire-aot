@@ -5,7 +5,7 @@ import numpy as np
 import scipy.misc as misc
 from netCDF4 import Dataset
 
-import src.config.filepaths as fp
+import src.config.filepaths_cems as fp
 import src.features.fre_to_tpm.modis.ftt_utils as ut
 
 
