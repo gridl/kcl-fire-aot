@@ -43,21 +43,21 @@ def get_timestamp(viirs_sdr_fname):
         return ''
 
 
-def ds_names_dict(key):
-    if key == 'm3':
+def ds_names_dict(key, key_alt=None):
+    if key == 'M03':
         return {'k1': 'VIIRS-M3-SDR_All', 'k2': 'Radiance'}
-    if key == 'm4':
+    if key == 'M04':
         return {'k1': 'VIIRS-M4-SDR_All', 'k2': 'Radiance'}
-    if key == 'm5':
+    if key == 'M05':
         return {'k1': 'VIIRS-M5-SDR_All', 'k2': 'Radiance'}
-    if key == 'lat':
-        return {'k1': 'VIIRS-MOD-GEO_All', 'k2': 'Latitude'}
-    if key == 'lon':
-        return {'k1': 'VIIRS-MOD-GEO_All', 'k2': 'Longitude'}
-    if key == 'aod':
-        return {'k1': 'VIIRS-Aeros-Opt-Thick-IP_All', 'k2': 'faot550'}
-    if key == 'flag':
-        return {'k1': 'VIIRS-Aeros-Opt-Thick-IP_All', 'k2': 'QF1'}
+    if key_alt == 'Latitude':
+        return {'k1': 'VIIRS-MOD-GEO-TC_All', 'k2': key_alt}
+    if key_alt == 'Longitude':
+        return {'k1': 'VIIRS-MOD-GEO-TC_All', 'k2': key_alt}
+    if key_alt == 'faot550':
+        return {'k1': 'VIIRS-Aeros-Opt-Thick-IP_All', 'k2': key_alt}
+    if key_alt == 'QF1':
+        return {'k1': 'VIIRS-Aeros-Opt-Thick-IP_All', 'k2': key_alt}
 
 
 def get_viirs_fname(path, timestamp_viirs, key):
@@ -77,18 +77,17 @@ def read_h5(f):
     return h5py.File(f, "r")
 
 
-def read_ds(path, ts, key):
+def read_ds(path, ts, key, key_alt=None):
 
     # setup key
-    p = ds_names_dict(key)
+    p = ds_names_dict(key, key_alt)
 
     # get filename
     fname = get_viirs_fname(path, ts, key)
 
     # read h5
     ds = read_h5(os.path.join(path, fname))
-    print ds
-
+    
     # return dataset
     return ds['All_Data'][p['k1']][p['k2']][:]
 
@@ -103,10 +102,11 @@ def setup_data(base_name):
     data_dict['m3'] = read_ds(fp.path_to_viirs_sdr, ts, 'M03')
     data_dict['m4'] = read_ds(fp.path_to_viirs_sdr, ts, 'M04')
     data_dict['m5'] = read_ds(fp.path_to_viirs_sdr, ts, 'M05')
-    data_dict['aod'] = read_ds(fp.path_to_viirs_aod, ts, 'AOT')
-    data_dict['flag'] = read_ds(fp.path_to_viirs_aod, ts, 'AOT')
-    data_dict['lat'] = read_ds(fp.path_to_viirs_geo, ts, 'TCO')
-    data_dict['lon'] = read_ds(fp.path_to_viirs_geo, ts, 'TCO')
+    data_dict['aod'] = read_ds(fp.path_to_viirs_aod, ts, 'AOT', key_alt='faot550')
+    data_dict['flags'] = read_ds(fp.path_to_viirs_aod, ts, 'AOT', key_alt='QF1')
+    data_dict['lats'] = read_ds(fp.path_to_viirs_geo, ts, 'TCO', key_alt='Latitude')
+    data_dict['lons'] = read_ds(fp.path_to_viirs_geo, ts, 'TCO', key_alt='Longitude')
+    print data_dict['lats']
     return data_dict
 
 
@@ -388,14 +388,14 @@ def get_aeronet():
 
 def main():
     # load in himawari fires for visualisation
-    # frp_df = pd.read_csv(fp.path_to_himawari_frp)
+    frp_df = ut.read_frp_df(fp.path_to_himawari_frp)
 
     # load in the peat maps
-    # peat_map_dict = {}
-    # peat_maps_paths = glob.glob(fp.path_to_peat_maps + '*/*/*.nc')
-    # for peat_maps_path in peat_maps_paths:
-    #     peat_map_key = peat_maps_path.split("/")[-1].split(".")[0]
-    #     peat_map_dict[peat_map_key] = read_nc(peat_maps_path)
+    peat_map_dict = {}
+    peat_maps_paths = glob.glob(fp.path_to_peat_maps + '*/*/*.nc')
+    for peat_maps_path in peat_maps_paths:
+         peat_map_key = peat_maps_path.split("/")[-1].split(".")[0]
+         peat_map_dict[peat_map_key] = read_nc(peat_maps_path)
 
     # get SDR data
     viirs_sdr_paths = glob.glob(fp.path_to_viirs_sdr + 'SVM01*')
