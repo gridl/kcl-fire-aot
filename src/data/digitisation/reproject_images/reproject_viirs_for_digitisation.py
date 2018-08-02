@@ -61,6 +61,7 @@ def ds_names_dict(key):
 
 
 def get_viirs_fname(path, timestamp_viirs, key):
+    print os.listdir(path)
     fname = [f for f in os.listdir(path) if
              ((timestamp_viirs in f) and (key in f))]
     if len(fname) > 1:
@@ -78,6 +79,8 @@ def read_h5(f):
 
 
 def read_ds(path, ts, key):
+
+    print path, ts, key
 
     # setup key
     p = ds_names_dict(key)
@@ -387,14 +390,14 @@ def get_aeronet():
 
 def main():
     # load in himawari fires for visualisation
-    frp_df = pd.read_csv(fp.path_to_himawari_frp)
+    # frp_df = pd.read_csv(fp.path_to_himawari_frp)
 
     # load in the peat maps
-    peat_map_dict = {}
-    peat_maps_paths = glob.glob(fp.path_to_peat_maps + '*/*/*.nc')
-    for peat_maps_path in peat_maps_paths:
-        peat_map_key = peat_maps_path.split("/")[-1].split(".")[0]
-        peat_map_dict[peat_map_key] = read_nc(peat_maps_path)
+    # peat_map_dict = {}
+    # peat_maps_paths = glob.glob(fp.path_to_peat_maps + '*/*/*.nc')
+    # for peat_maps_path in peat_maps_paths:
+    #     peat_map_key = peat_maps_path.split("/")[-1].split(".")[0]
+    #     peat_map_dict[peat_map_key] = read_nc(peat_maps_path)
 
     # get SDR data
     viirs_sdr_paths = glob.glob(fp.path_to_viirs_sdr + 'SVM01*')
