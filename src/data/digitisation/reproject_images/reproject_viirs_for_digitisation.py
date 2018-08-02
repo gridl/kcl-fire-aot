@@ -61,9 +61,9 @@ def ds_names_dict(key):
 
 
 def get_viirs_fname(path, timestamp_viirs, key):
-    print os.listdir(path)[0]
     fname = [f for f in os.listdir(path) if
              ((timestamp_viirs in f) and (key in f))]
+    print fname
     if len(fname) > 1:
         logger.warning("More that one frp granule matched STOP and check why")
         return fname[0]
