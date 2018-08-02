@@ -428,8 +428,8 @@ def main():
 
         viirs_aod = extract_aod(data_dict['aod'], utm_resampler)
         aod_flags = extract_aod_flags(data_dict, utm_resampler)
-        misc.imsave(os.path.join(fp.path_to_viirs_aod_resampled, viirs_sdr_path.replace('h5', 'png')), viirs_aod)
-        misc.imsave(os.path.join(fp.path_to_viirs_aod_flags_resampled, viirs_sdr_path.replace('h5', 'png')),
+        misc.imsave(os.path.join(fp.path_to_viirs_aod_resampled, viirs_sdr_filename.replace('h5', 'png')), viirs_aod)
+        misc.imsave(os.path.join(fp.path_to_viirs_aod_flags_resampled, viirs_sdr_filename.replace('h5', 'png')),
                     aod_flags)
 
 
@@ -441,9 +441,9 @@ def main():
 
         aeronet_stations = get_aeronet()
         tcc, tcc_peat = tcc_viirs(data_dict, fires_for_day, peat_mask, aeronet_stations, utm_resampler, t)
-        misc.imsave(os.path.join(fp.path_to_viirs_sdr_resampled_no_peat, viirs_sdr_path.replace('h5', 'png')), tcc)
+        misc.imsave(os.path.join(fp.path_to_viirs_sdr_resampled_no_peat, viirs_sdr_filename.replace('h5', 'png')), tcc)
         misc.imsave(os.path.join(fp.path_to_viirs_sdr_resampled_peat,
-                                 viirs_sdr_path.replace('.h5', '_peat.png')), tcc_peat)
+                                 viirs_sdr_filename.replace('.h5', '_peat.png')), tcc_peat)
         
 
 if __name__ == "__main__":
