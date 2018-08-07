@@ -14,41 +14,6 @@ log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=log_fmt)
 logger = logging.getLogger(__name__)
 
-# TODO make some dictionaires to hold all the data and get them out of main
-
-'''
-Algorithm description
-
-Load in data
-Iterate over each hand digitised plume
-    IF current timestamp is different
-        Load in all AOD data
-        Construct UTM resampler for image at 750m resolution from ORAC AOD
-        Build VIIRS no data mask from ORAC AOD
-        Mask out all VIIRS deletions (ORAC AOD, VIIRS AOD, lats, lons, flags, costs)
-    Build bounding box for hand digitsed plume (rectangular box based on (min,max) pos + padding)
-    Get geographic data for plume bounding box
-    Get the lat/lon for the head and tail of the plume direction vector
-    Get the lats/lons for the points of the plume polygon
-    Build binary plume mask for bounding box
-
-    Build a shapely LINESTRING object for plume vector
-    Build a shapely MULTIPOINT object based on plume polygon
-    Build a shape POLYGON object based on plume polygon
-
-    Build bounding box for hand digisited background extent
-    Build binary mask for the background
-
-    Subset all data (AOD, FLAG, COST) to either plume or background bounding boxes
-
-    Construct UTM resampler for plume at 750m resolution from plume lat/lon grid
-    Reproject SHAPELY objects to UTM using plume resampler
-
-    Compute optical flow (see below for approach)
-    Based on mean flow at each time step segemnt the XXX polygon
-
-'''
-
 
 def proc_params():
     d = {}
@@ -138,6 +103,20 @@ def proc_params():
     return d
 
 
+def setup_sat_data(ts):
+
+    dd = dict()
+    dd['viirs_aod'] = ut.sat_data_reader(fp.path_to_viirs_aod, 'viirs', 'aod', ts)
+    dd['viirs_flags'] = ut.sat_data_reader(fp.path_to_viirs_aod, 'viirs', 'flags', ts)
+    dd['orac_aod'] = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'aod', ts)
+    dd['orac_flags'] = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'flags', ts)
+
+    lats, lons = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'geo', ts)
+    dd['lats'] = lats
+    dd['lons'] = lons
+    return dd
+
+
 def main():
     # setup the data dict to hold all data
     pp = proc_params()
@@ -155,7 +134,14 @@ def main():
 
         # read in satellite data
         if current_timestamp != previous_timestamp:
-            sat_data_utm = ut.resample_satellite_datasets(plume, current_timestamp, pp)
+
+            try:
+                sat_data = setup_sat_data(current_timestamp)
+            except Exception, e:
+                logger.info('Could not load all datasets for: ' + plume.filename + '. Failed with error: ' + str(e))
+                continue
+
+            sat_data_utm = ut.resample_satellite_datasets(sat_data, pp=pp, plume=plume)
             previous_timestamp = current_timestamp
             if sat_data_utm is None:
                 continue

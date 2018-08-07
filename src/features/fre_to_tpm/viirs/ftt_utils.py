@@ -12,6 +12,7 @@ import os
 import logging
 from functools import partial
 from datetime import datetime
+from dateutil.parser import parse
 import re
 
 import pandas as pd
@@ -37,6 +38,7 @@ logger = logging.getLogger(__name__)
 
 
 #### Reader utils ####
+
 def read_h5(f):
     return h5py.File(f,  "r")
 
@@ -45,29 +47,67 @@ def read_nc(f):
     return Dataset(f)
 
 
-def open_orac_ds(path, timestamp):
-    orac_fname = get_orac_fname(path, timestamp)
-    return read_nc(os.path.join(path, orac_fname))
+def sat_data_reader(p, sensor, var, timestamp):
+    '''
+
+    :param p: path to data
+    :param sensor: sensor to read data for
+    :param var: variable to extract
+    :return: the var for sensor
+    '''
 
 
-def extract_orac_aod(orac_data):
-    return orac_data.variables['cot'][:]
+    if sensor not in ['orac', 'viirs']:
+        logger.critical('Sensor Not Defined!  Need to add to reader in FTT utils')
+        return ''
+
+    if sensor == 'orac':
+
+        # check timestamp is in correct form
+        if isinstance(timestamp, basestring):
+            # strip time and get in the right format
+            try:
+                timestamp = parse(timestamp)
+                orac_time_format = datetime.strftime(timestamp, '%Y%m%d%H%M')
+            except Exception, e:
+                logger.critical(str(e))
+        else:
+            # get string from time in the right format
+            orac_time_format = datetime.strftime(timestamp, '%Y%m%d%H%M')
+
+        orac_fname = [f for f in os.listdir(p) if orac_time_format in f][0]
+        ds = read_nc(os.path.join(p, orac_fname))
+
+        if var == 'aod':
+            return ds['cot'][:]
+        elif var == 'flags':
+            return ds['costjm'][:]
+        elif var == 'geo':
+            return ds['lat'][:], ds['lon'][:]
+
+    if sensor == 'modis':
+        pass
+
+    if sensor == 'viirs':
+        # check timestamp is in correct form
+        if isinstance(timestamp, basestring):
+            try:
+                timestamp = parse(timestamp)
+                viirs_time_format = datetime.strftime(timestamp, 'd%Y%m%d_t%H%M%S')
+            except Exception, e:
+                logger.critical(str(e))
+        else:
+            # get string from time in the right format
+            viirs_time_format = datetime.strftime(timestamp, 'd%Y%m%d_t%H%M%S')
 
 
-def extract_orac_cost(orac_data):
-    return orac_data['costjm'][:]
+        viirs_fname = [f for f in os.listdir(p) if viirs_time_format in f]
+        ds = read_h5(os.path.join(p, viirs_fname))
 
-
-def extract_orac_geo(orac_data):
-    lats = orac_data.variables['lat'][:]
-    lons = orac_data.variables['lon'][:]
-    return lats, lons
-
-
-def open_viirs_ds(path, timestamp, filename):
-    viirs_fname = get_viirs_fname(path, timestamp, filename)
-    viirs_data = read_h5(os.path.join(path, viirs_fname))
-    return viirs_data
+        if var == 'aod':
+            return ds['All_Data']['VIIRS-Aeros-Opt-Thick-IP_All']['faot550'][:]
+        elif var == 'flags':
+            return extract_viirs_flags(ds)
 
 
 def extract_viirs_flags(viirs_data):
@@ -77,10 +117,6 @@ def extract_viirs_flags(viirs_data):
         mask = get_mask(aod_quality, 0, 2, k)
         flags[mask] = v
     return flags
-
-
-def extract_viirs_aod(viirs_data):
-    return viirs_data['All_Data']['VIIRS-Aeros-Opt-Thick-IP_All']['faot550'][:]
 
 
 def get_mask(arr, bit_pos, bit_len, value):
@@ -266,36 +302,29 @@ def create_logger_path(p_number):
     return plume_logging_path
 
 
-def resample_satellite_datasets(plume, current_timestamp, pp):
-    d = {}
-
-    try:
-        viirs_aod_data = open_viirs_ds(fp.path_to_viirs_aod, current_timestamp, plume.filename)
-        orac_aod_data = open_orac_ds(fp.path_to_viirs_orac, current_timestamp)
-        if pp['plot']:
-            d['viirs_png_utm'] = misc.imread(os.path.join(fp.path_to_viirs_sdr_resampled_peat, plume.filename))
-    except Exception, e:
-        logger.info('Could not load AOD data with error: ' + str(e))
-        return None
+def resample_satellite_datasets(sat_data, pp=None, plume=None, fill_value=0):
 
     # set up resampler
-    utm_rs = utm_resampler(orac_aod_data.variables['lat'][:],
-                              orac_aod_data.variables['lon'][:],
-                              constants.utm_grid_size)
+    utm_rs = utm_resampler(sat_data['lats'], sat_data['lons'], constants.utm_grid_size)
 
     # get the mask for the lats and lons and apply
-    orac_aod = extract_orac_aod(orac_aod_data)
-    viirs_null_mask = np.ma.getmask(orac_aod)
-    masked_lats = np.ma.masked_array(utm_rs.lats, viirs_null_mask)
-    masked_lons = np.ma.masked_array(utm_rs.lons, viirs_null_mask)
+    null_mask = np.ma.getmask(sat_data['orac_aod'])
+    masked_lats = np.ma.masked_array(utm_rs.lats, null_mask)
+    masked_lons = np.ma.masked_array(utm_rs.lons, null_mask)
 
     # resample all the datasets to UTM
-    d['viirs_aod_utm'] = utm_rs.resample_image(extract_viirs_aod(viirs_aod_data), masked_lats, masked_lons, fill_value=0)
-    d['viirs_flag_utm'] = utm_rs.resample_image(extract_viirs_flags(viirs_aod_data), masked_lats, masked_lons, fill_value=0)
-    d['orac_aod_utm'] = utm_rs.resample_image(orac_aod, masked_lats, masked_lons, fill_value=0)
-    d['orac_cost_utm'] = utm_rs.resample_image(extract_orac_cost(orac_aod_data), masked_lats, masked_lons, fill_value=0)
-    d['lats'] = utm_rs.resample_image(utm_rs.lats, masked_lats, masked_lons, fill_value=0)
-    d['lons'] = utm_rs.resample_image(utm_rs.lons, masked_lats, masked_lons, fill_value=0)
+    d = {}
+    d['viirs_aod_utm'] = utm_rs.resample_image(sat_data['viirs_aod'], masked_lats, masked_lons, fill_value=fill_value)
+    d['viirs_flags_utm'] = utm_rs.resample_image(sat_data['viirs_flags'], masked_lats, masked_lons, fill_value=fill_value)
+    d['orac_aod_utm'] = utm_rs.resample_image(sat_data['orac_aod'], masked_lats, masked_lons, fill_value=fill_value)
+    d['orac_flags_utm'] = utm_rs.resample_image(sat_data['orac_flags'], masked_lats, masked_lons, fill_value=fill_value)
+    d['lats'] = utm_rs.resample_image(utm_rs.lats, masked_lats, masked_lons, fill_value=fill_value)
+    d['lons'] = utm_rs.resample_image(utm_rs.lons, masked_lats, masked_lons, fill_value=fill_value)
+
+    if pp:
+        if pp['plot']:
+            d['viirs_png_utm'] = misc.imread(os.path.join(fp.path_to_viirs_sdr_resampled, plume.filename))
+
     return d
 
 
