@@ -4,9 +4,9 @@ data_root = '/group_workspaces/jasmin2/nceo_aerosolfire/data/orac_proc/viirs/'
 home_root = '/home/users/dnfisher/data/kcl-fire-aot/'
 png_root = os.path.join(home_root, 'resampled_pngs/')
 
-path_to_viirs_sdr = os.path.join(data_root, 'sdr/sumatra_roi/')
-path_to_viirs_geo = os.path.join(data_root, 'geo/sumatra_roi/')
-path_to_viirs_orac = os.path.join(data_root, 'outputs/sumatra_roi/main/')
+path_to_viirs_sdr = os.path.join(data_root, 'sdr/')
+path_to_viirs_geo = os.path.join(data_root, 'geo/')
+path_to_viirs_orac = os.path.join(data_root, 'outputs/main/')
 path_to_viirs_aod = os.path.join(home_root, 'viirs_aod')
 
 
