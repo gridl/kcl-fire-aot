@@ -130,7 +130,7 @@ def main():
         plume_logging_path = ut.create_logger_path(p_number)
 
         # get plume time stamp
-        current_timestamp = ut.get_timestamp(plume.filename)
+        current_timestamp = ut.get_timestamp(plume.filename, 'viirs')
 
         # read in satellite data
         if current_timestamp != previous_timestamp:

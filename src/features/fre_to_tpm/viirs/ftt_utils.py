@@ -47,6 +47,26 @@ def read_nc(f):
     return Dataset(f)
 
 
+def get_timestamp(fname, sensor):
+
+    if sensor not in ['orac', 'viirs']:
+        logger.critical('Sensor Not Implemented!  Need to add to get_timstamp in FTT utils')
+        return ''
+
+    if sensor == 'viirs':
+        try:
+            return re.search("[d][0-9]{8}[_][t][0-9]{6}", fname).group()
+        except Exception, e:
+            logger.warning("Could not extract time stamp from: " + fname + " with error: " + str(e))
+            return ''
+    if sensor == 'orac':
+        try:
+            return re.search("[_][0-9]{12}[_]", fname).group()
+        except Exception, e:
+            logger.warning("Could not extract time stamp from: " + fname + " with error: " + str(e))
+            return ''
+
+
 def sat_data_reader(p, sensor, var, timestamp):
     '''
 
@@ -58,7 +78,7 @@ def sat_data_reader(p, sensor, var, timestamp):
 
 
     if sensor not in ['orac', 'viirs']:
-        logger.critical('Sensor Not Defined!  Need to add to reader in FTT utils')
+        logger.critical('Sensor Not Implemented!  Need to add to reader in FTT utils')
         return ''
 
     if sensor == 'orac':
@@ -206,32 +226,6 @@ def build_frp_df(path):
 
     return frp_df
 
-
-#### File name matching utils ####
-def get_timestamp(viirs_sdr_fname):
-    try:
-        return re.search("[d][0-9]{8}[_][t][0-9]{6}", viirs_sdr_fname).group()
-    except Exception, e:
-        logger.warning("Could not extract time stamp from: " + viirs_sdr_fname + " with error: " + str(e))
-        return ''
-
-
-def get_viirs_fname(path, timestamp_viirs, viirs_sdr_fname):
-    fname = [f for f in os.listdir(path) if timestamp_viirs in f]
-    if len(fname) > 1:
-        logger.warning("More that one frp granule matched " + viirs_sdr_fname + "selecting 0th option")
-        return fname[0]
-    elif len(fname) == 1:
-        return fname[0]
-    else:
-        return ''
-
-
-def get_orac_fname(path, timestamp_viirs):
-    t = datetime.strptime(timestamp_viirs, 'd%Y%m%d_t%H%M%S')
-    t = datetime.strftime(t, '%Y%m%d%H%M')
-    fname = [f for f in os.listdir(path) if t in f]
-    return fname[0]
 
 
 #### Spatial Utils

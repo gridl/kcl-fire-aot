@@ -139,7 +139,7 @@ def main():
     for p_number, plume in pp['plume_df'].iterrows():
 
         # get plume time stamp
-        current_timestamp = ut.get_timestamp(plume.filename)
+        current_timestamp = ut.get_timestamp(plume.filename, 'viirs')
 
         # read in satellite data
         if current_timestamp != previous_timestamp:

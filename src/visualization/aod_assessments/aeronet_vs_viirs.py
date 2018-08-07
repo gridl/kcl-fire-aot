@@ -69,11 +69,6 @@ def load_aeronet():
     return aeronet_dict
 
 
-def get_orac_timestamp(orac_path):
-    orac_fname = orac_path.split('/')[-1]
-    return datetime.strptime(orac_fname[37:49], "%Y%m%d%H%M")
-
-
 def aeronet_intersections(timestamp, aeronet_station_data):
     for station in aeronet_station_data:
         time_deltas = np.abs((aeronet_station_data[station].index - timestamp).total_seconds())
@@ -295,7 +290,7 @@ def main():
         # if o_f != i_f:
         #    continue
 
-        timestamp = get_orac_timestamp(o_f)
+        timestamp = ut.get_timestamp(o_f, 'orac')
 
         # check if station has intersection for given time stamp, if not continue
         if not aeronet_intersections(timestamp, aeronet_station_data):
