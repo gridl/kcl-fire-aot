@@ -3,12 +3,25 @@ import os
 
 import pandas as pd
 import numpy as np
-import scipy.misc as misc
-import matplotlib.pyplot as plt
 
 import src.features.fre_to_tpm.viirs.ftt_utils as ut
-
 import src.config.filepaths as fp
+import src.config.constants as constants
+
+
+
+def setup_data(ts):
+
+    dd = dict()
+    dd['viirs_aod'] = ut.sat_data_reader(fp.path_to_viirs_aod, 'viirs', 'aod', ts)
+    dd['viirs_flags'] = ut.sat_data_reader(fp.path_to_viirs_aod, 'viirs', 'flags', ts)
+    dd['orac_aod'] = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'aod', ts)
+    dd['orac_flags'] = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'flags', ts)
+
+    lats, lons = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'geo', ts)
+    dd['lats'] = lats
+    dd['lons'] = lons
+    return dd
 
 
 def main():
@@ -22,40 +35,34 @@ def main():
     for p_number, plume in plume_df.iterrows():
 
         # get plume time stamp
-        current_timestamp = ut.get_timestamp(plume.filename)
+        current_timestamp = ut.get_timestamp(plume.filename, 'viirs')
 
-        # if working on a new scene. Then set it up
+        # read in satellite data
         if current_timestamp != previous_timestamp:
 
             try:
-                viirs_aod_data = ut.load_viirs(fp.path_to_viirs_aod, current_timestamp, plume.filename)
-                orac_aod_data = ut.load_orac(fp.path_to_viirs_orac, current_timestamp)
+                sat_data = setup_data(current_timestamp)
             except Exception, e:
-                logger.info('Could not load AOD data with error: ' + str(e))
+                logger.info('Could not load all datasets for: ' + plume.filename + '. Failed with error: ' + str(e))
                 continue
 
             # set up resampler
-            utm_image_resampler = ut.utm_resampler(orac_aod_data.variables['lat'][:],
-                                                   orac_aod_data.variables['lon'][:],
-                                                   750)
+            utm_rs = ut.utm_resampler(sat_data['lats'], sat_data['lons'], constants.utm_grid_size)
 
             # get the mask for the lats and lons and apply
-            orac_aod = ut.orac_aod(orac_aod_data)
-            mask = np.ma.getmask(orac_aod)
-            masked_lats = np.ma.masked_array(utm_image_resampler.lats, mask)
-            masked_lons = np.ma.masked_array(utm_image_resampler.lons, mask)
+            null_mask = np.ma.getmask(sat_data['orac_aod'])
+            masked_lats = np.ma.masked_array(utm_rs.lats, null_mask)
+            masked_lons = np.ma.masked_array(utm_rs.lons, null_mask)
 
-            viirs_aod_utm = utm_image_resampler.resample_image(ut.viirs_aod(viirs_aod_data),
-                                                               masked_lats, masked_lons, fill_value=0)
-            viirs_flag_utm = utm_image_resampler.resample_image(ut.viirs_flags(viirs_aod_data),
-                                                                masked_lats, masked_lons, fill_value=0)
-            orac_aod_utm = utm_image_resampler.resample_image(orac_aod,
-                                                              masked_lats, masked_lons, fill_value=0)
-            orac_cost_utm = utm_image_resampler.resample_image(ut.orac_cost(orac_aod_data),
-                                                               masked_lats, masked_lons, fill_value=0)
-            lats = utm_image_resampler.resample_image(utm_image_resampler.lats, masked_lats, masked_lons, fill_value=0)
-            lons = utm_image_resampler.resample_image(utm_image_resampler.lons, masked_lats, masked_lons, fill_value=0)
-
+            # resample all the datasets to UTM
+            d = {}
+            d['viirs_aod_utm'] = utm_rs.resample_image(sat_data['viirs_aod'], masked_lats, masked_lons, fill_value=0)
+            d['viirs_flags_utm'] = utm_rs.resample_image(sat_data['viirs_flags'], masked_lats, masked_lons,
+                                                         fill_value=0)
+            d['orac_aod_utm'] = utm_rs.resample_image(sat_data['orac_aod'], masked_lats, masked_lons, fill_value=0)
+            d['orac_flags_utm'] = utm_rs.resample_image(sat_data['orac_flags'], masked_lats, masked_lons, fill_value=0)
+            d['lats'] = utm_rs.resample_image(utm_rs.lats, masked_lats, masked_lons, fill_value=0)
+            d['lons'] = utm_rs.resample_image(utm_rs.lons, masked_lats, masked_lons, fill_value=0)
             previous_timestamp = current_timestamp
 
         # construct plume and background coordinate data
@@ -68,10 +75,10 @@ def main():
             continue
 
         # subset the data to the rois
-        viirs_aod_utm_plume = ut.subset_data(viirs_aod_utm, plume_bounding_box)
-        viirs_flag_utm_plume = ut.subset_data(viirs_flag_utm, plume_bounding_box)
-        orac_aod_utm_plume = ut.subset_data(orac_aod_utm, plume_bounding_box)
-        orac_cost_utm_plume = ut.subset_data(orac_cost_utm, plume_bounding_box)
+        viirs_aod_utm_plume = ut.subset_data(d['viirs_aod_utm'], plume_bounding_box)
+        viirs_flag_utm_plume = ut.subset_data(d['viirs_flag_utm'], plume_bounding_box)
+        orac_aod_utm_plume = ut.subset_data(d['orac_aod_utm'], plume_bounding_box)
+        orac_cost_utm_plume = ut.subset_data(d['orac_cost_utm'], plume_bounding_box)
 
         # set up the dataframe for the plume and append to the dataframe list
         df = pd.DataFrame()
