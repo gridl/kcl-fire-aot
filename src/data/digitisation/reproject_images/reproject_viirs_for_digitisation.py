@@ -64,7 +64,9 @@ def get_viirs_fname(path, timestamp_viirs, key):
     fname = [f for f in os.listdir(path) if
              ((timestamp_viirs in f) and (key in f))]
     if len(fname) > 1:
-        logger.warning("More that one frp granule matched STOP and check why")
+        print timestamp_viirs
+        print fname
+        logger.warning("More that one granule matched STOP and check why, key " + key)
         return fname[0]
     elif len(fname) == 1:
         return fname[0]
@@ -106,7 +108,6 @@ def setup_data(base_name):
     data_dict['flags'] = read_ds(fp.path_to_viirs_aod, ts, 'AOT', key_alt='QF1')
     data_dict['lats'] = read_ds(fp.path_to_viirs_geo, ts, 'TCO', key_alt='Latitude')
     data_dict['lons'] = read_ds(fp.path_to_viirs_geo, ts, 'TCO', key_alt='Longitude')
-    print data_dict['lats']
     return data_dict
 
 
@@ -444,7 +445,7 @@ def main():
         misc.imsave(os.path.join(fp.path_to_viirs_sdr_resampled_no_peat, viirs_sdr_filename.replace('h5', 'png')), tcc)
         misc.imsave(os.path.join(fp.path_to_viirs_sdr_resampled_peat,
                                  viirs_sdr_filename.replace('.h5', '_peat.png')), tcc_peat)
-        
+        print        
 
 if __name__ == "__main__":
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
