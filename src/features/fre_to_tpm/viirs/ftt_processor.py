@@ -148,45 +148,34 @@ def main():
     for p_number, plume in pp['plume_df'].iterrows():
 
         # make a directory to hold the plume logging information
-        plume_logging_path = create_logger_path(p_number)
+        plume_logging_path = ut.create_logger_path(p_number)
 
         # get plume time stamp
         current_timestamp = ut.get_timestamp(plume.filename)
 
         # read in satellite data
         if current_timestamp != previous_timestamp:
-            sat_data_utm = resample_satellite_datasets(plume, current_timestamp, pp)
+            sat_data_utm = ut.resample_satellite_datasets(plume, current_timestamp, pp)
             previous_timestamp = current_timestamp
             if sat_data_utm is None:
                 continue
 
         # construct plume and background coordinate data
-        plume_geom_geo = setup_plume_data(plume, sat_data_utm)
+        plume_geom_geo = ut.setup_plume_data(plume, sat_data_utm)
 
         # subset the satellite AOD data to the plume
-        plume_data_utm = subset_sat_data_to_plume(sat_data_utm, plume_geom_geo)
+        plume_data_utm = ut.subset_sat_data_to_plume(sat_data_utm, plume_geom_geo)
         if pp['plot']:
             vis.plot_plume_data(sat_data_utm, plume_data_utm, plume_geom_geo['plume_bounding_box'], plume_logging_path)
 
         # Reproject plume shapely objects to UTM
-        plume_geom_utm = resample_plume_geom_to_utm(plume_geom_geo)
-
-        # # get the plume sub polygons / start stop times based on the wind speed
-        # try:
-        #     utm_flow_means, geostationary_fnames, t1, t2 = pt.find_flow_simplified(p_number, plume_logging_path,
-        #                                                                 plume_geom_utm,
-        #                                                                 plume_geom_geo,
-        #                                                                 pp,
-        #                                                                 current_timestamp)
-        # except Exception, e:
-        #     logger.error(str(e))
-        #     continue
+        plume_geom_utm = ut.resample_plume_geom_to_utm(plume_geom_geo)
 
         # load in times for plume number
         t1, t2 = pp['t_start_stop'][p_number]
 
-        process_plume_full(t1, t2, pp, plume_data_utm, plume_geom_utm, plume_geom_geo, plume_logging_path,
-                           p_number, df_list)
+        ut.process_plume(t1, t2, pp, plume_data_utm, plume_geom_utm, plume_geom_geo, plume_logging_path,
+                         p_number, df_list)
 
     # dump data to csv via df
     df = pd.concat(df_list)

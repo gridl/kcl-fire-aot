@@ -6,11 +6,32 @@ from datetime import datetime
 
 import pandas as pd
 import numpy as np
-import scipy.misc as misc
 import matplotlib.pyplot as plt
+from sklearn.neighbors import BallTree
 
 import src.config.filepaths as fp
 import src.features.fre_to_tpm.viirs.ftt_utils as ut
+
+
+
+def make_balltree_subset(array_lats_flat, array_lons_flat):
+    array_lat_lon = np.dstack([np.deg2rad(array_lats_flat), np.deg2rad(array_lons_flat)])[0]
+    return BallTree(array_lat_lon, metric='haversine')
+
+
+def spatial_intersection_subset(array_balltree, point_lat, point_lon, x_positions_flat, y_positions_flat):
+    # get the unique flare lats and lons for assessment in kdtree
+    point_location = np.array([np.deg2rad(point_lat), np.deg2rad(point_lon)]).reshape(1, -1)
+
+    # compare the flare locations to the potential locations in the orbit
+    distance, index = array_balltree.query(point_location, k=1)
+
+    # get indexes
+    x = x_positions_flat[index][0][0]
+    y = y_positions_flat[index][0][0]
+    d = distance[0][0]
+
+    return x, y, np.rad2deg(d)
 
 
 def read_aeronet(filename):
@@ -79,7 +100,7 @@ def collocate_station(station, balltree, cols, rows, timestamp):
     station_lon = temporal_df.iloc[0]['Site_Longitude(Degrees)']
 
     # check if scene intersects
-    x, y, d = ut.spatial_intersection_subset(balltree,
+    x, y, d = spatial_intersection_subset(balltree,
                                              station_lat,
                                              station_lon,
                                              cols, rows)
@@ -293,7 +314,7 @@ def main():
         cols = cols[mask]
         rows = rows[mask]
 
-        balltree = ut.make_balltree_subset(resampled_lats_sub, resampled_lons_sub)
+        balltree = make_balltree_subset(resampled_lats_sub, resampled_lons_sub)
 
         # iterate aeronet station data
         ds_loaded = False
