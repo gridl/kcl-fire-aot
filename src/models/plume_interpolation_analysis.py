@@ -1,17 +1,13 @@
 import logging
-import os
 
 import numpy as np
-import scipy.misc as misc
 import scipy.interpolate as interpolate
 from sklearn.gaussian_process import GaussianProcess
+import matplotlib.pyplot as plt
 
 import src.features.fre_to_tpm.viirs.ftt_utils as ut
-
 import src.config.filepaths as fp
-import src.config.constants as constants
 
-import matplotlib.pyplot as plt
 
 
 def proc_params():

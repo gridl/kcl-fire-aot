@@ -112,7 +112,7 @@ def sat_data_reader(p, sensor, var, timestamp):
         # check timestamp is in correct form
         if isinstance(timestamp, basestring):
             try:
-                timestamp = parse(timestamp)
+                timestamp = parse(timestamp, fuzzy=True)
                 viirs_time_format = datetime.strftime(timestamp, 'd%Y%m%d_t%H%M%S')
             except Exception, e:
                 logger.critical(str(e))

@@ -105,7 +105,7 @@ def remove_from_download_list(temp_path, f):
 
 def main():
 
-    temp_path = filepaths.path_to_modis_tmp
+    temp_path = filepaths.path_to_viirs_tmp
 
     # first connect to ftp site
     ftp_laads = ftp_connect_laads()
@@ -134,7 +134,7 @@ def main():
             VMAE_L1_filename = get_file(ftp_laads, year, doy, f)
 
             if not VMAE_L1_filename:
-                logger.warning('Could not download myd04 file for file: ' + f)
+                logger.warning('Could not download  file for file: ' + f)
                 continue
 
             # download the filef

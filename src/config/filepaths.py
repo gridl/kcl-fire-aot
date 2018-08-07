@@ -15,9 +15,9 @@ elif sensor == 'himawari':
 
 # root path to data folder
 #root_path = '/Users/dnf/Projects/kcl-fire-aot/data/{0}/'.format(region)
-root_path = '/Users/danielfisher/Projects/kcl-fire-aot/data/{0}/'.format(region)
+#root_path = '/Users/danielfisher/Projects/kcl-fire-aot/data/{0}/'.format(region)
 #root_path = '/Volumes/dfisher/data/{0}/'.format(region)
-#root_path = '/Volumes/INTENSO/{0}/'.format(region)
+root_path = '/Volumes/INTENSO/{0}/'.format(region)
 
 # processed data paths
 path_to_processed_orac = root_path + 'processed/orac_proc/'
@@ -38,7 +38,7 @@ path_to_modis_l1b = root_path + 'raw/modis/l1b/'
 path_to_modis_geo = root_path + 'raw/modis/geo'
 path_to_modis_frp = root_path + 'raw/modis/frp/'
 path_to_modis_aod = root_path + 'raw/modis/aod/'
-path_to_orac_aod = root_path + 'processed/orac/'
+path_to_orac_aod = root_path + 'processed/viirs/orac'
 path_to_viirs = root_path + 'raw/viirs/unprojected/'
 path_to_viirs_sdr = root_path + 'raw/viirs/unprojected/sdr/'
 path_to_viirs_aod = root_path + 'raw/viirs/unprojected/aod/'
@@ -73,7 +73,7 @@ path_to_class_https_b = 'https://download.class.ngdc.noaa.gov/download/'
 # temporary file paths for data downloads
 path_to_goes_tmp = root_path + 'tmp/goes/'
 path_to_modis_tmp = root_path + 'tmp/modis/'
-path_to_modis_tmp = root_path + 'tmp/viirs/'
+path_to_viirs_tmp = root_path + 'tmp/viirs/'
 
 # features filepaths
 path_to_plume_classification_features = root_path + 'interim/classification_features.pickle'
@@ -94,6 +94,10 @@ path_to_filelists = root_path + 'filelists/'
 
 # dataframe paths
 path_to_dataframes = os.path.join(root_path, 'interim', 'dataframes')
+
+
+
+# usused paths, but keeping here for now
 
 
 

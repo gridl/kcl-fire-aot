@@ -1,3 +1,5 @@
+#!/home/users/dnfisher/soft/virtual_envs/kcl-fire-aot/bin/python2
+
 import logging
 import os
 
@@ -5,7 +7,6 @@ import numpy as np
 from scipy import integrate
 from datetime import datetime
 
-import src.features.fre_to_tpm.viirs.ftt_utils as ut
 
 log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=log_fmt)
@@ -54,6 +55,7 @@ def spatial_subset(frp_subset, plume_geom_utm):
     :param utm_resampler: The utm resampler object
     :return: The spatially subsetted frp dataframe
     """
+    import src.features.fre_to_tpm.viirs.ftt_utils as ut
     inbounds = []
     max_dist = 10000  # TODO ADD TO CONFIG
     for i, (index, frp_pixel) in enumerate(frp_subset.iterrows()):

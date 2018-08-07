@@ -143,7 +143,7 @@ def main():
 
     file_list = os.path.join(fp.path_to_filelists, 'indonesia_filepaths_for_viirs_download.txt')
     ftp_laads = ftp_connect_laads()
-    temp_path = fp.path_to_modis_tmp
+    temp_path = fp.path_to_viirs_tmp
 
     with open(file_list, 'rb') as fl:
         mxd021km_filenames = fl.readlines()
