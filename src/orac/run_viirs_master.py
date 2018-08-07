@@ -11,9 +11,9 @@ class ProcParams(object):
         self.sensor = "viirs"
         self.proc_level = 'pro'
 
-        self.data_dir = '/group_workspaces/jasmin2/nceo_aerosolfire/data/orac_proc/viirs/sdr/sumatra_roi/'
-        self.geo_dir = '/group_workspaces/jasmin2/nceo_aerosolfire/data/orac_proc/viirs/geo/sumatra_roi/'
-        self.output_dir = '/group_workspaces/jasmin2/nceo_aerosolfire/data/orac_proc/viirs/outputs/sumatra_roi/'
+        self.data_dir = '/group_workspaces/jasmin2/nceo_aerosolfire/data/orac_proc/viirs/sdr/'
+        self.geo_dir = '/group_workspaces/jasmin2/nceo_aerosolfire/data/orac_proc/viirs/geo/'
+        self.output_dir = '/group_workspaces/jasmin2/nceo_aerosolfire/data/orac_proc/viirs/outputs/'
 
         self.cldsaddir = '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/sad_dir/viirs-npp_WAT'
         self.cldphs = ['WAT']
