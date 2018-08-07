@@ -53,8 +53,8 @@ def resample_satellite_datasets(plume, current_timestamp, pp):
     d = {}
 
     try:
-        viirs_aod_data = ut.load_viirs(fp.path_to_viirs_aod, current_timestamp, plume.filename)
-        orac_aod_data = ut.load_orac(fp.path_to_viirs_orac, current_timestamp)
+        viirs_aod_data = ut.open_viirs_ds(fp.path_to_viirs_aod, current_timestamp, plume.filename)
+        orac_aod_data = ut.open_orac_ds(fp.path_to_viirs_orac, current_timestamp)
         if pp['plot']:
             d['viirs_png_utm'] = misc.imread(os.path.join(fp.path_to_viirs_sdr_resampled_peat, plume.filename))
     except Exception, e:
@@ -67,16 +67,16 @@ def resample_satellite_datasets(plume, current_timestamp, pp):
                                            constants.utm_grid_size)
 
     # get the mask for the lats and lons and apply
-    orac_aod = ut.orac_aod(orac_aod_data)
+    orac_aod = ut.extract_orac_aod(orac_aod_data)
     viirs_null_mask = np.ma.getmask(orac_aod)
     masked_lats = np.ma.masked_array(utm_rs.lats, viirs_null_mask)
     masked_lons = np.ma.masked_array(utm_rs.lons, viirs_null_mask)
 
     # resample all the datasets to UTM
-    d['viirs_aod_utm'] = utm_rs.resample_image(ut.viirs_aod(viirs_aod_data), masked_lats, masked_lons, fill_value=0)
-    d['viirs_flag_utm'] = utm_rs.resample_image(ut.viirs_flags(viirs_aod_data), masked_lats, masked_lons, fill_value=0)
+    d['viirs_aod_utm'] = utm_rs.resample_image(ut.extract_viirs_aod(viirs_aod_data), masked_lats, masked_lons, fill_value=0)
+    d['viirs_flag_utm'] = utm_rs.resample_image(ut.extract_viirs_flags(viirs_aod_data), masked_lats, masked_lons, fill_value=0)
     d['orac_aod_utm'] = utm_rs.resample_image(orac_aod, masked_lats, masked_lons, fill_value=0)
-    d['orac_cost_utm'] = utm_rs.resample_image(ut.orac_cost(orac_aod_data), masked_lats, masked_lons, fill_value=0)
+    d['orac_cost_utm'] = utm_rs.resample_image(ut.extract_orac_cost(orac_aod_data), masked_lats, masked_lons, fill_value=0)
     d['lats'] = utm_rs.resample_image(utm_rs.lats, masked_lats, masked_lons, fill_value=0)
     d['lons'] = utm_rs.resample_image(utm_rs.lons, masked_lats, masked_lons, fill_value=0)
     return d

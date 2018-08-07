@@ -9,8 +9,11 @@ import cPickle as pickle
 import src.config.filepaths as filepaths
 
 def main():
-    in_path = '/Users/danielfisher/Projects/kcl-fire-aot/data/Asia/processed/himawari/updated/frp_df.p'
-    out_path = '/Users/danielfisher/Projects/kcl-fire-aot/data/Asia/processed/himawari/updated/frp_df.csv'
+    #in_path = '/Users/danielfisher/Projects/kcl-fire-aot/data/Asia/processed/himawari/updated/frp_df.p'
+    #out_path = '/Users/danielfisher/Projects/kcl-fire-aot/data/Asia/processed/himawari/updated/frp_df.csv'
+
+    in_path ='/Users/danielfisher/Projects/kcl-fire-aot/data/Asia/processed/plume_masks/viirs_plumes_sumatra_df.pickle'
+    out_path = '/Users/danielfisher/Projects/kcl-fire-aot/data/Asia/processed/plume_masks/viirs_plumes_sumatra_df.csv'
 
     df = pd.read_pickle(in_path)
     df.to_csv(out_path)

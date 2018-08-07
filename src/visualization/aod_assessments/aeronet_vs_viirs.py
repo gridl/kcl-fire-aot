@@ -267,8 +267,8 @@ def main():
         # load in orac data and resample
         try:
             orac_ds = ut.read_nc(o_f)
-            orac_aod = ut.orac_aod(orac_ds)
-            lats, lons = ut.read_orac_geo(orac_ds)
+            orac_aod = ut.extract_orac_aod(orac_ds)
+            lats, lons = ut.extract_orac_geo(orac_ds)
             utm_rs = ut.utm_resampler(lats, lons, 750)
         except Exception, e:
             print 'could not load aod dataset with error: ' + str(e)
@@ -322,12 +322,12 @@ def main():
                 if not ds_loaded:
 
                     r_orac_aod = utm_rs.resample_image(orac_aod, masked_lats, masked_lons, fill_value=0)
-                    r_orac_cost = utm_rs.resample_image(ut.orac_cost(orac_ds), masked_lats, masked_lons, fill_value=0)
+                    r_orac_cost = utm_rs.resample_image(ut.extract_orac_cost(orac_ds), masked_lats, masked_lons, fill_value=0)
 
                     viirs_aod_fname = get_fname(fp.path_to_viirs_aod, timestamp)
                     viirs_aod_ds = ut.read_h5(os.path.join(fp.path_to_viirs_aod, viirs_aod_fname))
-                    r_viirs_aod = utm_rs.resample_image(ut.viirs_aod(viirs_aod_ds), masked_lats, masked_lons, fill_value=0)
-                    r_viirs_flag = utm_rs.resample_image(ut.viirs_flags(viirs_aod_ds), masked_lats, masked_lons,
+                    r_viirs_aod = utm_rs.resample_image(ut.extract_viirs_aod(viirs_aod_ds), masked_lats, masked_lons, fill_value=0)
+                    r_viirs_flag = utm_rs.resample_image(ut.extract_viirs_flags(viirs_aod_ds), masked_lats, masked_lons,
                                                          fill_value=0)
 
                     viirs_sdr_fname = get_fname(fp.path_to_viirs_sdr, timestamp)

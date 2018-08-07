@@ -28,8 +28,8 @@ def main():
         if current_timestamp != previous_timestamp:
 
             try:
-                viirs_aod_data = ut.load_viirs(fp.path_to_viirs_aod, current_timestamp, plume.filename)
-                orac_aod_data = ut.load_orac(fp.path_to_viirs_orac, current_timestamp)
+                viirs_aod_data = ut.open_viirs_ds(fp.path_to_viirs_aod, current_timestamp, plume.filename)
+                orac_aod_data = ut.open_orac_ds(fp.path_to_viirs_orac, current_timestamp)
             except Exception, e:
                 logger.info('Could not load AOD data with error: ' + str(e))
                 continue
@@ -40,18 +40,18 @@ def main():
                                                    750)
 
             # get the mask for the lats and lons and apply
-            orac_aod = ut.orac_aod(orac_aod_data)
+            orac_aod = ut.extract_orac_aod(orac_aod_data)
             mask = np.ma.getmask(orac_aod)
             masked_lats = np.ma.masked_array(utm_image_resampler.lats, mask)
             masked_lons = np.ma.masked_array(utm_image_resampler.lons, mask)
 
-            viirs_aod_utm = utm_image_resampler.resample_image(ut.viirs_aod(viirs_aod_data),
+            viirs_aod_utm = utm_image_resampler.resample_image(ut.extract_viirs_aod(viirs_aod_data),
                                                                masked_lats, masked_lons, fill_value=0)
-            viirs_flag_utm = utm_image_resampler.resample_image(ut.viirs_flags(viirs_aod_data),
+            viirs_flag_utm = utm_image_resampler.resample_image(ut.extract_viirs_flags(viirs_aod_data),
                                                                 masked_lats, masked_lons, fill_value=0)
             orac_aod_utm = utm_image_resampler.resample_image(orac_aod,
                                                               masked_lats, masked_lons, fill_value=0)
-            orac_cost_utm = utm_image_resampler.resample_image(ut.orac_cost(orac_aod_data),
+            orac_cost_utm = utm_image_resampler.resample_image(ut.extract_orac_cost(orac_aod_data),
                                                                masked_lats, masked_lons, fill_value=0)
             lats = utm_image_resampler.resample_image(utm_image_resampler.lats, masked_lats, masked_lons, fill_value=0)
             lons = utm_image_resampler.resample_image(utm_image_resampler.lons, masked_lats, masked_lons, fill_value=0)

@@ -15,16 +15,16 @@ elif sensor == 'himawari':
 
 # root path to data folder
 #root_path = '/Users/dnf/Projects/kcl-fire-aot/data/{0}/'.format(region)
-#root_path = '/Users/danielfisher/Projects/kcl-fire-aot/data/{0}/'.format(region)
+root_path = '/Users/danielfisher/Projects/kcl-fire-aot/data/{0}/'.format(region)
 #root_path = '/Volumes/dfisher/data/{0}/'.format(region)
-root_path = '/Volumes/INTENSO/{0}/'.format(region)
+#root_path = '/Volumes/INTENSO/{0}/'.format(region)
 
 # processed data paths
 path_to_processed_orac = root_path + 'processed/orac_proc/'
 path_to_smoke_plume_polygons_modis = root_path + 'processed/plume_masks/myd021km_plumes_df.pickle'
 path_to_smoke_plume_polygons_modis_csv = root_path + 'processed/plume_masks/myd021km_plumes_df.csv'
-path_to_smoke_plume_polygons_viirs = root_path + 'processed/plume_masks/viirs_plumes_df.pickle'
-path_to_smoke_plume_polygons_viirs_csv = root_path + 'processed/plume_masks/viirs_plumes_df.csv'
+path_to_smoke_plume_polygons_viirs = root_path + 'processed/plume_masks/viirs_plumes_sumatra_df.pickle'
+path_to_smoke_plume_polygons_viirs_csv = root_path + 'processed/plume_masks/viirs_plumes_sumatra_df.csv'
 path_to_processed_filelist_modis = root_path + 'processed/plume_masks/processed_filelist_modis.txt'
 path_to_processed_filelist_viirs = root_path + 'processed/plume_masks/processed_filelist_viirs.txt'
 if sensor == 'goes':
@@ -53,13 +53,13 @@ path_to_landcover = root_path.replace(region, 'Global') + 'land_cover/ESACCI-LC-
 path_to_peat_maps = root_path + 'external/peat_maps'
 
 # resampled viirs for digitsing
-path_to_viirs_sdr_resampled_peat = root_path + 'raw/viirs/selected_resampled/sdr/peat/'
-path_to_viirs_sdr_resampled_no_peat = root_path + 'raw/viirs/selected_resampled/sdr/no_peat/'
-path_to_viirs_aod_resampled = root_path + 'raw/viirs/selected_resampled/aod/'
-path_to_viirs_aod_flags_resampled = root_path + 'raw/viirs/selected_resampled/aod_flags/'
-path_to_viirs_orac_resampled = root_path + 'raw/viirs/selected_resampled/orac/'
-path_to_viirs_orac_cost_resampled = root_path + 'raw/viirs/selected_resampled/orac_cost/'
-path_to_resampled_peat_map = root_path + 'raw/viirs/resampled/peat_maps/'
+digi_path = os.path.join(root_path, 'raw/viirs/sumatra_roi/resampled')
+path_to_viirs_sdr_resampled_peat = os.path.join(digi_path, 'peat/')
+path_to_viirs_sdr_resampled_no_peat = os.path.join(digi_path, 'no_peat/')
+path_to_viirs_aod_resampled = os.path.join(digi_path, 'aod/')
+path_to_viirs_aod_flags_resampled = os.path.join(digi_path, 'aod_flags/')
+path_to_viirs_orac_resampled = os.path.join(digi_path, 'orac/')
+path_to_viirs_orac_cost_resampled = os.path.join(digi_path, 'orac_cost/')
 
 # FTP paths (MODIS / Ladsweb)
 path_to_ladsweb_ftp = "ladsweb.nascom.nasa.gov"
