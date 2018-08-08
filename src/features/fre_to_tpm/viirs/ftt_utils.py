@@ -87,7 +87,7 @@ def sat_data_reader(p, sensor, var, timestamp):
         if isinstance(timestamp, basestring):
             # strip time and get in the right format
             try:
-                timestamp = parse(timestamp)
+                timestamp = parse(timestamp, fuzzy=True)
                 orac_time_format = datetime.strftime(timestamp, '%Y%m%d%H%M')
             except Exception, e:
                 logger.critical(str(e))

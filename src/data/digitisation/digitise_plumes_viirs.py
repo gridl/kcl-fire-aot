@@ -3,6 +3,7 @@ import logging
 import os
 import re
 from datetime import datetime
+from dateutil.parser import parse
 
 import matplotlib
 import matplotlib.cm as cm
@@ -37,17 +38,20 @@ def get_timestamp(viirs_sdr_fname):
 
 def image_seen(viirs_fname):
     if not os.path.exists(fp.processed_filelist_path):
-        with open(fp.processed_filelist_path, 'w') as txt_file:
-            txt_file.write(viirs_fname + '\n')
-            return False
+        return False
     else:
         with open(fp.processed_filelist_path, 'r+') as txt_file:
             if viirs_fname in txt_file.read():
                 logger.info(viirs_fname + " already processed")
                 return True
             else:
-                txt_file.write(viirs_fname + '\n')
                 return False
+
+
+def log_digitisation(viirs_fname):
+    with open(fp.processed_filelist_path, 'r+') as txt_file:
+        txt_file.write(viirs_fname + '\n')
+
 
 
 def get_viirs_fname(path, timestamp_viirs, viirs_sdr_fname):
@@ -64,7 +68,9 @@ def get_viirs_fname(path, timestamp_viirs, viirs_sdr_fname):
 def get_orac_fname(path, timestamp_viirs, viirs_sdr_fname):
     viirs_dt = datetime.strptime(timestamp_viirs, 'd%Y%m%d_t%H%M%S')
     fname = [f for f in os.listdir(path) if
-             abs((viirs_dt - datetime.strptime(f[37:49], "%Y%m%d%H%M")).total_seconds()) <= 30]
+             abs((viirs_dt -
+                  parse(re.search("[_][0-9]{12}[_]", f).group(), fuzzy=True)
+                  ).total_seconds()) <= 30]
     if len(fname) > 1:
         logger.warning("More that one frp granule matched " + viirs_sdr_fname + "selecting 0th option")
         return fname[0]
@@ -215,7 +221,7 @@ class Annotate(object):
             self.im.set_clim(vmax=10, vmin=0)
             self.im.set_cmap('viridis')
         if label == "ORAC_COST":
-            self.im.set_clim(vmax=20, vmin=0)
+            self.im.set_clim(vmax=5, vmin=0)
             self.im.set_cmap('plasma')
         plt.draw()
 
@@ -270,7 +276,7 @@ def digitise(tcc, viirs_aod, viirs_flags, orac_aod, orac_cost, viirs_fname):
     while do_annotation:
 
         fig, ax = plt.subplots(1, figsize=(15, 8))
-        plt.title(viirs_fname[35:65])
+        plt.title(re.search("[d][0-9]{8}[_][t][0-9]{6}", viirs_fname).group())
         ax.xaxis.set_visible(False)
         ax.yaxis.set_visible(False)
 
@@ -331,6 +337,12 @@ def main():
 
             # get the filenames
             try:
+                tcc_fname = get_viirs_fname(fp.path_to_viirs_sdr_resampled_peat, timestamp_viirs, viirs_sdr_fname)
+            except Exception, e:
+                logger.warning('Could not load viirs aod file for:' + viirs_sdr_fname + '. Failed with ' + str(e))
+                continue
+
+            try:
                 aod_fname = get_viirs_fname(fp.path_to_viirs_aod_resampled, timestamp_viirs, viirs_sdr_fname)
             except Exception, e:
                 logger.warning('Could not load viirs aod file for:' + viirs_sdr_fname + '. Failed with ' + str(e))
@@ -343,9 +355,8 @@ def main():
                 continue
 
             # load in the data
-
             try:
-                tcc = load_image(os.path.join(fp.path_to_viirs_sdr_resampled_peat, viirs_sdr_fname))
+                tcc = load_image(os.path.join(fp.path_to_viirs_sdr_resampled_peat, tcc_fname))
 
             except Exception, e:
                 logger.warning('Could not read the input file: ' + viirs_sdr_fname + '. Failed with ' + str(e))
@@ -381,9 +392,9 @@ def main():
                     orac_aod = orac_aod.astype('float')
                     orac_aod *= 10.0 / orac_aod.max()
 
-                    # adjust to between 0-1000
+                    # adjust to between 0-5
                     orac_cost = orac_cost.astype('float')
-                    orac_cost *= 50.0 / orac_cost.max()
+                    orac_cost *= 5.0 / orac_cost.max()
 
                 except Exception, e:
                     logger.warning('Could not read aod file: ' + orac_fname + ' error: ' + str(e))
@@ -411,6 +422,9 @@ def main():
             temp_plume_df = pd.DataFrame(plumes_list)
             viirs_plume_df = pd.concat([viirs_plume_df, temp_plume_df])
             viirs_plume_df.to_pickle(fp.plume_polygon_path)
+
+            # if completed log file as digitised
+            log_digitisation(viirs_sdr_fname)
 
     # also write out to csv
     viirs_plume_df.to_csv(fp.plume_polygon_path_csv)
