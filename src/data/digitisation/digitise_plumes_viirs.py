@@ -15,7 +15,7 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Circle, Polygon
 from matplotlib.widgets import RadioButtons
 
-import src.config.filepaths as filepaths
+import src.config.filepaths as fp
 
 
 def load_df(path):
@@ -37,7 +37,7 @@ def get_timestamp(viirs_sdr_fname):
 
 def image_seen(viirs_fname):
     try:
-        with open(filepaths.path_to_processed_filelist_viirs, 'r+') as txt_file:
+        with open(fp.processed_filelist_path, 'r+') as txt_file:
             if viirs_fname in txt_file.read():
                 logger.info(viirs_fname + " already processed")
                 return True
@@ -317,9 +317,9 @@ def main():
         timeframe, and time stamps.  The user can then process these
         images and extract smoke plumes.
     """
-    viirs_plume_df = load_df(filepaths.path_to_smoke_plume_polygons_viirs)
+    viirs_plume_df = load_df(fp.plume_polygon_path)
 
-    for viirs_sdr_fname in os.listdir(filepaths.path_to_viirs_sdr_resampled_peat):
+    for viirs_sdr_fname in os.listdir(fp.path_to_viirs_sdr_resampled_peat):
 
         logger.info("Processing viirs file: " + viirs_sdr_fname)
 
@@ -336,13 +336,13 @@ def main():
 
         # get the filenames
         try:
-            aod_fname = get_viirs_fname(filepaths.path_to_viirs_aod_resampled, timestamp_viirs, viirs_sdr_fname)
+            aod_fname = get_viirs_fname(fp.path_to_viirs_aod_resampled, timestamp_viirs, viirs_sdr_fname)
         except Exception, e:
             logger.warning('Could not load viirs aod file for:' + viirs_sdr_fname + '. Failed with ' + str(e))
             continue
 
         try:
-            orac_fname = get_orac_fname(filepaths.path_to_viirs_orac_resampled, timestamp_viirs, viirs_sdr_fname)
+            orac_fname = get_orac_fname(fp.path_to_viirs_orac_resampled, timestamp_viirs, viirs_sdr_fname)
         except Exception, e:
             logger.warning('Could not load orac aod file for:' + viirs_sdr_fname + '. Failed with ' + str(e))
             continue
@@ -350,7 +350,7 @@ def main():
         # load in the data
 
         try:
-            tcc = load_image(os.path.join(filepaths.path_to_viirs_sdr_resampled_peat, viirs_sdr_fname))
+            tcc = load_image(os.path.join(fp.path_to_viirs_sdr_resampled_peat, viirs_sdr_fname))
 
         except Exception, e:
             logger.warning('Could not read the input file: ' + viirs_sdr_fname + '. Failed with ' + str(e))
@@ -360,13 +360,13 @@ def main():
         viirs_aod = None
         if aod_fname:
             try:
-                viirs_aod = load_image(os.path.join(filepaths.path_to_viirs_aod_resampled, aod_fname))
+                viirs_aod = load_image(os.path.join(fp.path_to_viirs_aod_resampled, aod_fname))
 
                 # adjust to between 0-2
                 viirs_aod = viirs_aod.astype('float')
                 viirs_aod *= 2.0/viirs_aod.max()
 
-                viirs_flags = load_image(os.path.join(filepaths.path_to_viirs_aod_flags_resampled, aod_fname))
+                viirs_flags = load_image(os.path.join(fp.path_to_viirs_aod_flags_resampled, aod_fname))
                 viirs_flags = viirs_flags.astype('float')
                 viirs_flags *= 3.0 / viirs_flags.max()
 
@@ -379,8 +379,8 @@ def main():
         orac_aod = None
         if orac_fname:
             try:
-                orac_aod = load_image(os.path.join(filepaths.path_to_viirs_orac_resampled, orac_fname))
-                orac_cost = load_image(os.path.join(filepaths.path_to_viirs_orac_cost_resampled, orac_fname))
+                orac_aod = load_image(os.path.join(fp.path_to_viirs_orac_resampled, orac_fname))
+                orac_cost = load_image(os.path.join(fp.path_to_viirs_orac_cost_resampled, orac_fname))
 
                 # adjust to between 0-10
                 orac_aod = orac_aod.astype('float')
@@ -415,7 +415,9 @@ def main():
         # covert pixel/background lists to dataframes and concatenate to main dataframes
         temp_plume_df = pd.DataFrame(plumes_list)
         viirs_plume_df = pd.concat([viirs_plume_df, temp_plume_df])
-        viirs_plume_df.to_pickle(filepaths.path_to_smoke_plume_polygons_viirs)
+        viirs_plume_df.to_pickle(fp.plume_polygon_path)
+
+        # TODO also write out to csv (removing need for file conversion)
 
 
 if __name__ == '__main__':

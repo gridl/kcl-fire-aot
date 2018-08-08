@@ -31,7 +31,7 @@ def main():
     # set timestamp to check if new data loaded in
     previous_timestamp = ''
 
-    plume_df = ut.read_plume_polygons(fp.path_to_smoke_plume_polygons_viirs_csv)
+    plume_df = ut.read_plume_polygons(fp.plume_polygon_path_csv)
     for p_number, plume in plume_df.iterrows():
 
         # get plume time stamp

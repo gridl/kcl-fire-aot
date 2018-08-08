@@ -15,7 +15,7 @@ def proc_params():
 
     d['plot'] = True
     d['resampled_pix_size'] = 750  # size of UTM grid in meters
-    d['plume_df'] = ut.read_plume_polygons(fp.path_to_smoke_plume_polygons_viirs_csv)
+    d['plume_df'] = ut.read_plume_polygons(fp.plume_polygon_path_csv)
     return d
 
 

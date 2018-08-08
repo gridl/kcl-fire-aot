@@ -290,7 +290,7 @@ def reproject_shapely(shapely_object, utm_resampler):
 
 
 def create_logger_path(p_number):
-    plume_logging_path = os.path.join(fp.path_to_plume_tracking_visualisations_viirs, str(p_number))
+    plume_logging_path = os.path.join(fp.pt_vis_path, str(p_number))
     if not os.path.isdir(plume_logging_path):
         os.mkdir(plume_logging_path)
     return plume_logging_path

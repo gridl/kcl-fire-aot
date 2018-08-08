@@ -11,7 +11,7 @@ from datetime import timedelta
 import src.config.filepaths as fp
 
 
-with open(os.path.join(fp.path_to_filelists, 'processed_filelist_viirs.txt'), 'rb') as f:
+with open(os.path.join(fp.analysis_filelist_path, 'processed_filelist_viirs.txt'), 'rb') as f:
      plumes_files = f.readlines()
 
 
@@ -20,7 +20,7 @@ band = 'B01'
 minutes = ['00', '10', '20', '30', '40', '50']
 segments = ['05', '06', '07']
 
-with open(os.path.join(fp.path_to_filelists, 'him_file_list_'+ band +'.txt'), 'wb') as f:
+with open(os.path.join(fp.analysis_filelist_path, 'him_file_list_'+ band + '.txt'), 'wb') as f:
 
     for plume_fname in plumes_files:
 

@@ -112,7 +112,7 @@ def main():
 
     # get the files to download
     filename_list = 'indonesia_filenames_viirs.txt'
-    with open(os.path.join(filepaths.path_to_filelists, filename_list), 'rb') as filenames:
+    with open(os.path.join(filepaths.analysis_filelist_path, filename_list), 'rb') as filenames:
         for f in filenames.readlines():
 
             if not f:

@@ -9,46 +9,50 @@ import os
 #root_path = '/Users/dnf/Projects/kcl-fire-aot/data/{0}/'.format(region)
 #root_path = '/Users/danielfisher/Projects/kcl-fire-aot/data/{0}/'.format(region)
 #root_path = '/Volumes/dfisher/data/{0}/'.format(region)
-root_path = '/Volumes/INTENSO/kcl-fire-aot/ODA/'
+root = '/Volumes/INTENSO/kcl-fire-aot/ODA/'
 
-# processed data paths
-path_to_processed_orac = root_path + 'processed/orac_proc/'
-path_to_smoke_plume_polygons_viirs = root_path + 'processed/plume_masks/viirs_plumes_sumatra_df.pickle'
-path_to_smoke_plume_polygons_viirs_csv = root_path + 'processed/plume_masks/viirs_plumes_sumatra_df.csv'
-path_to_processed_filelist_viirs = root_path + 'processed/plume_masks/processed_filelist_viirs.txt'
+roi = 'sumatra'
 
-# raw data and data transfer paths
-path_to_viirs_aod = root_path + 'raw/viirs/unprojected/aod/'
-path_to_viirs_orac = root_path + 'processed/orac/viirs/'
-path_to_aeronet = os.path.join(root_path, 'external/aeronet')
-path_to_himawari_l1b = root_path + 'raw/himawari/'
+# select list of files to process
+analysis_filelist_path = os.path.join(root, 'filelists', '{0}_files.txt'.format(roi))
+
+# digitisation paths
+root_pm = os.path.join(root, 'processed', 'plume_masks')
+plume_polygon_path = os.path.join(root_pm, 'viirs_plumes_{0}_df.p'.format(roi))
+plume_polygon_path_csv = os.path.join(root_pm, 'viirs_plumes_{0}_df.csv'.format(roi))
+processed_filelist_path = os.path.join(root_pm, 'processed_filelist_{0}.txt'.format(roi))
 
 # resampled viirs for digitsing
-digi_path = os.path.join(root_path, 'raw/viirs/sumatra_roi/resampled')
-path_to_viirs_sdr_resampled_peat = os.path.join(digi_path, 'peat/')
-path_to_viirs_aod_resampled = os.path.join(digi_path, 'aod/')
-path_to_viirs_aod_flags_resampled = os.path.join(digi_path, 'aod_flags/')
-path_to_viirs_orac_resampled = os.path.join(digi_path, 'orac/')
-path_to_viirs_orac_cost_resampled = os.path.join(digi_path, 'orac_cost/')
+root_digi = os.path.join(root, 'processed', 'viirs', 'resampled')
+path_to_viirs_sdr_resampled_peat = os.path.join(root_digi, 'peat/')
+path_to_viirs_aod_resampled = os.path.join(root_digi, 'aod/')
+path_to_viirs_aod_flags_resampled = os.path.join(root_digi, 'aod_flags/')
+path_to_viirs_orac_resampled = os.path.join(root_digi, 'orac/')
+path_to_viirs_orac_cost_resampled = os.path.join(root_digi, 'orac_cost/')
 
+# analysis data paths
+root_data = os.path.join(root, 'raw')
+path_to_viirs_aod = os.path.join(root_data, 'viirs', 'aod/')
+path_to_viirs_orac = os.path.join(root_data, 'viirs', 'orac/')
+path_to_himawari_l1b = os.path.join(root_data, 'himawari', 'imagery')
 
 # temporary file paths for data downloads
-path_to_viirs_tmp = root_path + 'tmp/viirs/'
+path_to_viirs_tmp = os.path.join(root, 'tmp', 'viirs')
 
-# features filepaths
-path_to_frp_tpm_features = root_path + 'interim/fre_tpm_features/'
+# frp to tpm models filepath
+root_models = os.path.join(root, 'models', 'fre_tpm_features')
+path_to_frp_tpm_models = os.path.join(root_models, 'samples_{0}.csv'.format(roi))
 
 # visualisation filepaths
-path_to_plume_tracking_visualisations_viirs = root_path + 'visualisations/viirs/plume_tracking/'
-path_to_aeronet_visuals = os.path.join(root_path, 'visualisations/aeronet/')
+root_vis = os.path.join(root, 'visualisations')
+pt_vis_path = os.path.join(root_vis, 'plume_tracking_{0}/'.format(roi))
+path_to_aeronet_visuals = os.path.join(root_vis, 'aeronet/')
 
 # filelist paths
-path_to_filelists = root_path + 'filelists/'
 
 # dataframe paths
-path_to_dataframes = os.path.join(root_path, 'interim', 'dataframes')
+path_to_dataframes = os.path.join(root, 'interim' ,'dataframes')
 
 
-
-
-
+# external data paths
+path_to_aeronet = os.path.join(root, 'external/aeronet')

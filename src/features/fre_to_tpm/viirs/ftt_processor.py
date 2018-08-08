@@ -24,14 +24,14 @@ def proc_params():
     d['resampled_pix_size'] = 750  # size of UTM grid in meters
     d['frp_df'] = ut.read_frp_df(fp.path_to_himawari_frp)
     #d['frp_df'] = None
-    d['plume_df'] = ut.read_plume_polygons(fp.path_to_smoke_plume_polygons_viirs_csv)
+    d['plume_df'] = ut.read_plume_polygons(fp.plume_polygon_path_csv)
 
     geo_file = fp.root_path + '/processed/himawari/Himawari_lat_lon.img'
     geostationary_lats, geostationary_lons = load_hrit.geo_read(geo_file)
     d['geostationary_lats'] = geostationary_lats
     d['geostationary_lons'] = geostationary_lons
 
-    d['output_path'] = os.path.join(fp.path_to_frp_tpm_features, 'model_features_viirs_full_plumes.csv')
+    d['output_path'] = os.path.join(fp.path_to_frp_tpm_models, 'model_features_viirs_full_plumes.csv')
     d['df_list'] = []
 
     d['t_start_stop'] = {0: [datetime.strptime('20150706_0600', '%Y%m%d_%H%M'),
