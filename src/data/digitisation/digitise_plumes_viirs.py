@@ -36,7 +36,11 @@ def get_timestamp(viirs_sdr_fname):
 
 
 def image_seen(viirs_fname):
-    try:
+    if not os.path.exists(fp.processed_filelist_path):
+        with open(fp.processed_filelist_path, 'w') as txt_file:
+            txt_file.write(viirs_fname + '\n')
+            return False
+    else:
         with open(fp.processed_filelist_path, 'r+') as txt_file:
             if viirs_fname in txt_file.read():
                 logger.info(viirs_fname + " already processed")
@@ -44,9 +48,6 @@ def image_seen(viirs_fname):
             else:
                 txt_file.write(viirs_fname + '\n')
                 return False
-    except Exception, e:
-        logger.warning("Could not check time filename for : " + viirs_fname + ". With error: " + str(e))
-        return False  # if we cannot do it, lets just assume we haven't seen the image before
 
 
 def get_viirs_fname(path, timestamp_viirs, viirs_sdr_fname):
@@ -319,106 +320,100 @@ def main():
     """
     viirs_plume_df = load_df(fp.plume_polygon_path)
 
-    for viirs_sdr_fname in os.listdir(fp.path_to_viirs_sdr_resampled_peat):
+    with open(fp.analysis_filelist_path, 'rU') as f:
+        for viirs_sdr_fname in f:
 
-        logger.info("Processing viirs file: " + viirs_sdr_fname)
+            logger.info("Processing viirs file: " + viirs_sdr_fname)
 
-        if 'DS' in viirs_sdr_fname:
-            continue
+            timestamp_viirs = get_timestamp(viirs_sdr_fname)
+            if image_seen(viirs_sdr_fname):
+                continue
 
-        timestamp_viirs = get_timestamp(viirs_sdr_fname)
-        if not timestamp_viirs:
-            print 'timestamp not available'
-            continue
-
-        if image_seen(viirs_sdr_fname):
-            continue
-
-        # get the filenames
-        try:
-            aod_fname = get_viirs_fname(fp.path_to_viirs_aod_resampled, timestamp_viirs, viirs_sdr_fname)
-        except Exception, e:
-            logger.warning('Could not load viirs aod file for:' + viirs_sdr_fname + '. Failed with ' + str(e))
-            continue
-
-        try:
-            orac_fname = get_orac_fname(fp.path_to_viirs_orac_resampled, timestamp_viirs, viirs_sdr_fname)
-        except Exception, e:
-            logger.warning('Could not load orac aod file for:' + viirs_sdr_fname + '. Failed with ' + str(e))
-            continue
-
-        # load in the data
-
-        try:
-            tcc = load_image(os.path.join(fp.path_to_viirs_sdr_resampled_peat, viirs_sdr_fname))
-
-        except Exception, e:
-            logger.warning('Could not read the input file: ' + viirs_sdr_fname + '. Failed with ' + str(e))
-            continue
-
-        # if filenames load in data
-        viirs_aod = None
-        if aod_fname:
+            # get the filenames
             try:
-                viirs_aod = load_image(os.path.join(fp.path_to_viirs_aod_resampled, aod_fname))
+                aod_fname = get_viirs_fname(fp.path_to_viirs_aod_resampled, timestamp_viirs, viirs_sdr_fname)
+            except Exception, e:
+                logger.warning('Could not load viirs aod file for:' + viirs_sdr_fname + '. Failed with ' + str(e))
+                continue
 
-                # adjust to between 0-2
-                viirs_aod = viirs_aod.astype('float')
-                viirs_aod *= 2.0/viirs_aod.max()
+            try:
+                orac_fname = get_orac_fname(fp.path_to_viirs_orac_resampled, timestamp_viirs, viirs_sdr_fname)
+            except Exception, e:
+                logger.warning('Could not load orac aod file for:' + viirs_sdr_fname + '. Failed with ' + str(e))
+                continue
 
-                viirs_flags = load_image(os.path.join(fp.path_to_viirs_aod_flags_resampled, aod_fname))
-                viirs_flags = viirs_flags.astype('float')
-                viirs_flags *= 3.0 / viirs_flags.max()
+            # load in the data
+
+            try:
+                tcc = load_image(os.path.join(fp.path_to_viirs_sdr_resampled_peat, viirs_sdr_fname))
 
             except Exception, e:
-                logger.warning('Could not read aod file: ' + aod_fname + ' error: ' + str(e))
-        if viirs_aod is None:
-            logger.info('no viirs aod file for sdr: ' + viirs_sdr_fname + ' continuing')
-            continue
+                logger.warning('Could not read the input file: ' + viirs_sdr_fname + '. Failed with ' + str(e))
+                continue
 
-        orac_aod = None
-        if orac_fname:
-            try:
-                orac_aod = load_image(os.path.join(fp.path_to_viirs_orac_resampled, orac_fname))
-                orac_cost = load_image(os.path.join(fp.path_to_viirs_orac_cost_resampled, orac_fname))
+            # if filenames load in data
+            viirs_aod = None
+            if aod_fname:
+                try:
+                    viirs_aod = load_image(os.path.join(fp.path_to_viirs_aod_resampled, aod_fname))
 
-                # adjust to between 0-10
-                orac_aod = orac_aod.astype('float')
-                orac_aod *= 10.0 / orac_aod.max()
+                    # adjust to between 0-2
+                    viirs_aod = viirs_aod.astype('float')
+                    viirs_aod *= 2.0/viirs_aod.max()
 
-                # adjust to between 0-1000
-                orac_cost = orac_cost.astype('float')
-                orac_cost *= 50.0 / orac_cost.max()
+                    viirs_flags = load_image(os.path.join(fp.path_to_viirs_aod_flags_resampled, aod_fname))
+                    viirs_flags = viirs_flags.astype('float')
+                    viirs_flags *= 3.0 / viirs_flags.max()
 
-            except Exception, e:
-                logger.warning('Could not read aod file: ' + orac_fname + ' error: ' + str(e))
-        if orac_aod is None:
-            logger.info('no orac aod file for sdr: ' + viirs_sdr_fname + ' continuing')
-            continue
+                except Exception, e:
+                    logger.warning('Could not read aod file: ' + aod_fname + ' error: ' + str(e))
+            if viirs_aod is None:
+                logger.info('no viirs aod file for sdr: ' + viirs_sdr_fname + ' continuing')
+                continue
 
-        # do the digitising
-        plume_polygons, background_polygons, plume_vectors, tracking = digitise(tcc,
-                                                                                viirs_aod,
-                                                                                viirs_flags,
-                                                                                orac_aod,
-                                                                                orac_cost,
-                                                                                viirs_sdr_fname)
-        if plume_polygons is None:
-            logger.info('no polygons for sdr: ' + viirs_sdr_fname + ' continuing')
-            continue
+            orac_aod = None
+            if orac_fname:
+                try:
+                    orac_aod = load_image(os.path.join(fp.path_to_viirs_orac_resampled, orac_fname))
+                    orac_cost = load_image(os.path.join(fp.path_to_viirs_orac_cost_resampled, orac_fname))
 
-        # process plumes and backgrounds
-        plumes_list = []
-        for pp, bp, pv, t in zip(plume_polygons, background_polygons, plume_vectors, tracking):
-            append_to_list(pp, bp, pv, t, viirs_sdr_fname, plumes_list)
+                    # adjust to between 0-10
+                    orac_aod = orac_aod.astype('float')
+                    orac_aod *= 10.0 / orac_aod.max()
 
-        # covert pixel/background lists to dataframes and concatenate to main dataframes
-        temp_plume_df = pd.DataFrame(plumes_list)
-        viirs_plume_df = pd.concat([viirs_plume_df, temp_plume_df])
-        viirs_plume_df.to_pickle(fp.plume_polygon_path)
+                    # adjust to between 0-1000
+                    orac_cost = orac_cost.astype('float')
+                    orac_cost *= 50.0 / orac_cost.max()
 
-        # TODO also write out to csv (removing need for file conversion)
+                except Exception, e:
+                    logger.warning('Could not read aod file: ' + orac_fname + ' error: ' + str(e))
+            if orac_aod is None:
+                logger.info('no orac aod file for sdr: ' + viirs_sdr_fname + ' continuing')
+                continue
 
+            # do the digitising
+            plume_polygons, background_polygons, plume_vectors, tracking = digitise(tcc,
+                                                                                    viirs_aod,
+                                                                                    viirs_flags,
+                                                                                    orac_aod,
+                                                                                    orac_cost,
+                                                                                    viirs_sdr_fname)
+            if plume_polygons is None:
+                logger.info('no polygons for sdr: ' + viirs_sdr_fname + ' continuing')
+                continue
+
+            # process plumes and backgrounds
+            plumes_list = []
+            for pp, bp, pv, t in zip(plume_polygons, background_polygons, plume_vectors, tracking):
+                append_to_list(pp, bp, pv, t, viirs_sdr_fname, plumes_list)
+
+            # covert pixel/background lists to dataframes and concatenate to main dataframes
+            temp_plume_df = pd.DataFrame(plumes_list)
+            viirs_plume_df = pd.concat([viirs_plume_df, temp_plume_df])
+            viirs_plume_df.to_pickle(fp.plume_polygon_path)
+
+    # also write out to csv
+    viirs_plume_df.to_csv(fp.plume_polygon_path_csv)
 
 if __name__ == '__main__':
 
