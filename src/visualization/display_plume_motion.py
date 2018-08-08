@@ -28,17 +28,15 @@ def proc_params():
 
     d['resampled_pix_size'] = 750  # size of UTM grid in meters
     d['frp_df'] = ut.read_frp_df(fp.path_to_himawari_frp)
-    #d['frp_df'] = None
     d['plume_df'] = ut.read_plume_polygons(fp.plume_polygon_path_csv)
 
-    geo_file = fp.root_path + '/processed/himawari/Himawari_lat_lon.img'
+    geo_file = os.path.join(fp.path_to_himawari_imagery, 'Himawari_lat_lon.img')
     geostationary_lats, geostationary_lons = load_hrit.geo_read(geo_file)
     d['geostationary_lats'] = geostationary_lats
     d['geostationary_lons'] = geostationary_lons
 
-    d['output_path'] = os.path.join(fp.path_to_frp_tpm_models, 'model_features_viirs_full_plumes.csv')
+    d['output_path'] = fp.path_to_frp_tpm_models
     d['df_list'] = []
-    return d
 
 
 def setup_sat_data(ts):

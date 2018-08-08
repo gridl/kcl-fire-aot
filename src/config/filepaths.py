@@ -32,9 +32,10 @@ path_to_viirs_orac_cost_resampled = os.path.join(root_digi, 'orac_cost/')
 
 # analysis data paths
 root_data = os.path.join(root, 'raw')
-path_to_viirs_aod = os.path.join(root_data, 'viirs', 'aod/')
-path_to_viirs_orac = os.path.join(root_data, 'viirs', 'orac/')
-path_to_himawari_l1b = os.path.join(root_data, 'himawari', 'imagery')
+path_to_viirs_aod = os.path.join(root_data, 'viirs', 'aod')
+path_to_viirs_orac = os.path.join(root_data, 'viirs', 'orac')
+path_to_himawari_imagery = os.path.join(root_data, 'himawari', 'imagery')
+path_to_himawari_frp = os.path.join(root_data, 'himawari', 'frp')
 
 # temporary file paths for data downloads
 path_to_viirs_tmp = os.path.join(root, 'tmp', 'viirs')

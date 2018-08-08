@@ -175,9 +175,7 @@ def read_frp_df(path):
     :return: the frp holding dataframe
     '''
     try:
-        print path
-        df_path = glob.glob(path + 'frp_df.p')[0]
-        print df_path
+        df_path = os.path.join(path, 'frp_df.p')
         frp_df = pd.read_pickle(df_path)
     except Exception, e:
         print('could not load frp dataframe, failed with error ' + str(e) + ' building anew')
@@ -191,7 +189,7 @@ def build_frp_df(path):
     :param path: path to the frp csv files and dataframe
     :return: dataframe holding frp
     '''
-    frp_csv_files = glob.glob(path + '*.csv')
+    frp_csv_files = glob.glob(path + '/*.csv')
     df_from_each_file = (pd.read_csv(f) for f in frp_csv_files)
     frp_df = pd.concat(df_from_each_file, ignore_index=True)
 
@@ -222,7 +220,7 @@ def build_frp_df(path):
     #frp_df.drop(['LONGITUDE', 'LATITUDE'], axis=1, inplace=True)
     frp_df.drop(['year', 'month', 'day', 'time'], axis=1, inplace=True)
 
-    frp_df.to_pickle(path + 'frp_df.p')
+    frp_df.to_pickle(path + '/frp_df.p')
 
     return frp_df
 

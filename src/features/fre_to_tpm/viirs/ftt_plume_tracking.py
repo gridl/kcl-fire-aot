@@ -125,12 +125,12 @@ def get_geostationary_fnames(plume_time, image_segment):
     day = str(plume_time.day).zfill(2)
 
     # get all files in the directory using glob with band 3 for main segment
-    p = os.path.join(fp.path_to_himawari_l1b, ym, day)
+    p = os.path.join(fp.path_to_himawari_imagery, ym, day)
     fp_1 = glob.glob(p + '/*/*/B01/*S' + str(image_segment).zfill(2) + '*')
 
     # get the day before also
     day = str(plume_time.day - 1).zfill(2)
-    p = os.path.join(fp.path_to_himawari_l1b, ym, day)
+    p = os.path.join(fp.path_to_himawari_imagery, ym, day)
     fp_2 = glob.glob(p + '/*/*/B01/*S' + str(image_segment).zfill(2) + '*')
 
     files = fp_1 + fp_2
@@ -190,11 +190,11 @@ def normalise_image(im):
 
 def extract_observation(f, bb, segment):
     # load geostationary files for the segment
-    rad_segment_1, _ = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_l1b, f))
+    rad_segment_1, _ = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_imagery, f))
 
     # load for the next segment
     f_new = f.replace('S' + str(segment).zfill(2), 'S' + str(segment + 1).zfill(2))
-    rad_segment_2, _ = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_l1b, f_new))
+    rad_segment_2, _ = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_imagery, f_new))
 
     # concat the himawari files
     rad = np.vstack((rad_segment_1, rad_segment_2))
