@@ -84,11 +84,11 @@ def subset_geograpic_data(geostationary_lats, geostationary_lons, bb):
     geostationary_lats_subset = geostationary_lats[bb['min_y']:bb['max_y'], bb['min_x']:bb['max_x']]
     geostationary_lons_subset = geostationary_lons[bb['min_y']:bb['max_y'], bb['min_x']:bb['max_x']]
 
-    zoom = 2  # zoom is fixed and function of imagery we are using
+    zoom = 4  # zoom if using 0.5km himawara data (B03) for tracking
     geostationary_lats_subset = ndimage.zoom(geostationary_lats_subset, zoom)
     geostationary_lons_subset = ndimage.zoom(geostationary_lons_subset, zoom)
-
     bb.update((x, y * zoom) for x, y in bb.items())  # enlarge bounding box by factor of zoom also
+
     return geostationary_lats_subset, geostationary_lons_subset
 
 
@@ -97,8 +97,8 @@ def find_min_himawari_image_segment(bb):
     :param bb: bounding box
     :return: the himawari image segment for the given bounding box
     """
-    # there are ten 1100 pixel segments in himawari 1 km data
-    seg_size = 1100
+    # there are ten 2200 pixel segments in himawari 0.5 km data
+    seg_size = 2200
     min_segment = bb['min_y'] / seg_size + 1
     return min_segment
 
@@ -109,7 +109,7 @@ def adjust_bb_for_segment(bb, segment):
     :param segment: the image segment that contains the bounding box
     :return: Nothing, the boudning box coordinates are adjusted inplace
     """
-    seg_size = 1100
+    seg_size = 2200
     bb['min_y'] -= (segment * seg_size)
     bb['max_y'] -= (segment * seg_size)
 
@@ -126,12 +126,12 @@ def get_geostationary_fnames(plume_time, image_segment):
 
     # get all files in the directory using glob with band 3 for main segment
     p = os.path.join(fp.path_to_himawari_imagery, ym, day)
-    fp_1 = glob.glob(p + '/*/*/B01/*S' + str(image_segment).zfill(2) + '*')
+    fp_1 = glob.glob(p + '/*/*/B03/*S' + str(image_segment).zfill(2) + '*')
 
     # get the day before also
     day = str(plume_time.day - 1).zfill(2)
     p = os.path.join(fp.path_to_himawari_imagery, ym, day)
-    fp_2 = glob.glob(p + '/*/*/B01/*S' + str(image_segment).zfill(2) + '*')
+    fp_2 = glob.glob(p + '/*/*/B03/*S' + str(image_segment).zfill(2) + '*')
 
     files = fp_1 + fp_2
 
@@ -422,7 +422,7 @@ def find_flow(p_number, plume_logging_path, plume_geom_utm, plume_geom_geo, pp, 
                                                                                  pp['geostationary_lons'],
                                                                                  bbox)
 
-    # himwari images are split into segments of 1100 pixels in the latitudinal direction.
+    # himwari images are split into segments of 2200 (0.5km) pixels in the latitudinal direction.
     # Find the segment which corresponds to the bounding box, also adjust bounding box for segment.
     min_image_segment = find_min_himawari_image_segment(bbox)
     adjust_bb_for_segment(bbox, min_image_segment - 1)

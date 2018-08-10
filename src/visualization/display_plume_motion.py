@@ -35,17 +35,18 @@ def proc_params():
     d['geostationary_lats'] = geostationary_lats
     d['geostationary_lons'] = geostationary_lons
 
-    d['output_path'] = fp.path_to_frp_tpm_models
+    d['output_path'] = fp.pt_vis_path
     d['df_list'] = []
+    return d
 
 
 def setup_sat_data(ts):
 
     dd = dict()
     dd['viirs_aod'] = ut.sat_data_reader(fp.path_to_viirs_aod, 'viirs', 'aod', ts)
-    dd['viirs_flags'] = ut.sat_data_reader(fp.path_to_viirs_aod, 'viirs', 'flags', ts)
+    dd['viirs_flag'] = ut.sat_data_reader(fp.path_to_viirs_aod, 'viirs', 'flag', ts)
     dd['orac_aod'] = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'aod', ts)
-    dd['orac_flags'] = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'flags', ts)
+    dd['orac_cost'] = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'cost', ts)
 
     lats, lons = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'geo', ts)
     dd['lats'] = lats

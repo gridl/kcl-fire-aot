@@ -18,8 +18,8 @@ analysis_filelist_path = os.path.join(root, 'filelists', '{0}_files.txt'.format(
 
 # digitisation paths
 root_pm = os.path.join(root, 'processed', 'plume_masks')
-plume_polygon_path = os.path.join(root_pm, '{0}_viirs_plumes_df.p'.format(roi))
-plume_polygon_path_csv = os.path.join(root_pm, '{0}_viirs_plumes_df.csv'.format(roi))
+plume_polygon_path = os.path.join(root_pm, '{0}_plumes_df.p'.format(roi))
+plume_polygon_path_csv = os.path.join(root_pm, '{0}_plumes_df.csv'.format(roi))
 processed_filelist_path = os.path.join(root_pm, '{0}_processed_filelist.txt'.format(roi))
 
 # resampled viirs for digitsing

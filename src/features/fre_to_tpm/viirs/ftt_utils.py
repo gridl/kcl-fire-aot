@@ -100,7 +100,7 @@ def sat_data_reader(p, sensor, var, timestamp):
 
         if var == 'aod':
             return ds['cot'][:]
-        elif var == 'flags':
+        elif var == 'cost':
             return ds['costjm'][:]
         elif var == 'geo':
             return ds['lat'][:], ds['lon'][:]
@@ -122,11 +122,11 @@ def sat_data_reader(p, sensor, var, timestamp):
 
 
         viirs_fname = [f for f in os.listdir(p) if viirs_time_format in f]
-        ds = read_h5(os.path.join(p, viirs_fname))
+        ds = read_h5(os.path.join(p, viirs_fname[-1]))  # might be multiple matches, takes most recent
 
         if var == 'aod':
             return ds['All_Data']['VIIRS-Aeros-Opt-Thick-IP_All']['faot550'][:]
-        elif var == 'flags':
+        elif var == 'flag':
             return extract_viirs_flags(ds)
 
 
@@ -288,6 +288,11 @@ def reproject_shapely(shapely_object, utm_resampler):
 
 
 def create_logger_path(p_number):
+    # check logging dir exists
+    if not os.path.isdir(fp.pt_vis_path):
+        os.mkdir(fp.pt_vis_path)
+
+    # check plume specific dir exists
     plume_logging_path = os.path.join(fp.pt_vis_path, str(p_number))
     if not os.path.isdir(plume_logging_path):
         os.mkdir(plume_logging_path)
@@ -307,15 +312,15 @@ def resample_satellite_datasets(sat_data, pp=None, plume=None, fill_value=0):
     # resample all the datasets to UTM
     d = {}
     d['viirs_aod_utm'] = utm_rs.resample_image(sat_data['viirs_aod'], masked_lats, masked_lons, fill_value=fill_value)
-    d['viirs_flags_utm'] = utm_rs.resample_image(sat_data['viirs_flags'], masked_lats, masked_lons, fill_value=fill_value)
+    d['viirs_flag_utm'] = utm_rs.resample_image(sat_data['viirs_flag'], masked_lats, masked_lons, fill_value=fill_value)
     d['orac_aod_utm'] = utm_rs.resample_image(sat_data['orac_aod'], masked_lats, masked_lons, fill_value=fill_value)
-    d['orac_flags_utm'] = utm_rs.resample_image(sat_data['orac_flags'], masked_lats, masked_lons, fill_value=fill_value)
+    d['orac_cost_utm'] = utm_rs.resample_image(sat_data['orac_cost'], masked_lats, masked_lons, fill_value=fill_value)
     d['lats'] = utm_rs.resample_image(utm_rs.lats, masked_lats, masked_lons, fill_value=fill_value)
     d['lons'] = utm_rs.resample_image(utm_rs.lons, masked_lats, masked_lons, fill_value=fill_value)
 
     if pp:
         if pp['plot']:
-            d['viirs_png_utm'] = misc.imread(os.path.join(fp.path_to_viirs_sdr_resampled, plume.filename))
+            d['viirs_png_utm'] = misc.imread(os.path.join(fp.path_to_viirs_sdr_resampled_peat, plume.filename))
 
     return d
 
