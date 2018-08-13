@@ -75,6 +75,7 @@ def main():
         if current_timestamp != previous_timestamp:
             try:
                 sat_data = setup_sat_data(current_timestamp)
+                resampler = ut.utm_resampler(sat_data['lats'], sat_data['lons'], constants.utm_grid_size)
             except Exception, e:
                 logger.info('Could not load all datasets for: ' + plume.filename + '. Failed with error: ' + str(e))
                 continue
@@ -83,7 +84,6 @@ def main():
             previous_timestamp = current_timestamp
             if sat_data_utm is None:
                 continue
-
 
         # construct plume and background coordinate data
         plume_geom_geo = ut.setup_plume_data(plume, sat_data_utm)
@@ -101,6 +101,7 @@ def main():
             utm_flow_means, geostationary_fnames, t1, t2 = pt.find_flow(p_number, plume_logging_path,
                                                                         plume_geom_utm,
                                                                         plume_geom_geo,
+                                                                        resampler,
                                                                         pp,
                                                                         current_timestamp)
         except Exception, e:

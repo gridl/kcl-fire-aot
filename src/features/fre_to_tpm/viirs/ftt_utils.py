@@ -332,6 +332,8 @@ def setup_plume_data(plume, ds_utm):
         d['plume_bounding_box'] = construct_bounding_box(plume.plume_extent)
         d['plume_lats'] = subset_data(ds_utm['lats'], d['plume_bounding_box'])
         d['plume_lons'] = subset_data(ds_utm['lons'], d['plume_bounding_box'])
+        d['plume_aod'] = subset_data(ds_utm['viirs_aod_utm'], d['plume_bounding_box'])
+        d['plume_flag'] = subset_data(ds_utm['viirs_flag_utm'], d['plume_bounding_box'])
 
         # get plume vector geographic data
         vector_lats, vector_lons = extract_subset_geo_bounds(plume.plume_vector, d['plume_bounding_box'],
@@ -350,6 +352,8 @@ def setup_plume_data(plume, ds_utm):
 
         d['background_bounding_box'] = construct_bounding_box(plume.background_extent)
         d['background_mask'] = construct_mask(plume.background_extent, d['background_bounding_box'])
+        d['bg_aod'] = subset_data(ds_utm['viirs_aod_utm'], d['background_bounding_box'])
+        d['bg_flag'] = subset_data(ds_utm['viirs_flag_utm'], d['background_bounding_box'])
 
         return d
     except Exception, e:
