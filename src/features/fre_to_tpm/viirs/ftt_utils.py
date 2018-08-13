@@ -396,7 +396,7 @@ def process_plume(t1, t2, pp, plume_data_utm, plume_geom_utm, plume_geom_geo, pl
     out_dict['plume_number'] = p_number
 
     # compute fre
-    ff.compute_fre_full_plume(t1, t2, pp['frp_df'], plume_geom_utm, plume_logging_path, out_dict)
+    ff.compute_fre_full_plume(t1, t2, pp['frp_df'], plume_geom_geo, plume_logging_path, out_dict)
 
     # convert datadict to dataframe and add to list
     df_list.append(pd.DataFrame(out_dict, index=['i', ]))
