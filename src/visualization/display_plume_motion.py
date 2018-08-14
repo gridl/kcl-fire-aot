@@ -62,7 +62,7 @@ def main():
     # itereate over the plumes
     for p_number, plume in pp['plume_df'].iterrows():
 
-        if p_number != 1:
+        if p_number != 0:
             continue
 
         print ''
