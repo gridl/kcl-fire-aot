@@ -66,8 +66,8 @@ def find_tail_edge(head, plume_geom_utm):
 
     # compute the ratios between the distances.  A larger ratio will
     # indicate the longest axis (perhaps change this to most extreme ratio)
-    ratios_pair_a = np.divide(distances_pair_a, distances_pair_a.reverse())
-    ratios_pair_b = np.divide(distances_pair_b, distances_pair_b.reverse())
+    ratios_pair_a = np.divide(distances_pair_a, distances_pair_a[::-1])
+    ratios_pair_b = np.divide(distances_pair_b, distances_pair_b[::-1])
 
     # find the largest ratio
     argmax_a = np.argmax(ratios_pair_a)
@@ -80,43 +80,52 @@ def find_tail_edge(head, plume_geom_utm):
         return edge_pair_b[np.argmax(distances_pair_a)]
 
 
-def find_plume_tail(head, plume_geom_utm, plume_geom_geo, utm_resampler):
+def find_plume_tail(head, plume_geom_utm, plume_geom_geo):
 
     # find tail edge
-    tail_edge = find_tail_edge(head, plume_geom_utm, plume_geom_geo)
+    tail_edge = find_tail_edge(head, plume_geom_utm)
 
     # check all pixels on tail edge.  If all background, then
     # plume finishes before edge.  Iterate over lat/lon in
     # plume, project and compute distance to line
     aods = []
     flags = []
-    for i, (lon, lat) in enumerate(zip(plume_geom_geo.plume_lons, plume_geom_geo.plume_lons)):
-        utm_point = ut.reproject_shapely(Point(lon, lat), utm_resampler)
+    flat_lats = plume_geom_geo['plume_lats'].flatten()
+    flat_lons = plume_geom_geo['plume_lons'].flatten()
+    flat_aods = plume_geom_geo['plume_aod'].flatten()
+    flat_flags = plume_geom_geo['plume_flag'].flatten()
+    for i, (lon, lat) in enumerate(zip(flat_lons, flat_lats)):
+        utm_point = ut.reproject_shapely(Point(lon, lat), plume_geom_utm['utm_resampler_plume'])
         dist_tail = utm_point.distance(tail_edge)
         if dist_tail < 325: # half a viirs pixel
             # get the aods and flags that intersect the line
-            aods.append(plume_geom_geo.plume_aod[i])
-            flags.append(plume_geom_geo.plume_flag[i])
+            aods.append(flat_aods[i])
+            flags.append(flat_flags[i])
 
     # select appropriate processing to determine if plume
     # finishes on edge or not.
-    bg_mask = plume_geom_geo['bg_flags'] <= 1
-    bg_aod = plume_geom_geo['bg_aod'][bg_mask]
-    min_test = np.min(flags) <= 1
-    aod_test = np.mean(aods[flags <= 1]) <= (np.mean(bg_aod) + 2*np.std(bg_aod))
+    if np.min(flags) <= 1:
+        min_test = np.min(flags) <= 1
+        bg_mask = plume_geom_geo['bg_flag'] <= 1
+        bg_aod = plume_geom_geo['bg_aod'][bg_mask]
+        aod_test = np.mean(aods[flags <= 1]) <= (np.mean(bg_aod) + 2*np.std(bg_aod))
+    else:
+        min_test = False
+        aod_test = False
+
     if min_test and aod_test:
         # in this instance the plume does not intersect with the end of
         # bounding box.  So we need to find the pixel furthest from the
         # head of the plume that is a bg pixel, and assume that that is tail
-        not_bg_mask = aods > np.mean(bg_aod) + 2*np.std(bg_aod)
+        bg_mask = flat_aods < np.mean(bg_aod) + 2*np.std(bg_aod)
         max_dist = 0
         tail_lat = 0
         tail_lon = 0
         tail = Point(0, 0)
-        for i, (lon, lat) in enumerate(zip(plume_geom_geo.plume_lons, plume_geom_geo.plume_lons)):
-            if not_bg_mask[i]:
+        for i, (lon, lat) in enumerate(zip(flat_lons, flat_lats)):
+            if bg_mask[i]:
                 continue
-            utm_point = ut.reproject_shapely(Point(lon, lat), utm_resampler)
+            utm_point = ut.reproject_shapely(Point(lon, lat), plume_geom_utm['utm_resampler_plume'])
             dist_head = utm_point.distance(head)
             if dist_head > max_dist:
                 max_dist = dist_head
@@ -126,16 +135,15 @@ def find_plume_tail(head, plume_geom_utm, plume_geom_geo, utm_resampler):
     else:
         # if the plume does intersect, the tail in then the midpoint of the
         # edge
-        pass
-        tail = tail_edge.interpolate(0.5)
-        tail_lon, tail_lat = utm_resampler.resample_point_to_geo(tail.y, tail.x)
+        tail = Point(np.sum(tail_edge.xy[0]) /2, np.sum(tail_edge.xy[1]) /2)
+        tail_lon, tail_lat = plume_geom_utm['utm_resampler_plume'].resample_point_to_geo(tail.y, tail.x)
 
     return {'tail_lon': tail_lon,
             'tail_lat': tail_lat,
             'tail': tail}
 
 
-def compute_plume_vector(plume_geom_geo, plume_geom_utm, utm_resampler, pp, t):
+def compute_plume_vector(plume_geom_geo, plume_geom_utm, pp, t):
     # first set up the two alternative head and tail combintations
     # second cehck if one of the heads is outside of the bounding polygon
     # if both inside find the orientation of the rectangle
@@ -143,12 +151,12 @@ def compute_plume_vector(plume_geom_geo, plume_geom_utm, utm_resampler, pp, t):
     # tail = np.array(pv.coords[0])
     # head = np.array(pv.coords[1])
 
-    fire_head_dict = find_plume_head(plume_geom_geo, plume_geom_utm, pp, t)
-    fire_tail_dict = find_plume_tail(fire_head_dict['head'],
-                                     plume_geom_utm, plume_geom_geo,
-                                     utm_resampler)
+    head_dict = find_plume_head(plume_geom_geo, plume_geom_utm, pp, t)
+    tail_dict = find_plume_tail(head_dict['head'],
+                                     plume_geom_utm, plume_geom_geo)
+    vect = np.array(head_dict['head'].coords[0]) - np.array(tail_dict['tail'].coords)
 
-    return fire_head_dict, fire_tail_dict, fire_head_dict['head'] - fire_head_dict['tail']
+    return head_dict, tail_dict, vect
 
 
 def spatial_subset(lats_1, lons_1, lats_2, lons_2):
@@ -253,7 +261,9 @@ def restrict_geostationary_times(plume_time, geostationary_fnames):
     :param geostationary_fnames: the list of geostationary file names
     :return: only those goestationary files that were obtained prior to the myd overpass
     """
-    return [f for f in geostationary_fnames if datetime.strptime(f.split('/')[-1][7:20], '%Y%m%d_%H%M') <= plume_time]
+    return [f for f in geostationary_fnames if
+            datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", f).group(),
+                              '%Y%m%d_%H%M') <= plume_time]
 
 
 def sort_geostationary_by_time(geostationary_fnames):
@@ -262,7 +272,7 @@ def sort_geostationary_by_time(geostationary_fnames):
     :param geostationary_fnames goestationary filenames
     :return: the geostationary filenames in time order
     """
-    times = [datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", f)
+    times = [datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", f).group()
                                , '%Y%m%d_%H%M') for f in geostationary_fnames]
     return [f for _, f in sorted(zip(times, geostationary_fnames))]
 
@@ -510,8 +520,7 @@ def dump_tracking_data(i, flow_means, projected_flow_means, flow_sds,
     df.to_csv(os.path.join(plume_logging_path, str(p_number) + '_tracks.csv'))
 
 
-def find_flow(p_number, plume_logging_path, plume_geom_utm, plume_geom_geo,
-              utm_resampler, pp, timestamp):
+def find_flow(p_number, plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
 
     # get bounding box around smoke plume in geostationary imager coordinates
     # and extract the geographic coordinates for the roi, also set up plot stuff
@@ -529,9 +538,9 @@ def find_flow(p_number, plume_logging_path, plume_geom_utm, plume_geom_geo,
     geostationary_fnames = setup_geostationary_files(plume_time, min_geo_segment)
 
     # establish plume vector, and importantly the total plume length
-    t0 = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[0]), '%Y%m%d_%H%M')
+    t0 = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[0]).group(),
+                           '%Y%m%d_%H%M')
     plume_head, plume_tail, vector = compute_plume_vector(plume_geom_geo, plume_geom_utm,
-                                                          utm_resampler,
                                                           pp, t0)
     length = np.linalg.norm(vector)  # plume length in metres
 
@@ -583,7 +592,7 @@ def find_flow(p_number, plume_logging_path, plume_geom_utm, plume_geom_geo,
                                                                              geostationary_lons_subset)]
             fnames = [geostationary_fnames[i]]
         if pp['plot']:
-            t = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[0]),
+            t = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[0]).group(),
                                   '%Y%m%d_%H%M')
             fires.append(ff.fire_locations_for_plume_roi(plume_geom_geo, pp['frp_df'], t))
             plot_images.append(plume_geom_utm['utm_resampler_plume'].resample_image(f2_display_subset,
@@ -611,7 +620,7 @@ def find_flow(p_number, plume_logging_path, plume_geom_utm, plume_geom_geo,
             # if plotting do this stuff
             if pp['plot']:
                 # also need to get the fires for the last scene
-                t = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[i+1]),
+                t = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[i+1]).group(),
                                       '%Y%m%d_%H%M')
                 fires.append(ff.fire_locations_for_plume_roi(plume_geom_geo, pp['frp_df'], t))
             break
@@ -628,9 +637,9 @@ def find_flow(p_number, plume_logging_path, plume_geom_utm, plume_geom_geo,
                      plume_logging_path, fnames, i)
 
     # get the plume start and stop times
-    t1 = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[0]),
+    t1 = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[0]).group(),
                            '%Y%m%d_%H%M')
-    t2 = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[i+1]),
+    t2 = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[i+1]).group(),
                            '%Y%m%d_%H%M')
 
     # return the projected flow means in UTM coords, and the list of himawari filenames asspocated with the flows

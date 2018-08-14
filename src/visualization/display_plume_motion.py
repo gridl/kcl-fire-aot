@@ -62,6 +62,9 @@ def main():
     # itereate over the plumes
     for p_number, plume in pp['plume_df'].iterrows():
 
+        if p_number != 1:
+            continue
+
         print ''
         print p_number
 
@@ -75,7 +78,6 @@ def main():
         if current_timestamp != previous_timestamp:
             try:
                 sat_data = setup_sat_data(current_timestamp)
-                resampler = ut.utm_resampler(sat_data['lats'], sat_data['lons'], constants.utm_grid_size)
             except Exception, e:
                 logger.info('Could not load all datasets for: ' + plume.filename + '. Failed with error: ' + str(e))
                 continue
@@ -101,7 +103,6 @@ def main():
             utm_flow_means, geostationary_fnames, t1, t2 = pt.find_flow(p_number, plume_logging_path,
                                                                         plume_geom_utm,
                                                                         plume_geom_geo,
-                                                                        resampler,
                                                                         pp,
                                                                         current_timestamp)
         except Exception, e:
