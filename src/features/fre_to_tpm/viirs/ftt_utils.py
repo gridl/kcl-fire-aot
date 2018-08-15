@@ -228,7 +228,7 @@ def build_frp_df(path):
 
 #### Spatial Utils
 def construct_bounding_box(extent):
-    padding = 10  # pixels  TODO Move to config file
+    padding = 50  # pixels  TODO Move to config file
     x, y = zip(*extent)
     min_x, max_x = np.min(x) - padding, np.max(x) + padding
     min_y, max_y = np.min(y) - padding, np.max(y) + padding
