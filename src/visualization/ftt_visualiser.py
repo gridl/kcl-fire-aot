@@ -156,40 +156,20 @@ def display_masked_map_first(img, fires, plume_points, utm_resampler,
     plt.close()
 
 
-def display_flow(x_flow, y_flow, f1_radiances, utm_resampler, fname):
+def draw_flow(img, flow, path, fname, step=2):
+    plt.close('all')
+    h, w = img.shape[:2]
+    y, x = np.mgrid[step/2:h:step, step/2:w:step].reshape(2,-1).astype(int)
+    fx, fy = flow[y,x].T
 
-    x_flow[np.abs(x_flow) < 1] = 0
-    y_flow[np.abs(y_flow) < 1] = 0
+    ax = plt.axes()
+    ax.imshow(img, cmap='gray')
+    ax.quiver(x, y, fx, fy, scale=100, color='red')
 
-    lons, lats = utm_resampler.area_def.get_lonlats()
-    crs = ccrs.PlateCarree()
-    extent = [np.min(lons), np.max(lons), np.min(lats), np.max(lats)]
-
-    u_padding = 0.25
-    l_padding = 1
-    padded_extent = [np.min(lons) - u_padding, np.max(lons) + u_padding,
-                     np.min(lats) - u_padding, np.max(lats) + l_padding]
-
-    ax1 = plt.subplot(1, 3, 1, projection=ccrs.PlateCarree())
-    ax1.coastlines('50m')
-    ax1.set_extent(padded_extent, ccrs.PlateCarree())
-    ax1.imshow(f1_radiances, transform=crs, extent=extent, origin='upper', cmap='gray')
-
-    ax2 = plt.subplot(1, 3, 2, projection=ccrs.PlateCarree())
-    ax2.coastlines('50m')
-    ax2.set_extent(padded_extent, ccrs.PlateCarree())
-    im2 = ax2.imshow(x_flow, transform=crs, extent=extent, origin='upper', cmap='PuOr', vmin=-2, vmax=2)
-    plt.colorbar(im2, ax=ax2)
-
-    ax3 = plt.subplot(1, 3, 3, projection=ccrs.PlateCarree())
-    ax3.coastlines('50m')
-    ax3.set_extent(padded_extent, ccrs.PlateCarree())
-    im3 = ax3.imshow(y_flow, transform=crs, extent=extent, origin='upper', cmap='PuOr', vmin=-2, vmax=2)
-    plt.colorbar(im3, ax=ax3)
-
-    #plt.show()
-    plt.savefig(os.path.join(fp.path_to_plume_tracking_visualisations, 'flows', fname), bbox_inches='tight', dpi=600)
+    output_fname = 'flow_' + fname.split('/')[-1].split('.')[0] + '.jpg'
+    plt.savefig(os.path.join(path, output_fname), bbox_inches='tight', dpi=300)
     plt.close()
+
 
 
 def run_plot(plot_images, fires, flow_mean, projected_flow_mean,
@@ -209,11 +189,11 @@ def run_plot(plot_images, fires, flow_mean, projected_flow_mean,
                              plume_head,
                              plume_tail,
                              plume_logging_path,
-                             fnames[0].split('/')[-1].split('.')[0] + '_subset.jpg')
+                             'subset_' + fnames[0].split('/')[-1].split('.')[0] + '.jpg')
 
-    for obs in np.arange(i-1):
-        utm_flow_vectors += [utm_plume_projected_flow_vectors[-1] + flow_mean]
-        utm_plume_projected_flow_vectors += [utm_plume_projected_flow_vectors[-1] + projected_flow_mean]
+    for obs in np.arange(i):
+        utm_flow_vectors += [utm_plume_projected_flow_vectors[-1] + flow_mean[obs]]
+        utm_plume_projected_flow_vectors += [utm_plume_projected_flow_vectors[-1] + projected_flow_mean[obs]]
         display_masked_map(plot_images[obs+1],
                            fires[obs+1],
                            plume_points,
@@ -223,7 +203,7 @@ def run_plot(plot_images, fires, flow_mean, projected_flow_mean,
                            utm_flow_vectors,
                            utm_plume_projected_flow_vectors,
                            plume_logging_path,
-                           fnames[obs+1].split('/')[-1].split('.')[0] + '_subset.jpg')
+                           'subset_' + fnames[obs+1].split('/')[-1].split('.')[0] + '.jpg')
 
 
 def plot_plume_data(sat_data_utm, plume_data_utm, plume_bounding_box, plume_logging_path):

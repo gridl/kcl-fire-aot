@@ -275,28 +275,6 @@ def setup_geostationary_files(plume_time, image_segment):
     return geostationary_fnames
 
 
-def rescale_image(image, display_min, display_max):
-    '''
-
-    :param image: image to rescale
-    :param display_min: image min
-    :param display_max: image max
-    :return: the image scaled to 8bit
-    '''
-    image -= display_min
-    np.floor_divide(image, (display_max - display_min + 1) / 256,
-                    out=image, casting='unsafe')
-    return image.astype(np.uint8)
-
-
-def normalise_image(im):
-    eps = 0.001  # to prevent div by zero
-    sig = 1  # standard deviation of gaussian  TODO add to config file
-    mean_im = ndimage.filters.gaussian_filter(im, sig)
-    sd_im = np.sqrt(ndimage.filters.gaussian_filter((im - mean_im) ** 2, sig))
-    return (im - mean_im) / (sd_im + eps)
-
-
 def extract_observation(f, bb, segment):
     # load geostationary files for the segment
     rad_segment_1, _ = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_imagery, f))
@@ -311,92 +289,7 @@ def extract_observation(f, bb, segment):
     # extract geostationary image subset using adjusted bb and rescale to 8bit
     rad_bb = rad[bb['min_y']:bb['max_y'], bb['min_x']:bb['max_x']]
 
-    # normalise and rescale
-    rad_bb_norm = normalise_image(rad_bb)
-    rad_bb_norm = rescale_image(rad_bb_norm, rad_bb_norm.min(), rad_bb_norm.max())
-    return rad_bb_norm, rad_bb
-
-
-def feature_detector(fast, im, tracks):
-    points = fast.detect(im, None)
-    if points is not None:
-        for pt in points:
-            tracks.append([pt.pt])
-
-
-def find_good_tracks(p0, p1, p0r):
-    # lets check the points and consistent in both match directions and keep only those
-    # points with a pixel shift greater than the minimum limit
-    min_pix_shift = 1  # in pixels  TODO move to config
-    bad_thresh = 1  # in pixels  TODO move to config
-    d = abs(p0 - p0r).reshape(-1, 2).max(-1)
-    d1 = abs(p0 - p1).reshape(-1, 2).max(-1)  # gets the max across all
-    good = (d < bad_thresh) & (d1 >= min_pix_shift)
-    return good
-
-
-def update_tracks(tracks, p1, good):
-    new_tracks = []
-    for tr, (x, y), good_flag in zip(tracks, p1.reshape(-1, 2), good):
-        if not good_flag:
-            continue
-        tr.append((x, y))
-        new_tracks.append(tr)
-    return new_tracks
-
-
-def adjust_image_map_coordinates(flow):
-    """
-    The image flow is returned in image coordinate space.  The derived vectors
-    that describe the flow cannot therefore be used as is for calculating the
-    flow on the map.  They need to be adjusted to the map space.  As everything
-    is projected onto a UTM grid this is relatively straightforward, we just need
-    to invert the y axis (as the image and map coordinate systems are in effect
-    inverted).
-
-    :param flow: the image flow
-    :return: the adjusted image flow
-    """
-    flow[:, 1] *= -1
-    return flow
-
-
-def compute_flow(tracks, im1, im2):
-    """
-
-    :param tracks: the pionts that are being tracked across the images
-    :param im1: the for which the feature have been generated
-    :param im2: the image to be matched to
-    :return: the flow in the map projection
-    """
-
-    # TODO move this to a config file
-    # set up feature detection and tracking parameters
-    lk_params = {'winSize': (20, 20), 'maxLevel': 4,
-                 'criteria': (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 20, 0.01)}
-
-    # track the features
-    p0 = np.float32([tr[-1] for tr in tracks]).reshape(-1, 1, 2)  # the feature points to be tracked
-    p1, _st, _err = cv2.calcOpticalFlowPyrLK(im1, im2,
-                                             p0, None, **lk_params)  # the shifted points
-    # back match the featrues
-    try:
-        p0r, _st, _err = cv2.calcOpticalFlowPyrLK(im2, im1,
-                                                  p1, None, **lk_params)  # matching in other direction
-        good = find_good_tracks(p0, p1, p0r)
-        tracks = update_tracks(tracks, p1, good)
-    except Exception, e:
-        print 'Could not get back match tracks with error:', str(e)
-        return tracks, []
-
-    if tracks:
-        # subtract the feature locations in the second image from the first image
-        # in effect this is im2 - im1.  Could perhaps make the code clearer here
-        flow = (p0 - p1).reshape(-1, 2)[good]
-        flow = adjust_image_map_coordinates(flow)
-        return tracks, flow
-    else:
-        return tracks, []
+    return rad_bb
 
 
 def unit_vector(vector):
@@ -415,34 +308,63 @@ def angle_between(v1, v2):
     return np.arccos(np.clip(np.dot(v1, v2), -1.0, 1.0))
 
 
-def draw_flow(img, flow, step=1):
-    plt.close('all')
-    h, w = img.shape[:2]
-    y, x = np.mgrid[step/2:h:step, step/2:w:step].reshape(2,-1).astype(int)
-    fx, fy = flow[y,x].T
+def extract_plume_flow(plume_geom_geo, f1_subset_reproj, flow, plume_vector, plume_logging_path, fname, plot=True):
+    plume_mask = plume_geom_geo['plume_mask']
+    # if plume mask not same shape as himawari subset them
+    # adjust it to match.  Exact overlay doesn't matter as
+    # we are looking for average plume motion
+    if plume_mask.shape != f1_subset_reproj.shape:
+        if plume_mask.size < f1_subset_reproj.size:
+            ax0_diff = f1_subset_reproj.shape[0] - plume_mask.shape[0]
+            ax0_pad = (ax0_diff, 0)  # padding n_before, n_after.  n_after always zero
+            ax1_diff = f1_subset_reproj.shape[1] - plume_mask.shape[1]
+            ax1_pad = (ax1_diff, 0)
+            plume_mask = np.pad(plume_mask, (ax0_pad, ax1_pad), 'edge')
+        else:
+            plume_mask = plume_mask[:f1_subset_reproj.shape[0], :f1_subset_reproj.shape[1]]
 
-    # TODO figure out why I am having to invert the x coords
-    #fx *= -1
+    # mask flow to plume extent and invert
+    # the y displacements.
+    flow *= plume_mask[..., np.newaxis]
+    flow[:, :, 0] *= -1
 
-    ax = plt.axes()
-    ax.imshow(img, cmap='gray')
-    # for l in lines:
-    #     x1 = l[0][0]
-    #     y1 = l[0][1]
-    #     x2 = l[1][0]
-    #     y2 = l[1][1]
-        # vect = Line2D([x1, x2], [y1, y2], lw=1, color='black')
-        # ax.add_line(vect)
-    ax.quiver(x, y, fx, fy, scale=100, color='red')
+    # mask flow to only valid angles
+    angles = angle_between(flow.copy(), plume_vector)
+    angular_mask = (angles <= constants.angular_limit) | (angles >= (2 * np.pi) - constants.angular_limit)
+    flow *= angular_mask[..., np.newaxis]
 
-    plt.show()
-    # vis = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-    # cv2.polylines(vis, lines, 0, (0, 255, 0))
-    # for (x1, y1), (_x2, _y2) in lines:
-    #     cv2.circle(vis, (x1, y1), 1, (0, 255, 0), -1)
+    if plot:
+        vis.draw_flow(f1_subset_reproj, flow, plume_logging_path, fname)
+
+    # mask flow to moving points
+    x, y = flow.T
+    mask = (x != 0) & (y != 0)
+    y = y[mask]
+    x = x[mask]
+
+    # take the most most extreme quartile data
+    if np.abs(y.min()) > y.max():
+        y_pc = np.percentile(y, 25)
+        y = y[y < y_pc]
+    else:
+        y_pc = np.percentile(y, 75)
+        y = y[y > y_pc]
+    if np.abs(x.min()) > x.max():
+        x_pc = np.percentile(x, 25)
+        x = x[x < x_pc]
+    else:
+        x_pc = np.percentile(x, 75)
+        x = x[x > x_pc]
+
+    # determine plume flow in metres
+    y = np.mean(y) * constants.utm_grid_size
+    x = np.mean(x) * constants.utm_grid_size
+    plume_flow = (x,y)
+
+    return plume_flow
 
 
-def find_flow(p_number, plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
+def find_flow(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
 
     # get bounding box around smoke plume in geostationary imager coordinates
     # and extract the geographic coordinates for the roi, also set up plot stuff
@@ -464,16 +386,16 @@ def find_flow(p_number, plume_logging_path, plume_geom_utm, plume_geom_geo, pp, 
     # limiting the FRP integration times.  So just return the min and max geo times
     t0 = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[0]).group(),
                            '%Y%m%d_%H%M')
-    #plume_head, plume_tail, plume_vector = compute_plume_vector(plume_geom_geo, plume_geom_utm, pp, t0)
+    plume_head, plume_tail, plume_vector = compute_plume_vector(plume_geom_geo, plume_geom_utm, pp, t0)
 
     # debugging
-    plume_head = {'head_lon': 104.1464,
-                  'head_lat': -1.79205,
-                  'head': Point(405058.3078391715, -198098.1352896034)}
-    plume_tail = {'tail_lon': 104.080129898,
-                  'tail_lat': -1.71434879993,
-                  'tail': Point(397682.580420428, -189512.1929388661)}
-    plume_vector = (np.array(plume_head['head'].coords[0]) - np.array(plume_tail['tail'].coords))[0]
+    # plume_head = {'head_lon': 104.1464,
+    #               'head_lat': -1.79205,
+    #               'head': Point(405058.3078391715, -198098.1352896034)}
+    # plume_tail = {'tail_lon': 104.080129898,
+    #               'tail_lat': -1.71434879993,
+    #               'tail': Point(397682.580420428, -189512.1929388661)}
+    # plume_vector = (np.array(plume_head['head'].coords[0]) - np.array(plume_tail['tail'].coords))[0]
 
     if plume_head is None:
         t1 = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[0]).group(),
@@ -484,141 +406,71 @@ def find_flow(p_number, plume_logging_path, plume_geom_utm, plume_geom_geo, pp, 
 
     plume_length = np.linalg.norm(plume_vector)  # plume length in metres
 
-
-    # no iteration over the Himawari imagery, just assume that the closest
-    # image pair to the VIIRS overpass is representative of the boundary
-    # layer atmopsheric motion for the duration from the fire to the edge
-    # of the bounding box.  This has a key benefit in that motion from
-    # confounding features (e.g. clouds passing over the plume) can be
-    # avoided.
-    _, f1_subset = extract_observation(geostationary_fnames[1], bbox, min_geo_segment)
-    _, f2_subset = extract_observation(geostationary_fnames[2], bbox, min_geo_segment)
-
-    # subset to the plume
-    f1_subset_reproj = plume_geom_utm['utm_resampler_plume'].resample_image(f1_subset,
-                                                                            geostationary_lats_subset,
-                                                                            geostationary_lons_subset)
-    f2_subset_reproj = plume_geom_utm['utm_resampler_plume'].resample_image(f2_subset,
-                                                                            geostationary_lats_subset,
-                                                                            geostationary_lons_subset)
-
-
-    # prev, next, flow, pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags
-    flow = cv2.calcOpticalFlowFarneback(f2_subset_reproj, f1_subset_reproj, None, 0.5, 3, 11, 5, 7, 1.5,
-                                        cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
-
-    # plt.imshow(f1_subset, cmap='gray')
-    # plt.savefig('/Users/danielfisher/Desktop/im1.png', bbox_inches='tight')
-    # plt.close()
-    #
-    # plt.imshow(f2_subset, cmap='gray')
-    # plt.savefig('/Users/danielfisher/Desktop/im2.png', bbox_inches='tight')
-    # plt.close()
-
-    plume_mask = plume_geom_geo['plume_mask']
-    # if plume mask not same shape as himawari subset them
-    # adjust it to match.  Exact overlay doesn't matter as
-    # we are looking for average plume motion
-    if plume_mask.shape != f1_subset_reproj.shape:
-        if plume_mask.size < f1_subset_reproj.size:
-            ax0_diff = f1_subset_reproj.shape[0] - plume_mask.shape[0]
-            ax0_pad = (ax0_diff,0)  # padding n_before, n_after.  n_after always zero
-            ax1_diff = f1_subset_reproj.shape[1] - plume_mask.shape[1]
-            ax1_pad = (ax1_diff,0)
-            plume_mask = np.pad(plume_mask, (ax0_pad, ax1_pad), 'edge')
+    # begin iteration here
+    current_tracked_plume_distance = 0
+    for i in xrange(len(geostationary_fnames) - 1):
+        if i == 0:
+            f1_subset = extract_observation(geostationary_fnames[i], bbox, min_geo_segment)
+            f1_subset_reproj = plume_geom_utm['utm_resampler_plume'].resample_image(f1_subset,
+                                                                                    geostationary_lats_subset,
+                                                                                    geostationary_lons_subset)
+            f2_subset = extract_observation(geostationary_fnames[i + 1], bbox, min_geo_segment)
+            f2_subset_reproj = plume_geom_utm['utm_resampler_plume'].resample_image(f2_subset,
+                                                                                    geostationary_lats_subset,
+                                                                                    geostationary_lons_subset)
         else:
-            plume_mask = plume_mask[:f1_subset_reproj.shape[0], :f1_subset_reproj.shape[1]]
+            f1_subset_reproj = f2_subset_reproj
+            f2_subset = extract_observation(geostationary_fnames[i + 1], bbox, min_geo_segment)
+            f2_subset_reproj = plume_geom_utm['utm_resampler_plume'].resample_image(f2_subset,
+                                                                                    geostationary_lats_subset,
+                                                                                    geostationary_lons_subset)
 
-    # mask flow to plume extent
-    flow *= plume_mask[..., np.newaxis]
-    #adjust_image_map_coordinates(flow)
-    flow[:,:,0] *= -1
+        # prev, next, flow, pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags
+        scene_flow = cv2.calcOpticalFlowFarneback(f2_subset_reproj, f1_subset_reproj, None, 0.5, 3, 11, 5, 7, 1.5,
+                                            cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
 
-    angles = angle_between(flow.copy(), plume_vector)
-    angular_mask = (angles <= constants.angular_limit) | (angles >= (2 * np.pi) - constants.angular_limit)
-    flow *= angular_mask[..., np.newaxis]
+        plume_flow = extract_plume_flow(plume_geom_geo, f2_subset_reproj, scene_flow, plume_vector,
+                                        plume_logging_path, geostationary_fnames[i + 1], plot=pp['plot'])
 
-    draw_flow(f1_subset_reproj, flow)
+        # project flow onto principle axis
+        projected_flow = np.dot(plume_vector, plume_flow) / \
+                         np.dot(plume_vector, plume_vector) * plume_vector
 
+        current_tracked_plume_distance += np.linalg.norm(projected_flow)
 
-
-
-
-
-
-
-
-
-
-    # detect features and compute flow
-    tracks = []
-    feature_detector(fast, f2_subset_reproj, tracks)  # tracks updated inplace
-    tracks, flow = compute_flow(tracks, f2_subset_reproj, f1_subset_reproj)
-
-    good_flow = []
-    for flow_vector in flow:
-        angle = angle_between(flow_vector, plume_vector)
-        if (angle <= constants.angular_limit) | (angle >= (2 * np.pi) - constants.angular_limit):
-            good_flow.append(flow_vector)
-
-    # compute  mean flow for plume
-    flow_mean = np.mean(good_flow, axis=0) * constants.utm_grid_size
-    flow_sd = np.std(good_flow, axis=0) * constants.utm_grid_size
-    flow_nobs = len(good_flow)
-
-    # project flow onto principle axis
-    projected_flow = np.dot(plume_vector, flow_mean) / \
-                     np.dot(plume_vector, plume_vector) * plume_vector
-
-    # get the number of himawari time steps
-    n_steps = int(plume_length / np.linalg.norm(projected_flow))
-
-    # get the plume start and stop times
-    t1 = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[0]).group(),
-                           '%Y%m%d_%H%M')
-    t2 = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[n_steps]).group(),
-                           '%Y%m%d_%H%M')
-
-    # plotting
-    if pp['plot']:
-        for i in xrange(n_steps+2):
+        if pp['plot']:
             if i == 0:
-                # for first iteration need to get the first two images and associated information
-                _, f1_display_subset = extract_observation(geostationary_fnames[i], bbox, min_geo_segment)
-                _, f2_display_subset = extract_observation(geostationary_fnames[i+1], bbox, min_geo_segment)
-                plot_images = [plume_geom_utm['utm_resampler_plume'].resample_image(f1_display_subset,
-                                                                                    geostationary_lats_subset,
-                                                                                    geostationary_lons_subset),
-                               plume_geom_utm['utm_resampler_plume'].resample_image(f2_display_subset,
-                                                                                    geostationary_lats_subset,
-                                                                                    geostationary_lons_subset)]
-                # get files names
-                fnames = [geostationary_fnames[i], geostationary_fnames[i + 1]]
-
-                # get fires
+                plot_images = [f1_subset_reproj, f2_subset_reproj]
+                plot_names = [geostationary_fnames[i], geostationary_fnames[i + 1]]
                 t = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[i]).group(),
                                       '%Y%m%d_%H%M')
-                fires = [ff.fire_locations_for_plume_roi(plume_geom_geo, pp['frp_df'], t)]
+                plot_fires = [ff.fire_locations_for_plume_roi(plume_geom_geo, pp['frp_df'], t)]
                 t = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[i+1]).group(),
                                       '%Y%m%d_%H%M')
-                fires.append(ff.fire_locations_for_plume_roi(plume_geom_geo, pp['frp_df'], t))
-
+                plot_fires.append(ff.fire_locations_for_plume_roi(plume_geom_geo, pp['frp_df'], t))
+                plume_flows = [plume_flow]
+                projected_flows = [projected_flow]
             else:
-                # for following iterations just need the new image i.e
-                # f1_display_subset = f2_display_subset for posterity
-                _, f2_display_subset = extract_observation(geostationary_fnames[i+1], bbox, min_geo_segment)
-                plot_images.append(plume_geom_utm['utm_resampler_plume'].resample_image(f2_display_subset,
-                                                                                        geostationary_lats_subset,
-                                                                                        geostationary_lons_subset))
-                fnames.append(geostationary_fnames[i+1])
-
+                plot_images.append(f2_subset_reproj)
+                plot_names.append(geostationary_fnames[i+1])
                 t = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[i+1]).group(),
                                   '%Y%m%d_%H%M')
-                fires.append(ff.fire_locations_for_plume_roi(plume_geom_geo, pp['frp_df'], t))
+                plot_fires.append(ff.fire_locations_for_plume_roi(plume_geom_geo, pp['frp_df'], t))
+                plume_flows.append(plume_flow)
+                projected_flows.append(projected_flow)
 
-        vis.run_plot(plot_images, fires, flow_mean, projected_flow,
+        if (((plume_length - current_tracked_plume_distance) < constants.utm_grid_size) |
+            (current_tracked_plume_distance > plume_length)):
+            break
+
+    if pp['plot']:
+        vis.run_plot(plot_images, plot_fires, plume_flows, projected_flows,
                      plume_head, plume_tail, plume_geom_utm['utm_plume_points'], plume_geom_utm['utm_resampler_plume'],
-                     plume_logging_path, fnames, i)
+                     plume_logging_path, plot_names, i + 1)
+
+    # get the plume start and stop times
+    t1 = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[0]).group(), '%Y%m%d_%H%M')
+    t2 = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[i+1]).group(), '%Y%m%d_%H%M')
 
     # return the projected flow means in UTM coords, and the list of himawari filenames asspocated with the flows
-    return projected_flow, geostationary_fnames[:n_steps], t1, t2
+    return projected_flows[:i + 1], geostationary_fnames[:i + 1], t1, t2
