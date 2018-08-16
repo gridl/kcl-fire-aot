@@ -40,7 +40,7 @@ def image_seen(viirs_fname):
     if not os.path.exists(fp.processed_filelist_path):
         return False
     else:
-        with open(fp.processed_filelist_path, 'r+') as txt_file:
+        with open(fp.processed_filelist_path, 'r') as txt_file:
             if viirs_fname in txt_file.read():
                 logger.info(viirs_fname + " already processed")
                 return True
@@ -49,8 +49,9 @@ def image_seen(viirs_fname):
 
 
 def log_digitisation(viirs_fname):
-    with open(fp.processed_filelist_path, 'r+') as txt_file:
+    with open(fp.processed_filelist_path, 'a') as txt_file:
         txt_file.write(viirs_fname + '\n')
+
 
 
 def get_viirs_fname(path, timestamp_viirs, viirs_sdr_fname):
@@ -382,6 +383,7 @@ def main():
                                                                      viirs_sdr_fname)
             if plume_polygons is None:
                 logger.info('no polygons for sdr: ' + viirs_sdr_fname + ' continuing')
+                log_digitisation(viirs_sdr_fname)
                 continue
 
             # process plumes and backgrounds
