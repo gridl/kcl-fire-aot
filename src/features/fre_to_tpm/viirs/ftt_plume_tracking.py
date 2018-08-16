@@ -78,7 +78,7 @@ def find_tail_edge(head, plume_geom_utm):
     if ratios_pair_a[argmax_a] > ratios_pair_b[argmax_b]:
         return edge_pair_a[np.argmax(distances_pair_a)]
     else:
-        return edge_pair_b[np.argmax(distances_pair_a)]
+        return edge_pair_b[np.argmax(distances_pair_b)]
 
 
 def find_plume_tail(head, plume_geom_utm, plume_geom_geo):
