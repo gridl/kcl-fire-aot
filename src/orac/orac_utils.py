@@ -714,7 +714,7 @@ class ParticleType():
 
 tau = Invpar('ITau', ap=0, sx=10e8)
 aer = Invpar('IRe', ap=0.01, sx=10e8)  # this is NOT in log scale
-wvl = (0.488, 0.555, 0.672, 0.865, 1.2, 2.25)
+wvl = (0.488, 0.555, 0.672, 0.865, 2.25)
 
 settings['WAT'] = ParticleType(wvl=wvl, inv=(tau, aer), sad=defaults.sad_dir, ls=False)
 settings['ICE'] = ParticleType(wvl=wvl,sad=defaults.sad_dir, ls=False)
