@@ -1,11 +1,9 @@
 import logging
 import os
-
 import pandas as pd
-from datetime import datetime
 
 import src.features.fre_to_tpm.viirs.ftt_utils as ut
-
+import src.features.fre_to_tpm.viirs.ftt_plume_tracking as pt
 import src.config.filepaths as fp
 import src.data.readers.load_hrit as load_hrit
 import src.visualization.ftt_visualiser as vis
@@ -30,90 +28,22 @@ def proc_params():
     d['geostationary_lats'] = geostationary_lats
     d['geostationary_lons'] = geostationary_lons
 
-    d['output_path'] = fp.path_to_frp_tpm_models
+    d['output_path'] = fp.pt_vis_path
     d['df_list'] = []
-
-    d['t_start_stop'] = {0: [datetime.strptime('20150706_0600', '%Y%m%d_%H%M'),
-                             datetime.strptime('20150706_0510', '%Y%m%d_%H%M')],
-                         1: [datetime.strptime('20150706_0600', '%Y%m%d_%H%M'),
-                             datetime.strptime('20150706_0520', '%Y%m%d_%H%M')],
-                         2: [datetime.strptime('20150706_0600', '%Y%m%d_%H%M'),
-                             datetime.strptime('20150706_0530', '%Y%m%d_%H%M')],
-                         3: [datetime.strptime('20150807_0600', '%Y%m%d_%H%M'),
-                             datetime.strptime('20150807_0510', '%Y%m%d_%H%M')],
-                         4: [datetime.strptime('20150807_0600', '%Y%m%d_%H%M'),
-                             datetime.strptime('20150807_0510', '%Y%m%d_%H%M')],
-                         5: [datetime.strptime('20150807_0600', '%Y%m%d_%H%M'),
-                             datetime.strptime('20150807_0530', '%Y%m%d_%H%M')],
-                         6: [datetime.strptime('20150814_0340', '%Y%m%d_%H%M'),
-                             datetime.strptime('20150814_0300', '%Y%m%d_%H%M')],
-                         7: [datetime.strptime('20150814_0340', '%Y%m%d_%H%M'),
-                             datetime.strptime('20150814_0240', '%Y%m%d_%H%M')],
-                         8: [datetime.strptime('20150902_0610', '%Y%m%d_%H%M'),
-                             datetime.strptime('20150902_0520', '%Y%m%d_%H%M')],
-                         9: [datetime.strptime('20150903_0410', '%Y%m%d_%H%M'),
-                             datetime.strptime('20150903_0330', '%Y%m%d_%H%M')],
-                         10: [datetime.strptime('20150908_0600', '%Y%m%d_%H%M'),
-                             datetime.strptime('20150908_0520', '%Y%m%d_%H%M')],
-                         11: [datetime.strptime('20150908_0600', '%Y%m%d_%H%M'),
-                             datetime.strptime('20150908_0500', '%Y%m%d_%H%M')],
-                         12: [datetime.strptime('20150909_0540', '%Y%m%d_%H%M'),
-                             datetime.strptime('20150909_0500', '%Y%m%d_%H%M')],
-                         13: [datetime.strptime('20150909_0540', '%Y%m%d_%H%M'),
-                             datetime.strptime('20150909_0450', '%Y%m%d_%H%M')],
-                         14: [datetime.strptime('20150909_0540', '%Y%m%d_%H%M'),
-                             datetime.strptime('20150909_0450', '%Y%m%d_%H%M')],
-                         15: [datetime.strptime('20150909_0540', '%Y%m%d_%H%M'),
-                             datetime.strptime('20150909_0500', '%Y%m%d_%H%M')],
-                         16: [datetime.strptime('20150909_0540', '%Y%m%d_%H%M'),
-                             datetime.strptime('20150909_0500', '%Y%m%d_%H%M')],
-                         17: [datetime.strptime('20150909_0540', '%Y%m%d_%H%M'),
-                             datetime.strptime('20150909_0520', '%Y%m%d_%H%M')],
-                         18: [datetime.strptime('20150909_0540', '%Y%m%d_%H%M'),
-                             datetime.strptime('20150909_0510', '%Y%m%d_%H%M')],
-                         19: [datetime.strptime('20150918_0610', '%Y%m%d_%H%M'),
-                             datetime.strptime('20150918_0540', '%Y%m%d_%H%M')],
-                         20: [datetime.strptime('20150918_0610', '%Y%m%d_%H%M'),
-                             datetime.strptime('20150918_0540', '%Y%m%d_%H%M')],
-                         21: [datetime.strptime('20150918_0610', '%Y%m%d_%H%M'),
-                             datetime.strptime('20150918_0520', '%Y%m%d_%H%M')],
-                         22: [datetime.strptime('20151002_0650', '%Y%m%d_%H%M'),
-                             datetime.strptime('20151002_0630', '%Y%m%d_%H%M')],
-                         23: [datetime.strptime('20151002_0650', '%Y%m%d_%H%M'),
-                             datetime.strptime('20151002_0610', '%Y%m%d_%H%M')],
-                         24: [datetime.strptime('20151003_0630', '%Y%m%d_%H%M'),
-                             datetime.strptime('20151003_0540', '%Y%m%d_%H%M')],
-                         25: [datetime.strptime('20151003_0630', '%Y%m%d_%H%M'),
-                             datetime.strptime('20151003_0550', '%Y%m%d_%H%M')],
-                         26: [datetime.strptime('20151004_0610', '%Y%m%d_%H%M'),
-                             datetime.strptime('20151004_0530', '%Y%m%d_%H%M')],
-                         27: [datetime.strptime('20151004_0610', '%Y%m%d_%H%M'),
-                             datetime.strptime('20151004_0520', '%Y%m%d_%H%M')],
-                         28: [datetime.strptime('20151004_0610', '%Y%m%d_%H%M'),
-                             datetime.strptime('20151004_0550', '%Y%m%d_%H%M')],
-                         29: [datetime.strptime('20151017_0340', '%Y%m%d_%H%M'),
-                             datetime.strptime('20151017_0250', '%Y%m%d_%H%M')],
-                         30: [datetime.strptime('20151017_0340', '%Y%m%d_%H%M'),
-                             datetime.strptime('20151017_0300', '%Y%m%d_%H%M')],
-                         31: [datetime.strptime('20151019_0630', '%Y%m%d_%H%M'),
-                             datetime.strptime('20151019_0530', '%Y%m%d_%H%M')],
-                         }
-
     return d
 
 
 def setup_sat_data(ts):
-
-    dd = dict()
-    dd['viirs_aod'] = ut.sat_data_reader(fp.path_to_viirs_aod, 'viirs', 'aod', ts)
-    dd['viirs_flags'] = ut.sat_data_reader(fp.path_to_viirs_aod, 'viirs', 'flags', ts)
-    dd['orac_aod'] = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'aod', ts)
-    dd['orac_flags'] = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'flags', ts)
+    d = dict()
+    d['viirs_aod'] = ut.sat_data_reader(fp.path_to_viirs_aod, 'viirs', 'aod', ts)
+    d['viirs_flag'] = ut.sat_data_reader(fp.path_to_viirs_aod, 'viirs', 'flag', ts)
+    d['orac_aod'] = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'aod', ts)
+    d['orac_cost'] = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'cost', ts)
 
     lats, lons = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'geo', ts)
-    dd['lats'] = lats
-    dd['lons'] = lons
-    return dd
+    d['lats'] = lats
+    d['lons'] = lons
+    return d
 
 
 def main():
@@ -133,7 +63,6 @@ def main():
 
         # read in satellite data
         if current_timestamp != previous_timestamp:
-
             try:
                 sat_data = setup_sat_data(current_timestamp)
             except Exception, e:
@@ -156,9 +85,16 @@ def main():
         # Reproject plume shapely objects to UTM
         plume_geom_utm = ut.resample_plume_geom_to_utm(plume_geom_geo)
 
-        # load in times for plume number
-        t1, t2 = pp['t_start_stop'][p_number]
-
+        # get start stop times
+        try:
+            utm_flow_means, geostationary_fnames, t1, t2 = pt.find_flow(plume_logging_path,
+                                                                        plume_geom_utm,
+                                                                        plume_geom_geo,
+                                                                        pp,
+                                                                        current_timestamp)
+        except Exception, e:
+            logger.error(str(e))
+            continue
         ut.process_plume(t1, t2, pp, plume_data_utm, plume_geom_utm, plume_geom_geo, plume_logging_path,
                          p_number, df_list)
 

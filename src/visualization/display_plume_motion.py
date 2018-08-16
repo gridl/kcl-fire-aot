@@ -1,19 +1,11 @@
 import logging
 import os
 
-import numpy as np
-import pandas as pd
-import scipy.misc as misc
-
-import src.features.fre_to_tpm.viirs.ftt_fre as ff
 import src.features.fre_to_tpm.viirs.ftt_plume_tracking as pt
 import src.features.fre_to_tpm.viirs.ftt_utils as ut
-
 import src.config.filepaths as fp
-import src.config.constants as constants
 import src.data.readers.load_hrit as load_hrit
 import src.visualization.ftt_visualiser as vis
-
 
 log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=log_fmt)
@@ -42,16 +34,16 @@ def proc_params():
 
 def setup_sat_data(ts):
 
-    dd = dict()
-    dd['viirs_aod'] = ut.sat_data_reader(fp.path_to_viirs_aod, 'viirs', 'aod', ts)
-    dd['viirs_flag'] = ut.sat_data_reader(fp.path_to_viirs_aod, 'viirs', 'flag', ts)
-    dd['orac_aod'] = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'aod', ts)
-    dd['orac_cost'] = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'cost', ts)
+    d = dict()
+    d['viirs_aod'] = ut.sat_data_reader(fp.path_to_viirs_aod, 'viirs', 'aod', ts)
+    d['viirs_flag'] = ut.sat_data_reader(fp.path_to_viirs_aod, 'viirs', 'flag', ts)
+    d['orac_aod'] = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'aod', ts)
+    d['orac_cost'] = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'cost', ts)
 
     lats, lons = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'geo', ts)
-    dd['lats'] = lats
-    dd['lons'] = lons
-    return dd
+    d['lats'] = lats
+    d['lons'] = lons
+    return d
 
 
 def main():
@@ -61,12 +53,6 @@ def main():
 
     # itereate over the plumes
     for p_number, plume in pp['plume_df'].iterrows():
-
-        if p_number != 3:
-            continue
-
-        print ''
-        print p_number
 
         # make a directory to hold the plume logging information
         plume_logging_path = ut.create_logger_path(p_number)
