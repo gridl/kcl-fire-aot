@@ -29,6 +29,7 @@ def proc_params():
     d['geostationary_lons'] = geostationary_lons
 
     d['output_path'] = fp.pt_vis_path
+    d['df_output_path'] = fp.path_to_frp_tpm_models
     d['df_list'] = []
     return d
 
@@ -100,7 +101,7 @@ def main():
 
     # dump data to csv via df
     df = pd.concat(df_list)
-    df.to_csv(pp['output_path'])
+    df.to_csv(pp['df_output_path'])
 
 
 if __name__ == "__main__":
