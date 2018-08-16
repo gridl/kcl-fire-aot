@@ -1024,7 +1024,7 @@ def args_main(parser):
                       help='Upper limit value for effective radius')
     main.add_argument('--llim_ITau', type=str, default='-3',
                       help='Lower limit value for optical depth (log)')
-    main.add_argument('--ulim_ITau', type=str, default='2',
+    main.add_argument('--ulim_ITau', type=str, default='1.1',
                       help='Upper limit value for optical depth (log)')
     ls = main.add_mutually_exclusive_group()
     ls.add_argument('--land', action='store_false',
