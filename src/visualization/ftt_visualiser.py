@@ -6,6 +6,7 @@ import shapely.geometry as sgeom
 import numpy as np
 from matplotlib.patheffects import Stroke
 import cv2
+import scipy.interpolate as interpolate
 
 import os
 
@@ -156,17 +157,98 @@ def display_masked_map_first(img, fires, plume_points, utm_resampler,
     plt.close()
 
 
-def draw_flow(img, flow, path, fname, step=2):
+def save_im(im, path, fname):
+    ax = plt.axes()
+    ax.imshow(im, cmap='gray')
+
+    output_fname = fname +'.jpg'
+    plt.savefig(os.path.join(path, output_fname), bbox_inches='tight', dpi=300)
+    plt.close()
+
+
+
+
+def draw_flow_map(img, utm_resampler, plume_points, plume_head, plume_tail, flow, path, fname, stage_name, step=2):
+
+    x, y = plume_points.minimum_rotated_rectangle.exterior.xy
+    verts = [utm_resampler.resample_point_to_geo(y, x) for (x, y) in zip(x, y)]
+
+    plume_tail = np.array(plume_tail['tail'].coords)[0]
+    plume_head = np.array(plume_head['head'].coords)[0]
+    plume_head = utm_resampler.resample_point_to_geo(plume_head[1], plume_head[0])
+    plume_tail = utm_resampler.resample_point_to_geo(plume_tail[1], plume_tail[0])
+
+    lons, lats = utm_resampler.area_def.get_lonlats()
+    crs = ccrs.PlateCarree()
+    extent = [np.min(lons), np.max(lons), np.min(lats), np.max(lats)]
+
+    u_padding = -0
+    l_padding = -0
+    padded_extent = [np.min(lons) - u_padding, np.max(lons) + u_padding,
+                     np.min(lats) - u_padding, np.max(lats) + l_padding]
+
+    ax = plt.axes(projection=crs)
+    ax.set_extent(padded_extent)
+
+    ax.coastlines(resolution='50m', color='black', linewidth=1)
+
+    # gridlines = ax.gridlines(draw_labels=True)
+    plt.imshow(img, transform=crs, extent=extent, origin='upper', cmap='gray')
+    plt.plot([plume_head[0], plume_tail[0]], [plume_head[1], plume_tail[1]], 'k-', linewidth=1)
+    plt.plot(plume_head[0], plume_head[1], 'b.', markersize=2)
+
+    for v1, v2 in zip(verts[:-1], verts[1:]):
+        plt.plot([v1[0], v2[0]], [v1[1], v2[1]], 'k-', linewidth=1)
+
+
+    # now plot the flow vectors
+    h, w = img.shape[:2]
+    y, x = np.mgrid[step/2:h:step, step/2:w:step].reshape(2,-1).astype(int)
+    dx, dy = flow[y,x].T
+
+    lons1 = lons[y,x]
+    lats1 = lats[y,x]
+
+    # interpolate sub_pixel lats
+    h = np.arange(h)
+    w = np.arange(w)
+    f_lat = interpolate.interp2d(h, w, lats.flatten())
+    f_lon = interpolate.interp2d(h, w, lons.flatten())
+    lons2 = np.array([f_lon(y[i]+dy[i], x[i]+dx[i])[0] for i in xrange(x.size)])
+    lats2 = np.array([f_lat(y[i]+dy[i], x[i]+dx[i])[0] for i in xrange(x.size)])
+
+    plt.plot([lons1, lons2], [lats1, lats2], 'r-', linewidth=0.1)
+    plt.plot(lons1, lats1, 'r.', markersize=0.1)
+
+    #plt.show()
+    output_fname = stage_name + fname.split('/')[-1].split('.')[0] + '.jpg'
+    plt.savefig(os.path.join(path, output_fname), bbox_inches='tight', dpi=300)
+    plt.close()
+
+
+def draw_flow(img, flow, path, fname, stage_name, step=2):
+
     plt.close('all')
     h, w = img.shape[:2]
     y, x = np.mgrid[step/2:h:step, step/2:w:step].reshape(2,-1).astype(int)
     fx, fy = flow[y,x].T
 
+    x_shift = x+fx
+    y_shift = y+fy
+
+    mask = (x_shift > 0) & (x_shift < w) & (y_shift > 0) & (y_shift < h)
+    x = x[mask]
+    y = y[mask]
+    x_shift = x_shift[mask]
+    y_shift = y_shift[mask]
+
     ax = plt.axes()
     ax.imshow(img, cmap='gray')
-    ax.quiver(x, y, fx, fy, scale=100, color='red')
+    #ax.quiver(x, y, fx, fy, scale=200, color='red')
+    ax.plot((x,x_shift), (y, y_shift), 'r-', linewidth=0.25)
+    ax.plot(x,y, 'r.', markersize=0.25)
 
-    output_fname = 'flow_' + fname.split('/')[-1].split('.')[0] + '.jpg'
+    output_fname = stage_name + fname.split('/')[-1].split('.')[0] + '.jpg'
     plt.savefig(os.path.join(path, output_fname), bbox_inches='tight', dpi=300)
     plt.close()
 
@@ -191,7 +273,7 @@ def run_plot(plot_images, fires, flow_mean, projected_flow_mean,
                              plume_logging_path,
                              'subset_' + fnames[0].split('/')[-1].split('.')[0] + '.jpg')
 
-    for obs in np.arange(i):
+    for obs in np.arange(i-1):
         utm_flow_vectors += [utm_plume_projected_flow_vectors[-1] + flow_mean[obs]]
         utm_plume_projected_flow_vectors += [utm_plume_projected_flow_vectors[-1] + projected_flow_mean[obs]]
         display_masked_map(plot_images[obs+1],

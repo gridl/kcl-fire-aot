@@ -86,11 +86,11 @@ def main():
 
         # get the plume sub polygons / start stop times based on the wind speed
         try:
-            utm_flow_means, geostationary_fnames, t1, t2 = pt.find_flow(plume_logging_path,
-                                                                        plume_geom_utm,
-                                                                        plume_geom_geo,
-                                                                        pp,
-                                                                        current_timestamp)
+            utm_flow_means, geostationary_fnames, t1, t2 = pt.tracker(plume_logging_path,
+                                                                      plume_geom_utm,
+                                                                      plume_geom_geo,
+                                                                      pp,
+                                                                      current_timestamp)
         except Exception, e:
             logger.error(str(e))
             continue

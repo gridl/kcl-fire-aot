@@ -163,8 +163,7 @@ def read_plume_polygons(path):
     except Exception, e:
         logger.warning('Could not load pickle with error:' + str(e) + ' ...attempting to load csv')
         df = pd.read_csv(path, quotechar='"', sep=',', converters={'plume_extent': ast.literal_eval,
-                                                                   'background_extent': ast.literal_eval,
-                                                                   'plume_vector': ast.literal_eval})
+                                                                   'background_extent': ast.literal_eval})
     return df
 
 
@@ -320,7 +319,7 @@ def resample_satellite_datasets(sat_data, pp=None, plume=None, fill_value=0):
 
     if pp:
         if pp['plot']:
-            d['viirs_png_utm'] = misc.imread(os.path.join(fp.path_to_viirs_sdr_resampled_peat, plume.filename))
+            d['viirs_png_utm'] = misc.imread(os.path.join(fp.path_to_viirs_sdr_resampled_no_peat, plume.filename.rstrip()))
 
     return d
 
@@ -335,10 +334,7 @@ def setup_plume_data(plume, ds_utm):
         d['plume_aod'] = subset_data(ds_utm['viirs_aod_utm'], d['plume_bounding_box'])
         d['plume_flag'] = subset_data(ds_utm['viirs_flag_utm'], d['plume_bounding_box'])
 
-        # get plume vector geographic data
-        vector_lats, vector_lons = extract_subset_geo_bounds(plume.plume_vector, d['plume_bounding_box'],
-                                                                d['plume_lats'], d['plume_lons'])
-        # get plume polygon geographic data
+         # get plume polygon geographic data
         poly_lats, poly_lons = extract_subset_geo_bounds(plume.plume_extent, d['plume_bounding_box'],
                                                             d['plume_lats'], d['plume_lons'])
 
@@ -346,7 +342,6 @@ def setup_plume_data(plume, ds_utm):
         d['plume_mask'] = construct_mask(plume.plume_extent, d['plume_bounding_box'])
 
         # setup shapely objects for plume geo data
-        d['plume_vector'] = construct_shapely_vector(vector_lats, vector_lons)
         d['plume_points'] = construct_shapely_points(poly_lats, poly_lons)
         d['plume_polygon'] = construct_shapely_polygon(poly_lats, poly_lons)
 
@@ -386,7 +381,6 @@ def resample_plume_geom_to_utm(plume_geom_geo):
                                                 constants.utm_grid_size)
     d['utm_plume_points'] = reproject_shapely(plume_geom_geo['plume_points'], d['utm_resampler_plume'])
     d['utm_plume_polygon'] = reproject_shapely(plume_geom_geo['plume_polygon'], d['utm_resampler_plume'])
-    d['utm_plume_vector'] = reproject_shapely(plume_geom_geo['plume_vector'], d['utm_resampler_plume'])
     return d
 
 
