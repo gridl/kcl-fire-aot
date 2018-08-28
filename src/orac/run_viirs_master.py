@@ -71,7 +71,7 @@ def run_pro(pp):
             proc_cmd = '-i ' + root \
                        + ' -o ' + pro_dir \
                        + ' --sad_dir ' + pp.aersaddir \
-                       + ' --use_channel 0 0 1 1 1 0 1 0 0 0 1 0 0 0 0 0 -a AppCld1L --ret_class ClsAerOx ' \
+                       + ' --use_channel 0 0 0 1 1 0 1 0 0 0 1 0 0 0 0 0 -a AppCld1L --ret_class ClsAerOx ' \
                        + '  --batch ' \
                        + ' --phase '
 
