@@ -544,6 +544,7 @@ def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
         projected_flows = []
 
     current_tracked_plume_distance = 0
+    velocity = []
     for i in xrange(len(flow_images)):
 
         # again skip first image
@@ -573,8 +574,13 @@ def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
         # project flow onto principle axis
         projected_flow = np.dot(plume_vector, (plume_flow_x, plume_flow_y)) / \
                          np.dot(plume_vector, plume_vector) * plume_vector
+        distance_travelled = np.linalg.norm(projected_flow)
 
-        current_tracked_plume_distance += np.linalg.norm(projected_flow)
+        current_tracked_plume_distance += distance_travelled
+
+        # record the the velocity in the plume direction
+        velocity.append(distance_travelled / 600)  # gives velocity in m/s (600 seconds between images)
+
 
         if pp['plot']:
             t = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[i-1]).group(), '%Y%m%d_%H%M')
@@ -591,19 +597,27 @@ def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
             break
 
     if pp['plot']:
-        plot_images = flow_images[:i + 1]
-        plot_names = geostationary_fnames[:i + 1]
+        plot_images = flow_images[:i+1]
+        plot_names = geostationary_fnames[:i+1]
         t = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[i]).group(), '%Y%m%d_%H%M')
         plot_fires.append(ff.fire_locations_for_plume_roi(plume_geom_geo, pp['frp_df'], t))
 
         vis.run_plot(plot_images, plot_fires, plume_flows, projected_flows,
                      plume_head, plume_tail, plume_geom_utm['utm_plume_points'], plume_geom_utm['utm_resampler_plume'],
-                     plume_logging_path, plot_names, i + 1)
+                     plume_logging_path, plot_names, i+1)
 
     # TODO check if we need to +1 in here on the indexing
     # get the plume start and stop times
-    t1 = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[0]).group(), '%Y%m%d_%H%M')
-    t2 = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[i+1]).group(), '%Y%m%d_%H%M')
+    t_start = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[0]).group(), '%Y%m%d_%H%M')
+    t_stop = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[i]).group(), '%Y%m%d_%H%M')
+    mean_velocity = np.mean(velocity)
+    time_for_plume = plume_length / mean_velocity
+
+    print 'plume velocity m/s', mean_velocity
+    print 'time for plume s', time_for_plume
+    print t_start
+    print t_stop
+    print
 
     # return the projected flow means in UTM coords, and the list of himawari filenames asspocated with the flows
-    return projected_flows[:i + 1], geostationary_fnames[:i + 1], t1, t2
+    return projected_flows[:i], geostationary_fnames[:i], t_start, t_stop, time_for_plume

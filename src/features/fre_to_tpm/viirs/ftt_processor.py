@@ -59,9 +59,6 @@ def main():
         # if p_number not in [0]:
         #     continue
 
-        if p_number < 7:
-            continue
-
         # make a directory to hold the plume logging information
         plume_logging_path = ut.create_logger_path(p_number)
 
@@ -94,16 +91,16 @@ def main():
 
         # get start stop times
         try:
-            utm_flow_means, geostationary_fnames, t1, t2 = pt.tracker(plume_logging_path,
-                                                                      plume_geom_utm,
-                                                                      plume_geom_geo,
-                                                                      pp,
-                                                                      current_timestamp)
+            utm_flow_means, geostationary_fnames, t_start, t_stop, time_for_plume = pt.tracker(plume_logging_path,
+                                                                                               plume_geom_utm,
+                                                                                               plume_geom_geo,
+                                                                                               pp,
+                                                                                               current_timestamp)
         except Exception, e:
             logger.error(str(e))
             continue
-        ut.process_plume(t1, t2, pp, plume_data_utm, plume_geom_utm, plume_geom_geo, plume_logging_path,
-                         p_number, df_list)
+        ut.process_plume(t_start, t_stop, time_for_plume,
+                         pp, plume_data_utm, plume_geom_utm, plume_geom_geo, plume_logging_path, p_number, df_list)
 
     # dump data to csv via df
     df = pd.concat(df_list)

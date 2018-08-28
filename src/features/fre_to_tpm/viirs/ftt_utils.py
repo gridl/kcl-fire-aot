@@ -384,7 +384,8 @@ def resample_plume_geom_to_utm(plume_geom_geo):
     return d
 
 
-def process_plume(t1, t2, pp, plume_data_utm, plume_geom_utm, plume_geom_geo, plume_logging_path, p_number,
+def process_plume(t_start, t_stop, time_for_plume,
+                  pp, plume_data_utm, plume_geom_utm, plume_geom_geo, plume_logging_path, p_number,
                   df_list):
     # get background aod for sub plume
     bg_aod_dict = tt.extract_bg_aod(plume_data_utm, plume_geom_geo['background_mask'])
@@ -394,7 +395,8 @@ def process_plume(t1, t2, pp, plume_data_utm, plume_geom_utm, plume_geom_geo, pl
     out_dict['plume_number'] = p_number
 
     # compute fre
-    ff.compute_fre_full_plume(t1, t2, pp['frp_df'], plume_geom_geo, plume_logging_path, out_dict)
+    ff.compute_fre_full_plume(t_start, t_stop, time_for_plume,
+                              pp['frp_df'], plume_geom_geo, plume_logging_path, out_dict)
 
     # convert datadict to dataframe and add to list
     df_list.append(pd.DataFrame(out_dict, index=['i', ]))

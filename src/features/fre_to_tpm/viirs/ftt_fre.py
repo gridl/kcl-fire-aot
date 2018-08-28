@@ -168,11 +168,12 @@ def compute_fre_subset(out_dict, geostationary_fname, plume_geom_geo, frp_df, su
         out_dict['himawari_time'] = t
 
 
-def compute_fre_full_plume(t1, t2, frp_df, plume_geom_geo, plume_logging_path, out_dict):
+def compute_fre_full_plume(t_start, t_stop, time_for_plume,
+                           frp_df, plume_geom_geo, plume_logging_path, out_dict):
 
 
     try:
-        frp_subset = temporal_subset(frp_df, t2, t1)
+        frp_subset = temporal_subset(frp_df, t_stop, t_start)
         frp_subset = spatial_subset(frp_subset, plume_geom_geo)
         frp_subset.to_csv(os.path.join(plume_logging_path, 'fires.csv'))
 
@@ -184,9 +185,11 @@ def compute_fre_full_plume(t1, t2, frp_df, plume_geom_geo, plume_logging_path, o
         # minutes
         fre = integrate_frp(grouped_frp_subset)
 
-        # lets set up an alternative FRE using mean and multiplying by time in seconds
-        alt_fre = grouped_frp_subset['FRP_0'].mean() * (grouped_frp_subset.index[-1] - grouped_frp_subset.index[0]).total_seconds()
-
+        # lets set up an alternative FRE using mean and multiplying by time in seconds for plume
+        # (should be more accurate).
+        # alt_fre = grouped_frp_subset['FRP_0'].mean() * (grouped_frp_subset.index[-1] -
+        #                                                 grouped_frp_subset.index[0]).total_seconds()
+        alt_fre = grouped_frp_subset['FRP_0'].mean() * time_for_plume
 
         out_dict['fre'] = fre
         out_dict['alt_fre'] = alt_fre

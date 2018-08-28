@@ -8,7 +8,7 @@ import os
 # root path to data folder
 root = '/Volumes/INTENSO/kcl-fire-aot/ODA/'
 #root = '/Users/danielfisher/Projects/kcl-fire-aot/data/ODA/'
-roi = 'seasia'
+roi = 'combined'
 
 # select list of files to process
 analysis_filelist_path = os.path.join(root, 'filelists', '{0}_files.txt'.format(roi))
