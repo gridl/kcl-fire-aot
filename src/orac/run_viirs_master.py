@@ -70,12 +70,13 @@ def run_pro(pp):
             # Set up and call ORAC for the defined phases --ret_class ClsAerOx
             proc_cmd = '-i ' + root \
                        + ' -o ' + pro_dir \
-                       + ' --sad_dir ' + pp.aersaddir \
+                       + ' --sad_dir ' + pp.cldsaddir \
                        + ' --use_channel 0 0 0 1 1 0 1 0 0 0 1 0 0 0 0 0 -a AppCld1L --ret_class ClsAerOx ' \
                        + '  --batch ' \
                        + ' --phase '
 
-            for phs in pp.aerphs:
+            #for phs in pp.aerphs:
+            for phs in pp.cldphs:
                 # call orac
                 os.system('./orac_main.py ' + proc_cmd + phs + ' ' + msi_root)
 
