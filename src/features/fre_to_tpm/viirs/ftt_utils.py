@@ -120,14 +120,22 @@ def sat_data_reader(p, sensor, var, timestamp):
             # get string from time in the right format
             viirs_time_format = datetime.strftime(timestamp, 'd%Y%m%d_t%H%M%S')
 
-
-        viirs_fname = [f for f in os.listdir(p) if viirs_time_format in f]
+        if 'M' in var:
+            viirs_fname = [f for f in os.listdir(p) if (viirs_time_format in f) and (var in f)]
+        else:
+            viirs_fname = [f for f in os.listdir(p) if viirs_time_format in f]
         ds = read_h5(os.path.join(p, viirs_fname[-1]))  # might be multiple matches, takes most recent
 
         if var == 'aod':
             return ds['All_Data']['VIIRS-Aeros-Opt-Thick-IP_All']['faot550'][:]
         elif var == 'flag':
             return extract_viirs_flags(ds)
+        elif var == 'M03':
+            return ds['All_Data']['VIIRS-M3-SDR_All']['Radiance'][:]
+        elif var == 'M04':
+            return ds['All_Data']['VIIRS-M4-SDR_All']['Radiance'][:]
+        elif var == 'M05':
+            return ds['All_Data']['VIIRS-M5-SDR_All']['Radiance'][:]
 
 
 def extract_viirs_flags(viirs_data):
@@ -305,6 +313,10 @@ def setup_sat_data(ts):
     d['orac_aod'] = sat_data_reader(fp.path_to_viirs_orac, 'orac', 'aod', ts)
     d['orac_cost'] = sat_data_reader(fp.path_to_viirs_orac, 'orac', 'cost', ts)
 
+    d['m3'] = sat_data_reader(fp.path_to_viirs_sdr, 'viirs', 'M03', ts)
+    d['m4'] = sat_data_reader(fp.path_to_viirs_sdr, 'viirs', 'M04', ts)
+    d['m5'] = sat_data_reader(fp.path_to_viirs_sdr, 'viirs', 'M05', ts)
+
     lats, lons = sat_data_reader(fp.path_to_viirs_orac, 'orac', 'geo', ts)
     d['lats'] = lats
     d['lons'] = lons
@@ -329,6 +341,10 @@ def resample_satellite_datasets(sat_data, pp=None, plume=None, fill_value=0):
     d['orac_cost_utm'] = utm_rs.resample_image(sat_data['orac_cost'], masked_lats, masked_lons, fill_value=fill_value)
     d['lats'] = utm_rs.resample_image(utm_rs.lats, masked_lats, masked_lons, fill_value=fill_value)
     d['lons'] = utm_rs.resample_image(utm_rs.lons, masked_lats, masked_lons, fill_value=fill_value)
+
+    d['m3'] = utm_rs.resample_image(sat_data['m3'], masked_lats, masked_lons, fill_value=fill_value)
+    d['m4'] = utm_rs.resample_image(sat_data['m4'], masked_lats, masked_lons, fill_value=fill_value)
+    d['m5'] = utm_rs.resample_image(sat_data['m5'], masked_lats, masked_lons, fill_value=fill_value)
 
     if pp:
         if pp['plot']:
@@ -376,6 +392,10 @@ def subset_sat_data_to_plume(sat_data_utm, plume_geom_geo):
     d['orac_aod_utm_plume'] = subset_data(sat_data_utm['orac_aod_utm'], plume_geom_geo['plume_bounding_box'])
     d['orac_cost_utm_plume'] = subset_data(sat_data_utm['orac_cost_utm'], plume_geom_geo['plume_bounding_box'])
 
+    d['m3_plume'] = subset_data(sat_data_utm['m3'], plume_geom_geo['plume_bounding_box'])
+    d['m4_plume'] = subset_data(sat_data_utm['m4'], plume_geom_geo['plume_bounding_box'])
+    d['m5_plume'] = subset_data(sat_data_utm['m5'], plume_geom_geo['plume_bounding_box'])
+
     d['viirs_aod_utm_background'] = subset_data(sat_data_utm['viirs_aod_utm'],
                                                    plume_geom_geo['background_bounding_box'])
     d['viirs_flag_utm_background'] = subset_data(sat_data_utm['viirs_flag_utm'],
@@ -384,6 +404,7 @@ def subset_sat_data_to_plume(sat_data_utm, plume_geom_geo):
                                                   plume_geom_geo['background_bounding_box'])
     d['orac_cost_utm_background'] = subset_data(sat_data_utm['orac_cost_utm'],
                                                    plume_geom_geo['background_bounding_box'])
+
     return d
 
 

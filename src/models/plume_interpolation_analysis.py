@@ -35,13 +35,26 @@ def extract_combined_aod_full_plume(plume_data_utm,
     return combined_aod
 
 
-def eval_interpolation_methods(plumes, masks):
+def predict_from_radiance(images, mask):
+    aod_estimates = -0.4761 \
+                    + np.array(images['m3']) * 0.0115 \
+                    + np.array(images['m4']) * 0.0039 \
+                    + np.array(images['m5']) * -0.0023 \
+                    + np.array(images['m3'])**2 * -9.297e-05 \
+                    + np.array(images['m4'])**2 * 0.0001 \
+                    + np.array(images['m5'])**2 * 5.612e-05
+    print aod_estimates.shape
+    return aod_estimates[mask]
+
+
+def eval_interpolation_methods(plumes, masks, image_data):
     pc = 0.25  # % of points to set to null (i.e. excluded from sampling)
     error_rbf = []
     error_gp = []
     error_mean = []
+    error_reg = []
 
-    for p, m in zip(plumes, masks):
+    for p, m, images in zip(plumes, masks, image_data):
 
         # build the interpolation grid
         y = np.linspace(0, 1, p.shape[0])
@@ -76,31 +89,36 @@ def eval_interpolation_methods(plumes, masks):
         predicted_mean = np.mean(observed)
         predicted_rbf = interp_rbf[p_valid & m]
         predicted_gp = interp_gp[p_valid & m]
+        predicted_regression = predict_from_radiance(images, p_valid & m)
 
         # for non-null samples compute percentage error predicted / observed
         ratio_rbf = np.abs(1 - (predicted_rbf / observed))
         ratio_gp = np.abs(1 - (predicted_gp / observed))
         ratio_mean = np.abs(1 - (predicted_mean / observed))
+        ratio_reg = np.abs(1 - (predicted_regression / observed))
 
         # append to error
         error_rbf.append(ratio_rbf)
         error_gp.append(ratio_gp)
         error_mean.append(ratio_mean)
+        error_reg.append(ratio_reg)
 
     # plot the cumulative histogram
     fig, ax = plt.subplots(figsize=(8, 4))
     n_bins = 500
     lab=True
-    for e0, e1, e2 in zip(error_rbf, error_gp, error_mean):
+    for e0, e1, e2, e3 in zip(error_rbf, error_gp, error_mean, error_reg):
         if lab:
             ax.hist(e0, n_bins, normed=1, histtype='step', cumulative=True, label='rbf', color='m', alpha=0.5)
             ax.hist(e1, n_bins, normed=1, histtype='step', cumulative=True, label='gp', color='c', alpha=0.5)
             ax.hist(e2, n_bins, normed=1, histtype='step', cumulative=True, label='mean', color='y', alpha=0.5)
+            ax.hist(e3, n_bins, normed=1, histtype='step', cumulative=True, label='reg', color='k', alpha=0.5)
             lab=False
         else:
             ax.hist(e0, n_bins, normed=1, histtype='step', cumulative=True, color='m', alpha=0.5)
             ax.hist(e1, n_bins, normed=1, histtype='step', cumulative=True, color='c', alpha=0.5)
             ax.hist(e2, n_bins, normed=1, histtype='step', cumulative=True, color='y', alpha=0.5)
+            ax.hist(e3, n_bins, normed=1, histtype='step', cumulative=True, color='k', alpha=0.5)
     plt.ylabel('Cumulative Dist')
     plt.xlabel('Abs. Ratio (|1-pred/obs|)')
     plt.xlim((-0.1, 1.1))
@@ -116,6 +134,7 @@ def main():
 
     plumes = []
     masks = []
+    image_data = []
 
     # itereate over the plumes and setup the plumes
     for p_number, plume in pp['plume_df'].iterrows():
@@ -149,8 +168,12 @@ def main():
         plumes.append(plume_aod)
         masks.append(plume_geom_geo['plume_mask'])
 
+        image_data.append({'m3': plume_data_utm['m3_plume'],
+                           'm4': plume_data_utm['m4_plume'],
+                           'm5': plume_data_utm['m5_plume'],})
+
     # evaluate interpolation methods
-    eval_interpolation_methods(plumes, masks)
+    eval_interpolation_methods(plumes, masks, image_data)
 
 
 
