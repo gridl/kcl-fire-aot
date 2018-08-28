@@ -121,9 +121,12 @@ def extract_combined_aod_full_plume(plume_data_utm,
                                     logging_path,
                                     pp):
 
+    # todo add to config
+    orac_limit = 10
+
     # combine plume mask with VIIRS good and ORAC good
     viirs_good = plume_data_utm['viirs_flag_utm_plume'] <= 1
-    orac_good = plume_data_utm['orac_cost_utm_plume'] <= 3
+    orac_good = plume_data_utm['orac_cost_utm_plume'] <= orac_limit
     viirs_plume_mask = plume_mask & viirs_good  # viirs contribtuion
     orac_plume_mask = plume_mask & (orac_good & ~viirs_good)  # ORAC contribution
 
@@ -249,7 +252,7 @@ def compute_tpm_full(plume_data_utm, plume_geom_utm, plume_geom_geo, bg_aod_dict
         d['std_bg_aod'] = bg_aod_dict['std_bg_aod']
         d['bg_type'] = bg_aod_dict['bg_type']
 
-        d['pm_factor'] = 7.42  # m2/g from 10.1029/2005GL022678 TODO add this to a config file
+        d['pm_factor'] = 4.3 #7.42  # m2/g from 10.1029/2005GL022678 TODO add this to a config file
 
         # get plume area
         d['plume_area_total'] = plume_geom_utm['utm_plume_polygon'].area

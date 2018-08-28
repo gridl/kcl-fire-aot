@@ -12,7 +12,6 @@ import numpy as np
 import pandas as pd
 import scipy.misc as misc
 from matplotlib.collections import PatchCollection
-from matplotlib.lines import Line2D
 from matplotlib.patches import Circle, Polygon
 from matplotlib.widgets import RadioButtons
 

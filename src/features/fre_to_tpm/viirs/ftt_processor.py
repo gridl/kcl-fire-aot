@@ -34,19 +34,6 @@ def proc_params():
     return d
 
 
-def setup_sat_data(ts):
-    d = dict()
-    d['viirs_aod'] = ut.sat_data_reader(fp.path_to_viirs_aod, 'viirs', 'aod', ts)
-    d['viirs_flag'] = ut.sat_data_reader(fp.path_to_viirs_aod, 'viirs', 'flag', ts)
-    d['orac_aod'] = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'aod', ts)
-    d['orac_cost'] = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'cost', ts)
-
-    lats, lons = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'geo', ts)
-    d['lats'] = lats
-    d['lons'] = lons
-    return d
-
-
 def main():
     # setup the data dict to hold all data
     pp = proc_params()
@@ -55,6 +42,9 @@ def main():
 
     # itereate over the plumes
     for p_number, plume in pp['plume_df'].iterrows():
+
+        # if p_number not in [0]:
+        #     continue
 
         # make a directory to hold the plume logging information
         plume_logging_path = ut.create_logger_path(p_number)
@@ -65,7 +55,7 @@ def main():
         # read in satellite data
         if current_timestamp != previous_timestamp:
             try:
-                sat_data = setup_sat_data(current_timestamp)
+                sat_data = ut.setup_sat_data(current_timestamp)
             except Exception, e:
                 logger.info('Could not load all datasets for: ' + plume.filename + '. Failed with error: ' + str(e))
                 continue
@@ -88,16 +78,16 @@ def main():
 
         # get start stop times
         try:
-            utm_flow_means, geostationary_fnames, t1, t2 = pt.find_flow(plume_logging_path,
-                                                                        plume_geom_utm,
-                                                                        plume_geom_geo,
-                                                                        pp,
-                                                                        current_timestamp)
+            utm_flow_means, geostationary_fnames, t_start, t_stop, time_for_plume = pt.tracker(plume_logging_path,
+                                                                                               plume_geom_utm,
+                                                                                               plume_geom_geo,
+                                                                                               pp,
+                                                                                               current_timestamp)
         except Exception, e:
             logger.error(str(e))
             continue
-        ut.process_plume(t1, t2, pp, plume_data_utm, plume_geom_utm, plume_geom_geo, plume_logging_path,
-                         p_number, df_list)
+        ut.process_plume(t_start, t_stop, time_for_plume,
+                         pp, plume_data_utm, plume_geom_utm, plume_geom_geo, plume_logging_path, p_number, df_list)
 
     # dump data to csv via df
     df = pd.concat(df_list)

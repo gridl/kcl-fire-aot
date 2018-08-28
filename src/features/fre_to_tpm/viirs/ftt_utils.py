@@ -120,14 +120,22 @@ def sat_data_reader(p, sensor, var, timestamp):
             # get string from time in the right format
             viirs_time_format = datetime.strftime(timestamp, 'd%Y%m%d_t%H%M%S')
 
-
-        viirs_fname = [f for f in os.listdir(p) if viirs_time_format in f]
+        if 'M' in var:
+            viirs_fname = [f for f in os.listdir(p) if (viirs_time_format in f) and (var in f)]
+        else:
+            viirs_fname = [f for f in os.listdir(p) if viirs_time_format in f]
         ds = read_h5(os.path.join(p, viirs_fname[-1]))  # might be multiple matches, takes most recent
 
         if var == 'aod':
             return ds['All_Data']['VIIRS-Aeros-Opt-Thick-IP_All']['faot550'][:]
         elif var == 'flag':
             return extract_viirs_flags(ds)
+        elif var == 'M03':
+            return ds['All_Data']['VIIRS-M3-SDR_All']['Radiance'][:]
+        elif var == 'M04':
+            return ds['All_Data']['VIIRS-M4-SDR_All']['Radiance'][:]
+        elif var == 'M05':
+            return ds['All_Data']['VIIRS-M5-SDR_All']['Radiance'][:]
 
 
 def extract_viirs_flags(viirs_data):
@@ -163,8 +171,7 @@ def read_plume_polygons(path):
     except Exception, e:
         logger.warning('Could not load pickle with error:' + str(e) + ' ...attempting to load csv')
         df = pd.read_csv(path, quotechar='"', sep=',', converters={'plume_extent': ast.literal_eval,
-                                                                   'background_extent': ast.literal_eval,
-                                                                   'plume_vector': ast.literal_eval})
+                                                                   'background_extent': ast.literal_eval})
     return df
 
 
@@ -299,6 +306,23 @@ def create_logger_path(p_number):
     return plume_logging_path
 
 
+def setup_sat_data(ts):
+    d = dict()
+    d['viirs_aod'] = sat_data_reader(fp.path_to_viirs_aod, 'viirs', 'aod', ts)
+    d['viirs_flag'] = sat_data_reader(fp.path_to_viirs_aod, 'viirs', 'flag', ts)
+    d['orac_aod'] = sat_data_reader(fp.path_to_viirs_orac, 'orac', 'aod', ts)
+    d['orac_cost'] = sat_data_reader(fp.path_to_viirs_orac, 'orac', 'cost', ts)
+
+    d['m3'] = sat_data_reader(fp.path_to_viirs_sdr, 'viirs', 'M03', ts)
+    d['m4'] = sat_data_reader(fp.path_to_viirs_sdr, 'viirs', 'M04', ts)
+    d['m5'] = sat_data_reader(fp.path_to_viirs_sdr, 'viirs', 'M05', ts)
+
+    lats, lons = sat_data_reader(fp.path_to_viirs_orac, 'orac', 'geo', ts)
+    d['lats'] = lats
+    d['lons'] = lons
+    return d
+
+
 def resample_satellite_datasets(sat_data, pp=None, plume=None, fill_value=0):
 
     # set up resampler
@@ -318,9 +342,13 @@ def resample_satellite_datasets(sat_data, pp=None, plume=None, fill_value=0):
     d['lats'] = utm_rs.resample_image(utm_rs.lats, masked_lats, masked_lons, fill_value=fill_value)
     d['lons'] = utm_rs.resample_image(utm_rs.lons, masked_lats, masked_lons, fill_value=fill_value)
 
+    d['m3'] = utm_rs.resample_image(sat_data['m3'], masked_lats, masked_lons, fill_value=fill_value)
+    d['m4'] = utm_rs.resample_image(sat_data['m4'], masked_lats, masked_lons, fill_value=fill_value)
+    d['m5'] = utm_rs.resample_image(sat_data['m5'], masked_lats, masked_lons, fill_value=fill_value)
+
     if pp:
         if pp['plot']:
-            d['viirs_png_utm'] = misc.imread(os.path.join(fp.path_to_viirs_sdr_resampled_peat, plume.filename))
+            d['viirs_png_utm'] = misc.imread(os.path.join(fp.path_to_viirs_sdr_resampled_no_peat, plume.filename.rstrip()))
 
     return d
 
@@ -335,10 +363,7 @@ def setup_plume_data(plume, ds_utm):
         d['plume_aod'] = subset_data(ds_utm['viirs_aod_utm'], d['plume_bounding_box'])
         d['plume_flag'] = subset_data(ds_utm['viirs_flag_utm'], d['plume_bounding_box'])
 
-        # get plume vector geographic data
-        vector_lats, vector_lons = extract_subset_geo_bounds(plume.plume_vector, d['plume_bounding_box'],
-                                                                d['plume_lats'], d['plume_lons'])
-        # get plume polygon geographic data
+         # get plume polygon geographic data
         poly_lats, poly_lons = extract_subset_geo_bounds(plume.plume_extent, d['plume_bounding_box'],
                                                             d['plume_lats'], d['plume_lons'])
 
@@ -346,7 +371,6 @@ def setup_plume_data(plume, ds_utm):
         d['plume_mask'] = construct_mask(plume.plume_extent, d['plume_bounding_box'])
 
         # setup shapely objects for plume geo data
-        d['plume_vector'] = construct_shapely_vector(vector_lats, vector_lons)
         d['plume_points'] = construct_shapely_points(poly_lats, poly_lons)
         d['plume_polygon'] = construct_shapely_polygon(poly_lats, poly_lons)
 
@@ -368,6 +392,10 @@ def subset_sat_data_to_plume(sat_data_utm, plume_geom_geo):
     d['orac_aod_utm_plume'] = subset_data(sat_data_utm['orac_aod_utm'], plume_geom_geo['plume_bounding_box'])
     d['orac_cost_utm_plume'] = subset_data(sat_data_utm['orac_cost_utm'], plume_geom_geo['plume_bounding_box'])
 
+    d['m3_plume'] = subset_data(sat_data_utm['m3'], plume_geom_geo['plume_bounding_box'])
+    d['m4_plume'] = subset_data(sat_data_utm['m4'], plume_geom_geo['plume_bounding_box'])
+    d['m5_plume'] = subset_data(sat_data_utm['m5'], plume_geom_geo['plume_bounding_box'])
+
     d['viirs_aod_utm_background'] = subset_data(sat_data_utm['viirs_aod_utm'],
                                                    plume_geom_geo['background_bounding_box'])
     d['viirs_flag_utm_background'] = subset_data(sat_data_utm['viirs_flag_utm'],
@@ -376,6 +404,7 @@ def subset_sat_data_to_plume(sat_data_utm, plume_geom_geo):
                                                   plume_geom_geo['background_bounding_box'])
     d['orac_cost_utm_background'] = subset_data(sat_data_utm['orac_cost_utm'],
                                                    plume_geom_geo['background_bounding_box'])
+
     return d
 
 
@@ -386,11 +415,11 @@ def resample_plume_geom_to_utm(plume_geom_geo):
                                                 constants.utm_grid_size)
     d['utm_plume_points'] = reproject_shapely(plume_geom_geo['plume_points'], d['utm_resampler_plume'])
     d['utm_plume_polygon'] = reproject_shapely(plume_geom_geo['plume_polygon'], d['utm_resampler_plume'])
-    d['utm_plume_vector'] = reproject_shapely(plume_geom_geo['plume_vector'], d['utm_resampler_plume'])
     return d
 
 
-def process_plume(t1, t2, pp, plume_data_utm, plume_geom_utm, plume_geom_geo, plume_logging_path, p_number,
+def process_plume(t_start, t_stop, time_for_plume,
+                  pp, plume_data_utm, plume_geom_utm, plume_geom_geo, plume_logging_path, p_number,
                   df_list):
     # get background aod for sub plume
     bg_aod_dict = tt.extract_bg_aod(plume_data_utm, plume_geom_geo['background_mask'])
@@ -400,7 +429,8 @@ def process_plume(t1, t2, pp, plume_data_utm, plume_geom_utm, plume_geom_geo, pl
     out_dict['plume_number'] = p_number
 
     # compute fre
-    ff.compute_fre_full_plume(t1, t2, pp['frp_df'], plume_geom_geo, plume_logging_path, out_dict)
+    ff.compute_fre_full_plume(t_start, t_stop, time_for_plume,
+                              pp['frp_df'], plume_geom_geo, plume_logging_path, out_dict)
 
     # convert datadict to dataframe and add to list
     df_list.append(pd.DataFrame(out_dict, index=['i', ]))
