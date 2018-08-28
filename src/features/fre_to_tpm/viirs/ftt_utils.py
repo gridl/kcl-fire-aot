@@ -298,6 +298,19 @@ def create_logger_path(p_number):
     return plume_logging_path
 
 
+def setup_sat_data(ts):
+    d = dict()
+    d['viirs_aod'] = sat_data_reader(fp.path_to_viirs_aod, 'viirs', 'aod', ts)
+    d['viirs_flag'] = sat_data_reader(fp.path_to_viirs_aod, 'viirs', 'flag', ts)
+    d['orac_aod'] = sat_data_reader(fp.path_to_viirs_orac, 'orac', 'aod', ts)
+    d['orac_cost'] = sat_data_reader(fp.path_to_viirs_orac, 'orac', 'cost', ts)
+
+    lats, lons = sat_data_reader(fp.path_to_viirs_orac, 'orac', 'geo', ts)
+    d['lats'] = lats
+    d['lons'] = lons
+    return d
+
+
 def resample_satellite_datasets(sat_data, pp=None, plume=None, fill_value=0):
 
     # set up resampler

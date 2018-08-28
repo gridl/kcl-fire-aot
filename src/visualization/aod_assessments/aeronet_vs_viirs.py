@@ -259,20 +259,6 @@ def create_png(viirs_data, utm_rs, masked_lats, masked_lons, image_id, x, y, sta
                 bbox_inches='tight')
 
 
-def setup_sat_data(ts):
-
-    dd = dict()
-    dd['viirs_aod'] = ut.sat_data_reader(fp.path_to_viirs_aod, 'viirs', 'aod', ts)
-    dd['viirs_flags'] = ut.sat_data_reader(fp.path_to_viirs_aod, 'viirs', 'flags', ts)
-    dd['orac_aod'] = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'aod', ts)
-    dd['orac_flags'] = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'flags', ts)
-
-    lats, lons = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'geo', ts)
-    dd['lats'] = lats
-    dd['lons'] = lons
-    return dd
-
-
 def main():
     aeronet_station_data = load_aeronet()
     viirs_orac_filepaths = glob.glob(fp.path_to_viirs_orac + '*')
@@ -298,7 +284,7 @@ def main():
 
 
         try:
-            sat_data = setup_sat_data(timestamp)
+            sat_data = ut.setup_sat_data(timestamp)
         except Exception, e:
             logger.info('Could not load all datasets for: ' + str(timestamp) + '. Failed with error: ' + str(e))
             continue

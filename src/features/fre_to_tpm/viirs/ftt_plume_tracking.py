@@ -606,7 +606,6 @@ def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
                      plume_head, plume_tail, plume_geom_utm['utm_plume_points'], plume_geom_utm['utm_resampler_plume'],
                      plume_logging_path, plot_names, i+1)
 
-    # TODO check if we need to +1 in here on the indexing
     # get the plume start and stop times
     t_start = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[0]).group(), '%Y%m%d_%H%M')
     t_stop = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[i]).group(), '%Y%m%d_%H%M')

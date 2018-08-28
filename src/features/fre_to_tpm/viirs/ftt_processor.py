@@ -34,19 +34,6 @@ def proc_params():
     return d
 
 
-def setup_sat_data(ts):
-    d = dict()
-    d['viirs_aod'] = ut.sat_data_reader(fp.path_to_viirs_aod, 'viirs', 'aod', ts)
-    d['viirs_flag'] = ut.sat_data_reader(fp.path_to_viirs_aod, 'viirs', 'flag', ts)
-    d['orac_aod'] = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'aod', ts)
-    d['orac_cost'] = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'cost', ts)
-
-    lats, lons = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'geo', ts)
-    d['lats'] = lats
-    d['lons'] = lons
-    return d
-
-
 def main():
     # setup the data dict to hold all data
     pp = proc_params()
@@ -68,7 +55,7 @@ def main():
         # read in satellite data
         if current_timestamp != previous_timestamp:
             try:
-                sat_data = setup_sat_data(current_timestamp)
+                sat_data = ut.setup_sat_data(current_timestamp)
             except Exception, e:
                 logger.info('Could not load all datasets for: ' + plume.filename + '. Failed with error: ' + str(e))
                 continue

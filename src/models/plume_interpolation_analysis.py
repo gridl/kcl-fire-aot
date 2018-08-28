@@ -19,20 +19,6 @@ def proc_params():
     return d
 
 
-def setup_sat_data(ts):
-
-    dd = dict()
-    dd['viirs_aod'] = ut.sat_data_reader(fp.path_to_viirs_aod, 'viirs', 'aod', ts)
-    dd['viirs_flags'] = ut.sat_data_reader(fp.path_to_viirs_aod, 'viirs', 'flags', ts)
-    dd['orac_aod'] = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'aod', ts)
-    dd['orac_flags'] = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'flags', ts)
-
-    lats, lons = ut.sat_data_reader(fp.path_to_viirs_orac, 'orac', 'geo', ts)
-    dd['lats'] = lats
-    dd['lons'] = lons
-    return dd
-
-
 def extract_combined_aod_full_plume(plume_data_utm,
                                     plume_mask):
 
@@ -141,7 +127,7 @@ def main():
         if current_timestamp != previous_timestamp:
 
             try:
-                sat_data = setup_sat_data(current_timestamp)
+                sat_data = ut.setup_sat_data(current_timestamp)
             except Exception, e:
                 logger.info('Could not load all datasets for: ' + plume.filename + '. Failed with error: ' + str(e))
                 continue
