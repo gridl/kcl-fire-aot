@@ -609,10 +609,13 @@ def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
     # get the plume start and stop times
     t_start = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[0]).group(), '%Y%m%d_%H%M')
     t_stop = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[i]).group(), '%Y%m%d_%H%M')
-    mean_velocity = np.mean(velocity)
-    time_for_plume = plume_length / mean_velocity
+    #mean_velocity = np.mean(velocity)
+    #time_for_plume = plume_length / mean_velocity
+    max_velocity = np.max(velocity)
+    time_for_plume = plume_length / max_velocity
 
-    print 'plume velocity m/s', mean_velocity
+    #print 'plume velocity m/s', mean_velocity
+    print 'plume velocity m/s', max_velocity
     print 'time for plume s', time_for_plume
     print t_start
     print t_stop

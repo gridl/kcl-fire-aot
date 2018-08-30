@@ -52,7 +52,6 @@ def log_digitisation(viirs_fname):
         txt_file.write(viirs_fname + '\n')
 
 
-
 def get_viirs_fname(path, timestamp_viirs, viirs_sdr_fname):
     fname = [f for f in os.listdir(path) if timestamp_viirs in f]
     if len(fname) > 1:
@@ -85,7 +84,7 @@ def load_image(f, mode='RGB'):
 
 class Annotate(object):
     def __init__(self, tcc, viirs_aod, viirs_flags, orac_aod, orac_cost, ax,
-                 plume_polygons, background_polygons):
+                 plume_polygons, background_polygons, tail_locations):
         self.ax = ax
         self.tcc = tcc
         self.orac_aod = orac_aod
@@ -97,12 +96,15 @@ class Annotate(object):
         #    self.plot = self.ax.plot(fires[1], fires[0], 'r.')
         self.background_polygons = self._add_polygons_to_axis(background_polygons, 'Blues_r')
         self.plume_polygons = self._add_polygons_to_axis(plume_polygons, 'Reds_r')
+        self.tail_locations = self._add_points_to_axis(tail_locations)
 
         # set up the point holders for the plume and background polygons
         self.plume_x = []
         self.plume_y = []
         self.background_x = []
         self.background_y = []
+        self.tail_x = []
+        self.tail_y = []
 
         # set varaible to check if we are using plume tracking on this plume or not
         self.tracking = True
@@ -110,6 +112,7 @@ class Annotate(object):
         # set up the digitising patch
         self.plume_p = Circle((1, 1))
         self.background_p = Circle((1, 1))
+        self.tail_p = Circle((1, 1))
 
         # set up the events
         self.ax.figure.canvas.mpl_connect('button_press_event', self.click)
@@ -136,7 +139,7 @@ class Annotate(object):
         self.radio_discard.on_clicked(self.discard_func)
 
         self.rax_type = plt.axes([0.01, 0.3, 0.1, 0.15], facecolor=self.axcolor)
-        self.radio_type = RadioButtons(self.rax_type, ('Plume', 'Background'))
+        self.radio_type = RadioButtons(self.rax_type, ('Plume', 'Background', 'Tail'))
         self.radio_type.on_clicked(self.type_func)
 
         self.rax_image = plt.axes([0.01, 0.1, 0.1, 0.15], facecolor=self.axcolor)
@@ -152,6 +155,11 @@ class Annotate(object):
         p = PatchCollection(patches, cmap=cmap, alpha=0.8)
         p.set_array(np.array(colors))
         return self.ax.add_collection(p)
+
+    def _add_points_to_axis(self, points):
+        for p in points:
+            x1, y1 = p
+            self.ax.plot(x1, y1, 'ko')
 
     def _radio_labels(self):
         labels = []
@@ -190,7 +198,7 @@ class Annotate(object):
             self.background_y = []
 
     def type_func(self, label):
-        type_dict = {'Plume': 0, 'Background': 1}
+        type_dict = {'Plume': 0, 'Background': 1, 'Tail': 2}
         self.type = type_dict[label]
 
     def image_func(self, label):
@@ -216,7 +224,7 @@ class Annotate(object):
 
     def click(self, event):
         if event.button == 3:
-            if self.type == 0:
+            if self.type == 0:  # plume polygon
                 self.plume_x.append(int(event.xdata))
                 self.plume_y.append(int(event.ydata))
                 if len(self.plume_x) < 3:
@@ -227,7 +235,7 @@ class Annotate(object):
                     self.plume_p = Polygon(zip(self.plume_x, self.plume_y), color='red', alpha=0.5)
                     plume_p = self.ax.add_patch(self.plume_p)
                 self.ax.figure.canvas.draw()
-            elif self.type == 1:
+            elif self.type == 1:  # background polygon
                 self.background_x.append(int(event.xdata))
                 self.background_y.append(int(event.ydata))
                 if len(self.background_x) < 3:
@@ -239,11 +247,19 @@ class Annotate(object):
                     self.background_p = Polygon(zip(self.background_x, self.background_y), color='blue', alpha=0.5)
                     background_p = self.ax.add_patch(self.background_p)
                 self.ax.figure.canvas.draw()
+            elif self.type == 2:  # plume tail point
+                self.tail_x.append(int(event.xdata))
+                self.tail_y.append(int(event.ydata))
+                self.tail_p = Circle((event.xdata, event.ydata), radius=1, facecolor='black',
+                                      edgecolor='blue')
+                tail_p = self.ax.add_patch(self.tail_p)
+                self.ax.figure.canvas.draw()
 
 
 def digitise(tcc, viirs_aod, viirs_flags, orac_aod, orac_cost, viirs_fname):
     plume_polygons = []
     background_polygons = []
+    plume_tails = []
     tracking = []
 
     do_annotation = True
@@ -256,7 +272,7 @@ def digitise(tcc, viirs_aod, viirs_flags, orac_aod, orac_cost, viirs_fname):
 
         # first set up the annotator
         annotator = Annotate(tcc, viirs_aod, viirs_flags, orac_aod, orac_cost, ax,
-                             plume_polygons, background_polygons)
+                             plume_polygons, background_polygons, plume_tails)
 
         # then show the image
         plt.show()
@@ -264,26 +280,29 @@ def digitise(tcc, viirs_aod, viirs_flags, orac_aod, orac_cost, viirs_fname):
         # get the polygon points from the closed image, only keep if plume and background polygons
         plume_pts = zip(annotator.plume_x, annotator.plume_y)
         background_pts = zip(annotator.background_x, annotator.background_y)
+        tail_pts = annotator.tail_x, annotator.tail_y
 
         if plume_pts and background_pts:
             plume_polygons.append(plume_pts)
             background_polygons.append(background_pts)
+            plume_tails.append(tail_pts)
             tracking.append(annotator.tracking)
 
         do_annotation = annotator.do_annotation
 
     plt.close(fig)
 
-    return plume_polygons, background_polygons, tracking
+    return plume_polygons, background_polygons, plume_tails, tracking
 
 
-def append_to_list(plume, background, track, fname, plumes_list):
+def append_to_list(plume, background, tail, track, fname, plumes_list):
     row_dict = {}
 
     row_dict['sensor'] = "VIIRS"
     row_dict['filename'] = fname
     row_dict['plume_extent'] = plume
     row_dict['background_extent'] = background
+    row_dict['plume_tail'] = tail
     row_dict['track_plume'] = track
 
     # lastly append to the data dictionary
@@ -374,12 +393,12 @@ def main():
                 continue
 
             # do the digitising
-            plume_polygons, background_polygons, tracking = digitise(tcc,
-                                                                     viirs_aod,
-                                                                     viirs_flags,
-                                                                     orac_aod,
-                                                                     orac_cost,
-                                                                     viirs_sdr_fname)
+            plume_polygons, background_polygons, plume_tails, tracking = digitise(tcc,
+                                                                                  viirs_aod,
+                                                                                  viirs_flags,
+                                                                                  orac_aod,
+                                                                                  orac_cost,
+                                                                                  viirs_sdr_fname)
             if plume_polygons is None:
                 logger.info('no polygons for sdr: ' + viirs_sdr_fname + ' continuing')
                 log_digitisation(viirs_sdr_fname)
@@ -387,13 +406,15 @@ def main():
 
             # process plumes and backgrounds
             plumes_list = []
-            for pp, bp, t in zip(plume_polygons, background_polygons, tracking):
-                append_to_list(pp, bp, t, viirs_sdr_fname, plumes_list)
+            for pp, bp, pt, t in zip(plume_polygons, background_polygons, plume_tails, tracking):
+                append_to_list(pp, bp, pt, t, viirs_sdr_fname, plumes_list)
 
             # covert pixel/background lists to dataframes and concatenate to main dataframes
+            print plumes_list
             temp_plume_df = pd.DataFrame(plumes_list)
             viirs_plume_df = pd.concat([viirs_plume_df, temp_plume_df])
             viirs_plume_df.to_pickle(fp.plume_polygon_path)
+            viirs_plume_df.to_csv(fp.plume_polygon_path_csv)
 
             # if completed log file as digitised
             log_digitisation(viirs_sdr_fname)

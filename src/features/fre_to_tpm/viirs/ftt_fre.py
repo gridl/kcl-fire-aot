@@ -175,6 +175,13 @@ def compute_fre_full_plume(t_start, t_stop, time_for_plume,
     try:
         frp_subset = temporal_subset(frp_df, t_stop, t_start)
         frp_subset = spatial_subset(frp_subset, plume_geom_geo)
+
+        # sort df by fire quality then drop duplicates and keep the first
+        print frp_subset.shape
+        frp_subset.sort_values('FIRE_CONFIDENCE', ascending=False, inplace=True)
+        frp_subset.drop_duplicates(['ABS_line', 'ABS_samp', 'obs_time'], inplace=True, keep='first')
+        print frp_subset.shape
+
         frp_subset.to_csv(os.path.join(plume_logging_path, 'fires.csv'))
 
         grouped_frp_subset = group_subset(frp_subset)
