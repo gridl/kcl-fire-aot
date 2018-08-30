@@ -1,3 +1,5 @@
+#!/home/users/dnfisher/soft/virtual_envs/kcl-fire-aot/bin/python2
+
 '''
 Contains the various functions and classes that are used in the
 ftt (fre-to-tpm) processor.  These can be broken down as follows:
@@ -10,6 +12,7 @@ import os
 import logging
 from functools import partial
 from datetime import datetime
+from dateutil.parser import parse
 import re
 
 import pandas as pd
@@ -22,96 +25,126 @@ from shapely.geometry import Polygon, Point, MultiPoint, LineString
 from shapely.ops import transform
 import pyresample as pr
 import pyproj
-from skimage.measure import grid_points_in_poly
-from sklearn.neighbors import BallTree
+import scipy.misc as misc
 
-import matplotlib.pyplot as plt
+import src.features.fre_to_tpm.viirs.ftt_fre as ff
+import src.config.filepaths as fp
+import src.config.constants as constants
+import src.features.fre_to_tpm.viirs.ftt_tpm as tt
 
 log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=log_fmt)
 logger = logging.getLogger(__name__)
 
 
-def make_balltree(array_lats, array_lons):
-    array_lat_lon = np.dstack([np.deg2rad(array_lats.flatten()), np.deg2rad(array_lons.flatten())])[0]
-    return BallTree(array_lat_lon, metric='haversine')
+#### Reader utils ####
+
+def read_h5(f):
+    return h5py.File(f,  "r")
 
 
-def make_balltree_subset(array_lats_flat, array_lons_flat):
-    array_lat_lon = np.dstack([np.deg2rad(array_lats_flat), np.deg2rad(array_lons_flat)])[0]
-    return BallTree(array_lat_lon, metric='haversine')
+def read_nc(f):
+    return Dataset(f)
 
 
-def spatial_intersection(array_balltree, x_shape, point_lat, point_lon):
+def get_timestamp(fname, sensor):
 
-    # get the unique flare lats and lons for assessment in kdtree
-    point_location = np.array([np.deg2rad(point_lat), np.deg2rad(point_lon)]).reshape(1,-1)
-
-    # compare the flare locations to the potential locations in the orbit
-    distances, indexes = array_balltree.query(point_location, k=1)
-
-    # set up the dataframe to hold the distances
-    x = indexes[0][0] % x_shape
-    y = indexes[0][0] / x_shape
-    d = distances[0][0]
-    return x, y, np.rad2deg(d)
-
-
-def spatial_intersection_subset(array_balltree, point_lat, point_lon, x_positions_flat, y_positions_flat):
-    # get the unique flare lats and lons for assessment in kdtree
-    point_location = np.array([np.deg2rad(point_lat), np.deg2rad(point_lon)]).reshape(1, -1)
-
-    # compare the flare locations to the potential locations in the orbit
-    distance, index = array_balltree.query(point_location, k=1)
-
-    # get indexes
-    x = x_positions_flat[index][0][0]
-    y = y_positions_flat[index][0][0]
-    d = distance[0][0]
-
-    return x, y, np.rad2deg(d)
-
-
-def get_timestamp(viirs_sdr_fname):
-    try:
-        return re.search("[d][0-9]{8}[_][t][0-9]{6}", viirs_sdr_fname).group()
-    except Exception, e:
-        logger.warning("Could not extract time stamp from: " + viirs_sdr_fname + " with error: " + str(e))
+    if sensor not in ['orac', 'viirs']:
+        logger.critical('Sensor Not Implemented!  Need to add to get_timstamp in FTT utils')
         return ''
 
+    if sensor == 'viirs':
+        try:
+            return re.search("[d][0-9]{8}[_][t][0-9]{6}", fname).group()
+        except Exception, e:
+            logger.warning("Could not extract time stamp from: " + fname + " with error: " + str(e))
+            return ''
+    if sensor == 'orac':
+        try:
+            return re.search("[_][0-9]{12}[_]", fname).group()
+        except Exception, e:
+            logger.warning("Could not extract time stamp from: " + fname + " with error: " + str(e))
+            return ''
 
-def get_viirs_fname(path, timestamp_viirs, viirs_sdr_fname):
-    fname = [f for f in os.listdir(path) if timestamp_viirs in f]
-    if len(fname) > 1:
-        logger.warning("More that one frp granule matched " + viirs_sdr_fname + "selecting 0th option")
-        return fname[0]
-    elif len(fname) == 1:
-        return fname[0]
-    else:
+
+def sat_data_reader(p, sensor, var, timestamp):
+    '''
+
+    :param p: path to data
+    :param sensor: sensor to read data for
+    :param var: variable to extract
+    :return: the var for sensor
+    '''
+
+
+    if sensor not in ['orac', 'viirs']:
+        logger.critical('Sensor Not Implemented!  Need to add to reader in FTT utils')
         return ''
 
+    if sensor == 'orac':
 
-def get_orac_fname(path, timestamp_viirs):
-    t = datetime.strptime(timestamp_viirs, 'd%Y%m%d_t%H%M%S')
-    t = datetime.strftime(t, '%Y%m%d%H%M')
-    fname = [f for f in os.listdir(path) if t in f]
-    return fname[0]
+        # check timestamp is in correct form
+        if isinstance(timestamp, basestring):
+            # strip time and get in the right format
+            try:
+                timestamp = parse(timestamp, fuzzy=True)
+                orac_time_format = datetime.strftime(timestamp, '%Y%m%d%H%M')
+            except Exception, e:
+                logger.critical(str(e))
+        else:
+            # get string from time in the right format
+            orac_time_format = datetime.strftime(timestamp, '%Y%m%d%H%M')
+
+        orac_fname = [f for f in os.listdir(p) if orac_time_format in f][0]
+        ds = read_nc(os.path.join(p, orac_fname))
+
+        if var == 'aod':
+            return ds['cot'][:]
+        elif var == 'cost':
+            return ds['costjm'][:]
+        elif var == 'geo':
+            return ds['lat'][:], ds['lon'][:]
+
+    if sensor == 'modis':
+        pass
+
+    if sensor == 'viirs':
+        # check timestamp is in correct form
+        if isinstance(timestamp, basestring):
+            try:
+                timestamp = parse(timestamp, fuzzy=True)
+                viirs_time_format = datetime.strftime(timestamp, 'd%Y%m%d_t%H%M%S')
+            except Exception, e:
+                logger.critical(str(e))
+        else:
+            # get string from time in the right format
+            viirs_time_format = datetime.strftime(timestamp, 'd%Y%m%d_t%H%M%S')
+
+        if 'M' in var:
+            viirs_fname = [f for f in os.listdir(p) if (viirs_time_format in f) and (var in f)]
+        else:
+            viirs_fname = [f for f in os.listdir(p) if viirs_time_format in f]
+        ds = read_h5(os.path.join(p, viirs_fname[-1]))  # might be multiple matches, takes most recent
+
+        if var == 'aod':
+            return ds['All_Data']['VIIRS-Aeros-Opt-Thick-IP_All']['faot550'][:]
+        elif var == 'flag':
+            return extract_viirs_flags(ds)
+        elif var == 'M03':
+            return ds['All_Data']['VIIRS-M3-SDR_All']['Radiance'][:]
+        elif var == 'M04':
+            return ds['All_Data']['VIIRS-M4-SDR_All']['Radiance'][:]
+        elif var == 'M05':
+            return ds['All_Data']['VIIRS-M5-SDR_All']['Radiance'][:]
 
 
-def read_orac_geo(orac_data):
-    lats = orac_data.variables['lat'][:]
-    lons = orac_data.variables['lon'][:]
-    return lats, lons
-
-
-def load_viirs(path, timestamp, filename):
-    viirs_fname = get_viirs_fname(path, timestamp, filename)
-    viirs_data = read_h5(os.path.join(path, viirs_fname))
-    return viirs_data
-
-
-def viirs_aod(viirs_data):
-    return viirs_data['All_Data']['VIIRS-Aeros-Opt-Thick-IP_All']['faot550'][:]
+def extract_viirs_flags(viirs_data):
+    aod_quality = viirs_data['All_Data']['VIIRS-Aeros-Opt-Thick-IP_All']['QF1'][:]
+    flags = np.zeros(aod_quality.shape)
+    for k, v in zip(['00', '01', '10', '11'], [0, 1, 2, 3]):
+        mask = get_mask(aod_quality, 0, 2, k)
+        flags[mask] = v
+    return flags
 
 
 def get_mask(arr, bit_pos, bit_len, value):
@@ -132,36 +165,6 @@ def get_mask(arr, bit_pos, bit_len, value):
     return mask
 
 
-def viirs_flags(viirs_data):
-    aod_quality = viirs_data['All_Data']['VIIRS-Aeros-Opt-Thick-IP_All']['QF1'][:]
-    flags = np.zeros(aod_quality.shape)
-    for k, v in zip(['00', '01', '10', '11'], [0, 1, 2, 3]):
-        mask = get_mask(aod_quality, 0, 2, k)
-        flags[mask] = v
-    return flags
-
-
-def read_nc(f):
-    return Dataset(f)
-
-
-def load_orac(path, timestamp):
-    orac_fname = get_orac_fname(path, timestamp)
-    return read_nc(os.path.join(path, orac_fname))
-
-
-def orac_aod(orac_data):
-    return orac_data.variables['cot'][:]
-
-
-def orac_cost(orac_data):
-    return orac_data['costjm'][:]
-
-
-def read_h5(f):
-    return h5py.File(f,  "r")
-
-
 def read_plume_polygons(path):
     try:
         df = pd.read_pickle(path)
@@ -169,17 +172,32 @@ def read_plume_polygons(path):
         logger.warning('Could not load pickle with error:' + str(e) + ' ...attempting to load csv')
         df = pd.read_csv(path, quotechar='"', sep=',', converters={'plume_extent': ast.literal_eval,
                                                                    'background_extent': ast.literal_eval,
-                                                                   'plume_vector': ast.literal_eval})
+                                                                   'plume_tail': ast.literal_eval})
     return df
 
 
-def _build_frp_df(path):
+def read_frp_df(path):
+    '''
+
+    :param path: path to frp csv files and dataframe
+    :return: the frp holding dataframe
+    '''
+    try:
+        df_path = os.path.join(path, 'frp_df.p')
+        frp_df = pd.read_pickle(df_path)
+    except Exception, e:
+        print('could not load frp dataframe, failed with error ' + str(e) + ' building anew')
+        frp_df = build_frp_df(path)
+    return frp_df
+
+
+def build_frp_df(path):
     '''
 
     :param path: path to the frp csv files and dataframe
     :return: dataframe holding frp
     '''
-    frp_csv_files = glob.glob(path + '*.csv')
+    frp_csv_files = glob.glob(path + '/*.csv')
     df_from_each_file = (pd.read_csv(f) for f in frp_csv_files)
     frp_df = pd.concat(df_from_each_file, ignore_index=True)
 
@@ -210,45 +228,15 @@ def _build_frp_df(path):
     #frp_df.drop(['LONGITUDE', 'LATITUDE'], axis=1, inplace=True)
     frp_df.drop(['year', 'month', 'day', 'time'], axis=1, inplace=True)
 
-    frp_df.to_pickle(path + 'frp_df.p')
+    frp_df.to_pickle(path + '/frp_df.p')
 
     return frp_df
 
 
-def read_frp_df(path):
-    '''
 
-    :param path: path to frp csv files and dataframe
-    :return: the frp holding dataframe
-    '''
-    try:
-        df_path = glob.glob(path + 'frp_df.p')[0]
-        frp_df = pd.read_pickle(df_path)
-    except Exception, e:
-        print('could not load frp dataframe, failed with error ' + str(e) + ' building anew')
-        frp_df = _build_frp_df(path)
-    return frp_df
-
-
-def find_landcover_class(lat_list, lon_list, landcover_ds):
-
-    # now get the landcover points
-    lc_list = []
-    for lat, lon in zip(lat_list, lon_list):
-        s = int((lon - (-180)) / 360 * landcover_ds['lon'].size)  # lon index
-        l = int((lat - 90) * -1 / 180 * landcover_ds['lat'].size)  # lat index
-
-        # image is flipped, so we need to reverse the lat coordinate
-        l = -(l + 1)
-
-        lc_list.append(np.array(landcover_ds['lccs_class'][(l - 1):l, s:s + 1][0])[0])
-
-    # return the most common landcover class for the fire contined in the ROI
-    return stats.mode(lc_list).mode[0]
-
-
+#### Spatial Utils
 def construct_bounding_box(extent):
-    padding = 10  # pixels  TODO Move to config file
+    padding = 50  # pixels  TODO Move to config file
     x, y = zip(*extent)
     min_x, max_x = np.min(x) - padding, np.max(x) + padding
     min_y, max_y = np.min(y) - padding, np.max(y) + padding
@@ -275,45 +263,17 @@ def construct_mask(e, bounds):
     return mask
 
 
-def fires_in_plume(fires, plume_polygon):
-    inbound_fires_y = []
-    inbound_fires_x = []
-    for pt in zip(fires[0], fires[1]):
-        if plume_polygon.contains(Point(pt[1], pt[0])):
-            inbound_fires_y.append(pt[0])
-            inbound_fires_x.append(pt[1])
-    return inbound_fires_y, inbound_fires_x
-
-
 def extract_subset_geo_bounds(ext, bounds, lats, lons):
     # adjust plume extent for the subset
-    extent = [[x - bounds['min_x'], y - bounds['min_y']] for x, y in ext]
+    if len(ext) > 2:
+        extent = [[x - bounds['min_x'], y - bounds['min_y']] for x, y in ext]
+    else:
+        extent = zip(ext[0] - bounds['min_x'], ext[1] - bounds['min_y'])
 
     # when digitising points are appended (x,y).  However, arrays are accessed
     # in numpy as row, col which is y, x.  So we need to switch
     bounding_lats = [lats[point[1], point[0]] for point in extent]
     bounding_lons = [lons[point[1], point[0]] for point in extent]
-    return bounding_lats, bounding_lons
-
-
-def extract_geo_bounds(extent, lats, lons):
-
-    # the extent can be outside of the lat/lon grid, so we need to adjust any
-    # indexes that are outside of this extent.
-    shape_y, shape_x = lats.shape
-    for point in extent:
-        if point[0] >= shape_y:
-            point[0] = shape_y - 1
-        if point[0] < 0:
-            point[0] = 0
-        if point[1] >= shape_y:
-            point[1] = shape_x - 1
-        if point[1] < 0:
-            point[1] = 0
-
-    # these points are generated as y, x
-    bounding_lats = [lats[int(point[0]), int(point[1])] for point in extent]
-    bounding_lons = [lons[int(point[0]), int(point[1])] for point in extent]
     return bounding_lats, bounding_lons
 
 
@@ -329,39 +289,8 @@ def construct_shapely_vector(bounding_lats, bounding_lons):
     return LineString(zip(bounding_lons[0:2], bounding_lats[0:2]))
 
 
-def reproject_shapely(shapely_object, utm_resampler):
-    project = partial(
-        pyproj.transform,
-        pyproj.Proj(init='epsg:4326'),  # source coordinate system (geographic coords)
-        utm_resampler.proj)  # destination coordinate system
-
-    return transform(project, shapely_object)  # apply projection
-
-
-def _extract_geo_from_bounds(ext, bounds, lats, lons):
-    # adjust plume extent for the subset
-    extent = [[x - bounds['min_x'], y - bounds['min_y']] for x, y in ext]
-
-    # when digitising points are appended (x,y).  However, arrays are accessed
-    # in numpy as row, col which is y, x.  So we need to switch
-    bounding_lats = [lats[point[1], point[0]] for point in extent]
-    bounding_lons = [lons[point[1], point[0]] for point in extent]
-    return bounding_lats, bounding_lons
-
-
-def construct_points(plume, bounds, lats, lons):
-    bounding_lats, bounding_lons = _extract_geo_from_bounds(plume.plume_extent, bounds, lats, lons)
-    return MultiPoint(zip(bounding_lons, bounding_lats))
-
-
-def construct_polygon(plume, bounds, lats, lons):
-    bounding_lats, bounding_lons = _extract_geo_from_bounds(plume.plume_extent, bounds, lats, lons)
-    return Polygon(zip(bounding_lons, bounding_lats))
-
-
-def construct_vector(plume, bounds, lats, lons):
-    bounding_lats, bounding_lons = _extract_geo_from_bounds(plume.plume_vector, bounds, lats, lons)
-    return LineString(zip(bounding_lons[0:2], bounding_lats[0:2]))
+def construct_shapely_point(bounding_lat, bounding_lon):
+    return Point(bounding_lon[0], bounding_lat[0])
 
 
 def reproject_shapely(shapely_object, utm_resampler):
@@ -373,130 +302,152 @@ def reproject_shapely(shapely_object, utm_resampler):
     return transform(project, shapely_object)  # apply projection
 
 
-def compute_perpendicular_slope(vector):
-    head = np.array(vector[1])
-    tail = np.array(vector[0])
-    deltas = head - tail
-    slope = float(deltas[1]) / deltas[0]  # dy/ dx
-    return -1 / slope  # perpendicular slope
+def create_logger_path(p_number):
+    # check logging dir exists
+    if not os.path.isdir(fp.pt_vis_path):
+        os.mkdir(fp.pt_vis_path)
+
+    # check plume specific dir exists
+    plume_logging_path = os.path.join(fp.pt_vis_path, str(p_number))
+    if not os.path.isdir(plume_logging_path):
+        os.mkdir(plume_logging_path)
+    return plume_logging_path
 
 
-def split_plume_polgons(utm_flow_means, plume_logging_path, plume,
-                        plume_geom_geo, plume_geom_utm, pp):
+def setup_sat_data(ts):
+    d = dict()
+    d['viirs_aod'] = sat_data_reader(fp.path_to_viirs_aod, 'viirs', 'aod', ts)
+    d['viirs_flag'] = sat_data_reader(fp.path_to_viirs_aod, 'viirs', 'flag', ts)
+    d['orac_aod'] = sat_data_reader(fp.path_to_viirs_orac, 'orac', 'aod', ts)
+    d['orac_cost'] = sat_data_reader(fp.path_to_viirs_orac, 'orac', 'cost', ts)
 
-    # compute orthogonal slope of plume vector in pixels
-    m = compute_perpendicular_slope(plume.plume_vector)
+    d['m3'] = sat_data_reader(fp.path_to_viirs_sdr, 'viirs', 'M03', ts)
+    d['m4'] = sat_data_reader(fp.path_to_viirs_sdr, 'viirs', 'M04', ts)
+    d['m5'] = sat_data_reader(fp.path_to_viirs_sdr, 'viirs', 'M05', ts)
 
-    y_shape, x_shape = plume_geom_geo['plume_lats'].shape
-
-    # set up iterator variables
-    a = [0, 0]  # ll
-    b = [0, 0]  # ul
-    c = [0, 0]
-    d = [0, 0]
-    tail_position = np.array(plume_geom_utm['utm_plume_vector'].coords[0])
-
-    # set up list to hold polygon corners
-    polygon_corner_dict = {}
-
-    if pp['plot']:
-        display = np.zeros(plume_geom_geo['plume_mask'].shape)
-        sub_x_positions = []
-        sub_y_positions = []
-
-    # iterate over UTM points
-    for i, position in enumerate(utm_flow_means):
-
-        # add current position onto tail
-        tail_position += position
-
-        # convert UTM point to lat lon
-        flow_lon, flow_lat = plume_geom_utm['utm_resampler_plume'].resample_point_to_geo(tail_position[1],
-                                                                                      tail_position[0])
-
-        # convert lat lon to pixel index, to give us a point on the line
-        dists = np.abs(flow_lat - plume_geom_geo['plume_lats']) + np.abs(flow_lon - plume_geom_geo['plume_lons'])
-        sub_y, sub_x = divmod(dists.argmin(), x_shape)
-
-        # using slope, and point on the point, get b so we know have full linear equation
-        slope = sub_y - m*sub_x   # b = y - mx, and when x=0, y=b
-
-        # using linear equation determine the intersections of the line with the x and y
-        # axes.  If the point of intersection does not exceed the extent of the ROI in the given axis then it is
-        # the direction colinear with the plume, and the segmentation must be performed in
-        # this axis.
-        y0 = m*0 + slope
-        y1 = m*x_shape + slope
-        x0 = (0-slope) / m
-        x1 = (y_shape-slope) / m
-
-        # check if we are updatin in the y direction, else assume x
-        update_y = (y0 > 0) & (y0 < y_shape) & (y1 > 0) & (y1 < y_shape)
-
-        if update_y:
-            # do y parts
-            a[0] = y0
-            d[0] = y1
-            # do x parts
-            c[1] = x_shape-1  # ur
-            d[1] = x_shape-1  # lr
-        else:
-            # do x parts
-            c[1] = x0
-            d[1] = x1
-            # do y parts
-            a[0] = y_shape - 1  # ur
-            d[0] = y_shape - 1  # lr
+    lats, lons = sat_data_reader(fp.path_to_viirs_orac, 'orac', 'geo', ts)
+    d['lats'] = lats
+    d['lons'] = lons
+    return d
 
 
-        # define mask
-        polygon_corner_dict[i] = [a[:], b[:], c[:], d[:]]
+def resample_satellite_datasets(sat_data, pp=None, plume=None, fill_value=0):
+
+    # set up resampler
+    utm_rs = utm_resampler(sat_data['lats'], sat_data['lons'], constants.utm_grid_size)
+
+    # get the mask for the lats and lons and apply
+    null_mask = np.ma.getmask(sat_data['orac_aod'])
+    masked_lats = np.ma.masked_array(utm_rs.lats, null_mask)
+    masked_lons = np.ma.masked_array(utm_rs.lons, null_mask)
+
+    # resample all the datasets to UTM
+    d = {}
+    d['viirs_aod_utm'] = utm_rs.resample_image(sat_data['viirs_aod'], masked_lats, masked_lons, fill_value=fill_value)
+    d['viirs_flag_utm'] = utm_rs.resample_image(sat_data['viirs_flag'], masked_lats, masked_lons, fill_value=fill_value)
+    d['orac_aod_utm'] = utm_rs.resample_image(sat_data['orac_aod'], masked_lats, masked_lons, fill_value=fill_value)
+    d['orac_cost_utm'] = utm_rs.resample_image(sat_data['orac_cost'], masked_lats, masked_lons, fill_value=fill_value)
+    d['lats'] = utm_rs.resample_image(utm_rs.lats, masked_lats, masked_lons, fill_value=fill_value)
+    d['lons'] = utm_rs.resample_image(utm_rs.lons, masked_lats, masked_lons, fill_value=fill_value)
+
+    d['m3'] = utm_rs.resample_image(sat_data['m3'], masked_lats, masked_lons, fill_value=fill_value)
+    d['m4'] = utm_rs.resample_image(sat_data['m4'], masked_lats, masked_lons, fill_value=fill_value)
+    d['m5'] = utm_rs.resample_image(sat_data['m5'], masked_lats, masked_lons, fill_value=fill_value)
+
+    if pp:
         if pp['plot']:
-            mask = grid_points_in_poly([y_shape, x_shape], [a, b, c, d])
-            display[mask] = i
-            sub_x_positions.append(sub_x)
-            sub_y_positions.append(sub_y)
+            d['viirs_png_utm'] = misc.imread(os.path.join(fp.path_to_viirs_sdr_resampled_no_peat, plume.filename.rstrip()))
 
-        # update polygon corner arrays
-        if update_y:
-            b = a[:]
-            c = d[:]
-        else:
-            b = c[:]
-            a = d[:]
-
-    # now get the final part of the plume
-    if update_y:
-        a[0] = y_shape-1
-        d[0] = y_shape-1
-    else:
-        c[1] = x_shape-1
-        d[1] = x_shape-1
-
-    polygon_corner_dict[i] = [a[:], b[:], c[:], d[:]]
-
-    if pp['plot']:
-        mask = grid_points_in_poly([y_shape, x_shape], [a, b, c, d])
-        display[mask] = i
-        display[~plume_geom_geo['plume_mask']] = np.nan
-        plt.imshow(display)
-        plt.colorbar()
-        for x, y in zip(sub_x_positions, sub_y_positions):
-            plt.plot(x,y, 'r.')
-
-        extent = [[x - plume_geom_geo['plume_bounding_box']['min_x'],
-                   y - plume_geom_geo['plume_bounding_box']['min_y']] for x, y in plume.plume_vector]
-        t = extent[0]
-        h = extent[1]
-        plt.plot((t[0], h[0]), (t[1], h[1]), 'k-')
-        plt.savefig(os.path.join(plume_logging_path, 'plumes_subsets.png'), bbox_inches='tight', dpi=300)
-        plt.close()
-
-    return polygon_corner_dict
+    return d
 
 
-def sub_mask(shape, poly, plume_mask):
-    return grid_points_in_poly(shape, poly) * plume_mask
+def setup_plume_data(plume, ds_utm):
+    d = {}
+    try:
+        # get plume extent geographic data (bounding box in in UTM as plume extent is UTM)
+        d['plume_bounding_box'] = construct_bounding_box(plume.plume_extent)
+        d['plume_lats'] = subset_data(ds_utm['lats'], d['plume_bounding_box'])
+        d['plume_lons'] = subset_data(ds_utm['lons'], d['plume_bounding_box'])
+        d['plume_aod'] = subset_data(ds_utm['viirs_aod_utm'], d['plume_bounding_box'])
+        d['plume_flag'] = subset_data(ds_utm['viirs_flag_utm'], d['plume_bounding_box'])
+
+         # get plume polygon geographic data
+        poly_lats, poly_lons = extract_subset_geo_bounds(plume.plume_extent, d['plume_bounding_box'],
+                                                            d['plume_lats'], d['plume_lons'])
+
+        # get tail point
+        tail_lat, tail_lon = extract_subset_geo_bounds(plume.plume_tail, d['plume_bounding_box'],
+                                                            d['plume_lats'], d['plume_lons'])
+
+        # get plume mask
+        d['plume_mask'] = construct_mask(plume.plume_extent, d['plume_bounding_box'])
+
+        # setup shapely objects for plume geo data
+        d['plume_points'] = construct_shapely_points(poly_lats, poly_lons)
+        d['plume_polygon'] = construct_shapely_polygon(poly_lats, poly_lons)
+        d['plume_tail'] = construct_shapely_point(tail_lat, tail_lon)
+
+        d['background_bounding_box'] = construct_bounding_box(plume.background_extent)
+        d['background_mask'] = construct_mask(plume.background_extent, d['background_bounding_box'])
+        d['bg_aod'] = subset_data(ds_utm['viirs_aod_utm'], d['background_bounding_box'])
+        d['bg_flag'] = subset_data(ds_utm['viirs_flag_utm'], d['background_bounding_box'])
+
+        return d
+    except Exception, e:
+        logger.error(str(e))
+        return None
+
+
+def subset_sat_data_to_plume(sat_data_utm, plume_geom_geo):
+    d = {}
+    d['viirs_aod_utm_plume'] = subset_data(sat_data_utm['viirs_aod_utm'], plume_geom_geo['plume_bounding_box'])
+    d['viirs_flag_utm_plume'] = subset_data(sat_data_utm['viirs_flag_utm'], plume_geom_geo['plume_bounding_box'])
+    d['orac_aod_utm_plume'] = subset_data(sat_data_utm['orac_aod_utm'], plume_geom_geo['plume_bounding_box'])
+    d['orac_cost_utm_plume'] = subset_data(sat_data_utm['orac_cost_utm'], plume_geom_geo['plume_bounding_box'])
+
+    d['m3_plume'] = subset_data(sat_data_utm['m3'], plume_geom_geo['plume_bounding_box'])
+    d['m4_plume'] = subset_data(sat_data_utm['m4'], plume_geom_geo['plume_bounding_box'])
+    d['m5_plume'] = subset_data(sat_data_utm['m5'], plume_geom_geo['plume_bounding_box'])
+
+    d['viirs_aod_utm_background'] = subset_data(sat_data_utm['viirs_aod_utm'],
+                                                   plume_geom_geo['background_bounding_box'])
+    d['viirs_flag_utm_background'] = subset_data(sat_data_utm['viirs_flag_utm'],
+                                                    plume_geom_geo['background_bounding_box'])
+    d['orac_aod_utm_background'] = subset_data(sat_data_utm['orac_aod_utm'],
+                                                  plume_geom_geo['background_bounding_box'])
+    d['orac_cost_utm_background'] = subset_data(sat_data_utm['orac_cost_utm'],
+                                                   plume_geom_geo['background_bounding_box'])
+
+    return d
+
+
+def resample_plume_geom_to_utm(plume_geom_geo):
+    d = {}
+    d['utm_resampler_plume'] = utm_resampler(plume_geom_geo['plume_lats'],
+                                                plume_geom_geo['plume_lons'],
+                                                constants.utm_grid_size)
+    d['utm_plume_points'] = reproject_shapely(plume_geom_geo['plume_points'], d['utm_resampler_plume'])
+    d['utm_plume_polygon'] = reproject_shapely(plume_geom_geo['plume_polygon'], d['utm_resampler_plume'])
+    d['utm_plume_tail'] = reproject_shapely(plume_geom_geo['plume_tail'], d['utm_resampler_plume'])
+    return d
+
+
+def process_plume(t_start, t_stop, time_for_plume,
+                  pp, plume_data_utm, plume_geom_utm, plume_geom_geo, plume_logging_path, p_number,
+                  df_list):
+    # get background aod for sub plume
+    bg_aod_dict = tt.extract_bg_aod(plume_data_utm, plume_geom_geo['background_mask'])
+
+    # compute tpm
+    out_dict = tt.compute_tpm_full(plume_data_utm, plume_geom_utm, plume_geom_geo, bg_aod_dict, plume_logging_path, pp)
+    out_dict['plume_number'] = p_number
+
+    # compute fre
+    ff.compute_fre_full_plume(t_start, t_stop, time_for_plume,
+                              pp['frp_df'], plume_geom_geo, plume_logging_path, out_dict)
+
+    # convert datadict to dataframe and add to list
+    df_list.append(pd.DataFrame(out_dict, index=['i', ]))
 
 
 class utm_resampler(object):
@@ -525,7 +476,10 @@ class utm_resampler(object):
         return pyproj.Proj(proj='utm', zone=self.zone, ellps='WGS84', datum='WGS84')
 
     def __utm_extent(self):
-        x, y = self.proj(self.lons, self.lats)
+        lats = self.lats
+        lons = self.lons
+        mask = (lats < 90) & (lats > -90) & (lons < 180) & (lons > -180)
+        x, y = self.proj(lons[mask], lats[mask])
         min_x, max_x = np.min(x), np.max(x)
         min_y, max_y = np.min(y), np.max(y)
         return (min_x, min_y, max_x, max_y)

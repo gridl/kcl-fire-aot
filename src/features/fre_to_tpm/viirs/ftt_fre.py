@@ -1,3 +1,5 @@
+#!/home/users/dnfisher/soft/virtual_envs/kcl-fire-aot/bin/python2
+
 import logging
 import os
 
@@ -5,7 +7,6 @@ import numpy as np
 from scipy import integrate
 from datetime import datetime
 
-import src.features.fre_to_tpm.viirs.ftt_utils as ut
 
 log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=log_fmt)
@@ -45,8 +46,7 @@ def temporal_subset_single_day(frp_df, t):
     return frp_df.loc[(frp_df['obs_time'].dt.year == t.year) & (frp_df['obs_time'].dt.day == t.day)]
 
 
-
-def spatial_subset(frp_subset, plume_geom_utm):
+def spatial_subset(frp_subset, plume_geom_geo):
     """
 
     :param frp_subset: The temporally subsetted dataframe
@@ -54,18 +54,21 @@ def spatial_subset(frp_subset, plume_geom_utm):
     :param utm_resampler: The utm resampler object
     :return: The spatially subsetted frp dataframe
     """
+    # import src.features.fre_to_tpm.viirs.ftt_utils as ut
     inbounds = []
-    max_dist = 10000  # TODO ADD TO CONFIG
     for i, (index, frp_pixel) in enumerate(frp_subset.iterrows()):
 
-        # transform FRP pixel into UTM coordinates
-        projected_fire = ut.reproject_shapely(frp_pixel['point'], plume_geom_utm['utm_resampler_plume'])
+        # # transform FRP pixel into UTM coordinates
+        # projected_fire = ut.reproject_shapely(frp_pixel['point'], plume_geom_utm['utm_resampler_plume'])
+        #
+        # # get distance between fire head of plume vector
+        # fire_coords = np.array(projected_fire.coords[0])
+        # head_coords = np.array(plume_geom_utm['utm_plume_vector'].coords[1])
+        # dist = np.linalg.norm(fire_coords-head_coords)
+        # if dist < max_dist:
+        #     inbounds.append(i)
 
-        # get distance between fire head of plume vector
-        fire_coords = np.array(projected_fire.coords[0])
-        head_coords = np.array(plume_geom_utm['utm_plume_vector'].coords[1])
-        dist = np.linalg.norm(fire_coords-head_coords)
-        if dist < max_dist:
+        if frp_pixel['point'].within(plume_geom_geo['plume_polygon']):
             inbounds.append(i)
 
     return frp_subset.iloc[inbounds]
@@ -102,10 +105,11 @@ def integrate_frp(frp_subset):
     return integrate.trapz(frp_subset['FRP_0'], sample_times)
 
 
-def fire_locations_for_plume_roi(plume_geo_utm, frp_df, t):
+def fire_locations_for_plume_roi(plume_geom_geo, frp_df, t):
     try:
         frp_subset = temporal_subset_single_time(frp_df, t)
-        frp_subset = spatial_subset(frp_subset, plume_geo_utm)
+        frp_subset = spatial_subset(frp_subset, plume_geom_geo)
+        # returns a set of geogrpahic coordinate
         return frp_subset.point.values
 
     except Exception, e:
@@ -123,7 +127,7 @@ def fire_locations_for_digitisation(frp_df, t):
         return None
 
 
-def compute_fre_subset(out_dict, geostationary_fname, plume_geom_utm, frp_df, sub_plume_logging_path):
+def compute_fre_subset(out_dict, geostationary_fname, plume_geom_geo, frp_df, sub_plume_logging_path):
 
     """
     :param plume_polygon: The smoke plume polygon
@@ -137,7 +141,7 @@ def compute_fre_subset(out_dict, geostationary_fname, plume_geom_utm, frp_df, su
 
     try:
         frp_subset = temporal_subset_single_time(frp_df, t)
-        frp_subset = spatial_subset(frp_subset, plume_geom_utm)
+        frp_subset = spatial_subset(frp_subset, plume_geom_geo)
         frp_subset.to_csv(os.path.join(sub_plume_logging_path, 'fires.csv'))
 
         grouped_frp_subset = group_subset(frp_subset)
@@ -164,12 +168,20 @@ def compute_fre_subset(out_dict, geostationary_fname, plume_geom_utm, frp_df, su
         out_dict['himawari_time'] = t
 
 
-def compute_fre_full_plume(t1, t2, frp_df, plume_geom_utm, plume_logging_path, out_dict):
+def compute_fre_full_plume(t_start, t_stop, time_for_plume,
+                           frp_df, plume_geom_geo, plume_logging_path, out_dict):
 
 
     try:
-        frp_subset = temporal_subset(frp_df, t2, t1)
-        frp_subset = spatial_subset(frp_subset, plume_geom_utm)
+        frp_subset = temporal_subset(frp_df, t_stop, t_start)
+        frp_subset = spatial_subset(frp_subset, plume_geom_geo)
+
+        # sort df by fire quality then drop duplicates and keep the first
+        print frp_subset.shape
+        frp_subset.sort_values('FIRE_CONFIDENCE', ascending=False, inplace=True)
+        frp_subset.drop_duplicates(['ABS_line', 'ABS_samp', 'obs_time'], inplace=True, keep='first')
+        print frp_subset.shape
+
         frp_subset.to_csv(os.path.join(plume_logging_path, 'fires.csv'))
 
         grouped_frp_subset = group_subset(frp_subset)
@@ -180,9 +192,11 @@ def compute_fre_full_plume(t1, t2, frp_df, plume_geom_utm, plume_logging_path, o
         # minutes
         fre = integrate_frp(grouped_frp_subset)
 
-        # lets set up an alternative FRE using mean and multiplying by time in seconds
-        alt_fre = grouped_frp_subset['FRP_0'].mean() * (grouped_frp_subset.index[-1] - grouped_frp_subset.index[0]).total_seconds()
-
+        # lets set up an alternative FRE using mean and multiplying by time in seconds for plume
+        # (should be more accurate).
+        # alt_fre = grouped_frp_subset['FRP_0'].mean() * (grouped_frp_subset.index[-1] -
+        #                                                 grouped_frp_subset.index[0]).total_seconds()
+        alt_fre = grouped_frp_subset['FRP_0'].mean() * time_for_plume
 
         out_dict['fre'] = fre
         out_dict['alt_fre'] = alt_fre

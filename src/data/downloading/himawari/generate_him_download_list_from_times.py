@@ -11,7 +11,7 @@ from datetime import timedelta
 import src.config.filepaths as fp
 
 
-with open(os.path.join(fp.path_to_filelists, 'indonesia_filepaths.txt'), 'rb') as f:
+with open(os.path.join(fp.analysis_filelist_path, 'indonesia_filepaths.txt'), 'rb') as f:
      plumes_files = f.readlines()
 
 
@@ -40,7 +40,7 @@ days = np.arange(start_day, stop_day, 1)
 # set up the hours
 hours = np.arange(0,24,1)
 
-with open(os.path.join(fp.path_to_filelists, 'him_file_list_time_based_'+ band +'.txt'), 'wb') as f:
+with open(os.path.join(fp.analysis_filelist_path, 'him_file_list_time_based_'+ band + '.txt'), 'wb') as f:
 
         for day in days:
             day = str(day).zfill(2)

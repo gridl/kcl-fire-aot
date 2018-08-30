@@ -5,7 +5,7 @@ import numpy as np
 import scipy.misc as misc
 from netCDF4 import Dataset
 
-import src.config.filepaths as fp
+import src.config.filepaths_cems as fp
 import src.features.fre_to_tpm.modis.ftt_utils as ut
 
 
@@ -41,17 +41,17 @@ def main():
 
     for viirs_orac_fname in os.listdir(fp.path_to_viirs_orac):
 
+        if 'DS' in viirs_orac_fname:
+            continue
+        if 'primary' not in viirs_orac_fname:
+            continue
+
         if os.path.isfile(os.path.join(
                 fp.path_to_viirs_orac_resampled, viirs_orac_fname.replace('nc', 'png'))):
             print viirs_orac_fname, 'already resampled'
             continue
 
         logger.info("Processing viirs file: " + viirs_orac_fname)
-
-        if 'DS' in viirs_orac_fname:
-            continue
-        if 'primary' not in viirs_orac_fname:
-            continue
 
         try:
             viirs_orac = read_nc(os.path.join(fp.path_to_viirs_orac, viirs_orac_fname))
@@ -62,7 +62,7 @@ def main():
             cost = extract_cost(viirs_orac, utm_resampler)
 
         except Exception, e:
-            logger.warning('Could not read the input file: ' + viirs_orac_fname + '. Failed with ' + str(e))
+            logger.warning('Could not read the input file. Failed with ' + str(e))
             continue
 
         # save the outputs

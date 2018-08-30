@@ -6,11 +6,32 @@ from datetime import datetime
 
 import pandas as pd
 import numpy as np
-import scipy.misc as misc
 import matplotlib.pyplot as plt
+from sklearn.neighbors import BallTree
 
 import src.config.filepaths as fp
 import src.features.fre_to_tpm.viirs.ftt_utils as ut
+
+
+
+def make_balltree_subset(array_lats_flat, array_lons_flat):
+    array_lat_lon = np.dstack([np.deg2rad(array_lats_flat), np.deg2rad(array_lons_flat)])[0]
+    return BallTree(array_lat_lon, metric='haversine')
+
+
+def spatial_intersection_subset(array_balltree, point_lat, point_lon, x_positions_flat, y_positions_flat):
+    # get the unique flare lats and lons for assessment in kdtree
+    point_location = np.array([np.deg2rad(point_lat), np.deg2rad(point_lon)]).reshape(1, -1)
+
+    # compare the flare locations to the potential locations in the orbit
+    distance, index = array_balltree.query(point_location, k=1)
+
+    # get indexes
+    x = x_positions_flat[index][0][0]
+    y = y_positions_flat[index][0][0]
+    d = distance[0][0]
+
+    return x, y, np.rad2deg(d)
 
 
 def read_aeronet(filename):
@@ -48,11 +69,6 @@ def load_aeronet():
     return aeronet_dict
 
 
-def get_orac_timestamp(orac_path):
-    orac_fname = orac_path.split('/')[-1]
-    return datetime.strptime(orac_fname[37:49], "%Y%m%d%H%M")
-
-
 def aeronet_intersections(timestamp, aeronet_station_data):
     for station in aeronet_station_data:
         time_deltas = np.abs((aeronet_station_data[station].index - timestamp).total_seconds())
@@ -79,7 +95,7 @@ def collocate_station(station, balltree, cols, rows, timestamp):
     station_lon = temporal_df.iloc[0]['Site_Longitude(Degrees)']
 
     # check if scene intersects
-    x, y, d = ut.spatial_intersection_subset(balltree,
+    x, y, d = spatial_intersection_subset(balltree,
                                              station_lat,
                                              station_lon,
                                              cols, rows)
@@ -118,18 +134,20 @@ def get_fname(path, timestamp):
         return ''
 
 
-def get_aod(r_orac_aod, r_orac_cost, r_viirs_aod, r_viirs_flag, x, y):
+def get_aod(sat_data_utm, x, y):
 
     sample_size = 10
     half_sample_size = sample_size / 2.0
     min_y = int(y-half_sample_size) if y-half_sample_size > 0 else 0
     min_x = int(x-half_sample_size) if x-half_sample_size > 0 else 0
-    max_y = int(y+half_sample_size) if y+half_sample_size < r_orac_aod.shape[0] else r_orac_aod.shape[0]
-    max_x = int(x+half_sample_size) if x+half_sample_size < r_orac_aod.shape[1] else r_orac_aod.shape[1]
+    max_y = int(y+half_sample_size) if y+half_sample_size < sat_data_utm['orac_aod_utm'].shape[0] else \
+        sat_data_utm['orac_aod_utm'].shape[0]
+    max_x = int(x+half_sample_size) if x+half_sample_size < sat_data_utm['orac_aod_utm'].shape[1] else \
+        sat_data_utm['orac_aod_utm'].shape[1]
 
     # do orac proc
-    orac_aod_subset = r_orac_aod[min_y:max_y, min_x:max_x]
-    orac_cost_subset = r_orac_cost[min_y:max_y, min_x:max_x]
+    orac_aod_subset = sat_data_utm['orac_aod_utm'][min_y:max_y, min_x:max_x]
+    orac_cost_subset = sat_data_utm['orac_flags_utm'][min_y:max_y, min_x:max_x]
 
     mask = orac_cost_subset <= 3
     n_orac = np.sum(mask)
@@ -141,8 +159,8 @@ def get_aod(r_orac_aod, r_orac_cost, r_viirs_aod, r_viirs_flag, x, y):
         mean_orac_cost = -999
 
     # do viirs
-    viirs_aod_subset = r_viirs_aod[min_y:max_y, min_x:max_x]
-    viirs_flag_subset = r_viirs_flag[min_y:max_y, min_x:max_x]
+    viirs_aod_subset = sat_data_utm['viirs_aod_utm'][min_y:max_y, min_x:max_x]
+    viirs_flag_subset = sat_data_utm['viirs_flags_utm'][min_y:max_y, min_x:max_x]
 
     mask = viirs_flag_subset == 0
     n_viirs = np.sum(mask)
@@ -258,45 +276,34 @@ def main():
         # if o_f != i_f:
         #    continue
 
-        timestamp = get_orac_timestamp(o_f)
+        timestamp = ut.get_timestamp(o_f, 'orac')
 
         # check if station has intersection for given time stamp, if not continue
         if not aeronet_intersections(timestamp, aeronet_station_data):
             continue
 
-        # load in orac data and resample
+
         try:
-            orac_ds = ut.read_nc(o_f)
-            orac_aod = ut.orac_aod(orac_ds)
-            lats, lons = ut.read_orac_geo(orac_ds)
-            utm_rs = ut.utm_resampler(lats, lons, 750)
+            sat_data = ut.setup_sat_data(timestamp)
         except Exception, e:
-            print 'could not load aod dataset with error: ' + str(e)
+            logger.info('Could not load all datasets for: ' + str(timestamp) + '. Failed with error: ' + str(e))
             continue
 
-        null_mask = np.ma.getmask(orac_aod)
-        masked_lats = np.ma.masked_array(utm_rs.lats, null_mask)
-        masked_lons = np.ma.masked_array(utm_rs.lons, null_mask)
-
-        resampled_lats = utm_rs.resample_image(utm_rs.lats, masked_lats, masked_lons, fill_value=-999)
-        resampled_lons = utm_rs.resample_image(utm_rs.lons, masked_lats, masked_lons, fill_value=-999)
+        sat_data_utm = ut.resample_satellite_datasets(sat_data, fill_value=-999)
 
         # generate coordinate array from resampled grid
-        rows = np.arange(resampled_lats.shape[0])
-        cols = np.arange(resampled_lats.shape[1])
+        rows = np.arange(sat_data_utm['lats'].shape[0])
+        cols = np.arange(sat_data_utm['lats'].shape[1])
         cols, rows = np.meshgrid(cols, rows)
 
         # mask all points to valid
-        mask = resampled_lats != -999
-        resampled_lats_sub = resampled_lats[mask]
-        resampled_lons_sub = resampled_lons[mask]
+        mask = sat_data_utm['lats'] != -999
+        resampled_lats_sub = sat_data_utm['lats'][mask]
+        resampled_lons_sub = sat_data_utm['lons'][mask]
         cols = cols[mask]
         rows = rows[mask]
 
-        balltree = ut.make_balltree_subset(resampled_lats_sub, resampled_lons_sub)
-
-        # iterate aeronet station data
-        ds_loaded = False
+        balltree = make_balltree_subset(resampled_lats_sub, resampled_lons_sub)
         for station in aeronet_station_data:
 
             print
@@ -314,37 +321,13 @@ def main():
                 print 'no station points within 30 minutes of overpass or within 2 arcminutes of image '
                 continue
 
-            print 'image lat', resampled_lats[y, x]
-            print 'image lon', resampled_lons[y, x]
-
-            # load datasets if not done already
-            try:
-                if not ds_loaded:
-
-                    r_orac_aod = utm_rs.resample_image(orac_aod, masked_lats, masked_lons, fill_value=0)
-                    r_orac_cost = utm_rs.resample_image(ut.orac_cost(orac_ds), masked_lats, masked_lons, fill_value=0)
-
-                    viirs_aod_fname = get_fname(fp.path_to_viirs_aod, timestamp)
-                    viirs_aod_ds = ut.read_h5(os.path.join(fp.path_to_viirs_aod, viirs_aod_fname))
-                    r_viirs_aod = utm_rs.resample_image(ut.viirs_aod(viirs_aod_ds), masked_lats, masked_lons, fill_value=0)
-                    r_viirs_flag = utm_rs.resample_image(ut.viirs_flags(viirs_aod_ds), masked_lats, masked_lons,
-                                                         fill_value=0)
-
-                    viirs_sdr_fname = get_fname(fp.path_to_viirs_sdr, timestamp)
-                    viirs_sdr_ds = ut.read_h5(os.path.join(fp.path_to_viirs_sdr, viirs_sdr_fname))
-                    ds_loaded = True
-            except Exception, e:
-                print 'could not load aod dataset with error: ' + str(e)
-                break
+            print 'image lat', sat_data_utm['lats'][y, x]
+            print 'image lon', sat_data_utm['lons'][y, x]
 
             # take valid mean AOD within 10km
             mean_orac_aod, mean_orac_cost, \
             mean_viirs_aod, mean_viirs_flag, \
-                n_orac, n_viirs = get_aod(r_orac_aod, r_orac_cost, r_viirs_aod, r_viirs_flag, x, y)
-
-
-            # sort out image
-            create_png(viirs_sdr_ds, utm_rs, masked_lats, masked_lons, image_id, x, y, station)
+                n_orac, n_viirs = get_aod(sat_data_utm, x, y)
 
             # append to dict
             data_dict['x'].append(x)
@@ -362,7 +345,6 @@ def main():
             data_dict['viirs_flag'].append(mean_viirs_flag)
             data_dict['image_id'].append(image_id)
             data_dict['orac_file'].append(o_f)
-            data_dict['viirs_file'].append(viirs_aod_fname)
             data_dict['station'].append(station)
 
             # update image

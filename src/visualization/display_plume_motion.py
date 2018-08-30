@@ -1,9 +1,8 @@
 import logging
 import os
-import pandas as pd
 
-import src.features.fre_to_tpm.viirs.ftt_utils as ut
 import src.features.fre_to_tpm.viirs.ftt_plume_tracking as pt
+import src.features.fre_to_tpm.viirs.ftt_utils as ut
 import src.config.filepaths as fp
 import src.data.readers.load_hrit as load_hrit
 import src.visualization.ftt_visualiser as vis
@@ -29,7 +28,6 @@ def proc_params():
     d['geostationary_lons'] = geostationary_lons
 
     d['output_path'] = fp.pt_vis_path
-    d['df_output_path'] = fp.path_to_frp_tpm_models
     d['df_list'] = []
     return d
 
@@ -38,14 +36,9 @@ def main():
     # setup the data dict to hold all data
     pp = proc_params()
     previous_timestamp = ''
-    df_list = []
 
     # itereate over the plumes
     for p_number, plume in pp['plume_df'].iterrows():
-
-        #
-        #if p_number not in [36]:
-        #     continue
 
         # make a directory to hold the plume logging information
         plume_logging_path = ut.create_logger_path(p_number)
@@ -77,22 +70,19 @@ def main():
         # Reproject plume shapely objects to UTM
         plume_geom_utm = ut.resample_plume_geom_to_utm(plume_geom_geo)
 
-        # get start stop times
+        # get the plume sub polygons / start stop times based on the wind speed
         try:
-            utm_flow_means, geostationary_fnames, t_start, t_stop, time_for_plume = pt.tracker(plume_logging_path,
-                                                                                               plume_geom_utm,
-                                                                                               plume_geom_geo,
-                                                                                               pp,
-                                                                                               current_timestamp)
+            utm_flow_means, geostationary_fnames, t1, t2 = pt.tracker(plume_logging_path,
+                                                                      plume_geom_utm,
+                                                                      plume_geom_geo,
+                                                                      pp,
+                                                                      current_timestamp)
         except Exception, e:
             logger.error(str(e))
             continue
-        ut.process_plume(t_start, t_stop, time_for_plume,
-                         pp, plume_data_utm, plume_geom_utm, plume_geom_geo, plume_logging_path, p_number, df_list)
 
-    # dump data to csv via df
-    df = pd.concat(df_list)
-    df.to_csv(pp['df_output_path'])
+
+
 
 
 if __name__ == "__main__":
