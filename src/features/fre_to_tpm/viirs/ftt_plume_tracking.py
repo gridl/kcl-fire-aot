@@ -444,7 +444,7 @@ def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
 
     current_tracked_plume_distance = 0
     velocity = []
-    for i in xrange(len(flow_images)):
+    for i in xrange(6):  # look at the last hour of data
 
         # again skip first image
         if i == 0:
@@ -468,9 +468,10 @@ def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
         plume_flow_y *= -1
 
         # project flow onto principle axis
-        projected_flow = np.dot(plume_vector, (plume_flow_x, plume_flow_y)) / \
-                         np.dot(plume_vector, plume_vector) * plume_vector
-        distance_travelled = np.linalg.norm(projected_flow)
+        # projected_flow = np.dot(plume_vector, (plume_flow_x, plume_flow_y)) / \
+        #                  np.dot(plume_vector, plume_vector) * plume_vector
+        # distance_travelled = np.linalg.norm(projected_flow)
+        distance_travelled = np.linalg.norm((plume_flow_x, plume_flow_y))
 
         current_tracked_plume_distance += distance_travelled
 
