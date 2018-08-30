@@ -383,31 +383,6 @@ def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
     # determine window size as a function of the smallest axis of the plume polygon exterior
     #flow_win_size = compute_flow_window_size(plume_geom_utm)
 
-    #debugging (sample 10)
-    # plume_head = {'head_lon': 105.768,
-    #               'head_lat': -3.6522000000000001,
-    #               'head': Point(585289.3219849318, -403719.7335083968)}
-    # plume_tail = {'tail_lon': 105.528197981,
-    #               'tail_lat': -3.5636228943654014,
-    #               'tail': Point(558663.1513466833, -393909.3069177557)}
-    # plume_vector = (np.array(plume_head['head'].coords) - np.array(plume_tail['tail'].coords))[0]
-
-    # # debugging (Sample 0)
-    # plume_head = {'head_lon': 109.866714286,
-    #               'head_lat': -0.122336857143,
-    #               'head': Point(373885.6806800505, -13524.56202022398)}
-    # plume_tail = {'tail_lon': 109.923726033,
-    #               'tail_lat': -0.0159914163829,
-    #               'tail': Point(380230.5675357762, -1767.845983245829)}
-    # plume_vector = (np.array(plume_head['head'].coords) - np.array(plume_tail['tail'].coords))[0]
-
-    # if plume_head is None:
-    #     t1 = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[0]).group(),
-    #                            '%Y%m%d_%H%M')
-    #     t2 = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[-1]).group(),
-    #                            '%Y%m%d_%H%M')
-    #     return None, geostationary_fnames[:], t1, t2
-    #
     # plume length in metres
     plume_length = np.linalg.norm(plume_vector)
 
@@ -441,22 +416,12 @@ def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
         #scene_flow = ndimage.filters.median_filter(scene_flow, 2)
         flows.append(scene_flow)
 
-        # convert image flow into UTM flow
-        #utm_flow = adjust_image_map_coordinates(scene_flow)
-
-        #vis.save_im(flow_images[i - 1], plume_logging_path, 't0')
-        #vis.save_im(flow_images[i], plume_logging_path, 't-1')
-        # vis.draw_flow(flow_images[i - 1], scene_flow, plume_logging_path, geostationary_fnames[i - 1], 'test')
-        #
-
-        #
         plume_flow_x, plume_flow_y = extract_plume_flow(plume_geom_geo, plume_geom_utm, flow_images[i-1], scene_flow,
                                                         plume_vector, plume_head, plume_tail,
                                                         plume_logging_path, geostationary_fnames[i-1],
                                                         'prior_flow_', plot=pp['plot'])
 
-        # if i == 1:
-        #     break
+
         # adust flow for utm
         plume_flow_y *= -1
 
@@ -467,8 +432,6 @@ def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
         if (((plume_length - current_tracked_plume_distance) < constants.utm_grid_size) |
                 (current_tracked_plume_distance > plume_length)):
             break
-
-    #return
 
     # repeat first flow as best estimate
     flows.insert(0, flows[0])
@@ -494,9 +457,6 @@ def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
                                                   winsize=flow_win_size, iterations=3,
                                                   poly_n=7, poly_sigma=1.4,
                                                   flags=cv2.OPTFLOW_USE_INITIAL_FLOW + cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
-
-        # convert image flow into UTM flow
-        #utm_flow = adjust_image_map_coordinates(scene_flow)
 
         # we should not do this for the second round, as have already applied it in the first.  Instead
         # just mask to plume and take the mean and sd as the values
