@@ -483,7 +483,7 @@ def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
             t = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[i-1]).group(), '%Y%m%d_%H%M')
             plot_fires.append(ff.fire_locations_for_plume_roi(plume_geom_geo, pp['frp_df'], t))
             plume_flows.append((plume_flow_x, plume_flow_y))
-            projected_flows.append(projected_flow)
+            projected_flows.append((plume_flow_x, plume_flow_y))
 
         print current_tracked_plume_distance
         print plume_length
@@ -505,11 +505,19 @@ def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
 
     # get the plume start and stop times
     t_start = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[0]).group(), '%Y%m%d_%H%M')
-    t_stop = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[i]).group(), '%Y%m%d_%H%M')
+
     #mean_velocity = np.mean(velocity)
     #time_for_plume = plume_length / mean_velocity
     max_velocity = np.max(velocity)
-    time_for_plume = plume_length / max_velocity
+    time_for_plume = plume_length / max_velocity  # in seconds
+
+    t_stop = t_start - datetime.timedelta(seconds=time_for_plume)
+
+    # round to nearest 10 minutes
+    t_stop += datetime.timedelta(minutes=5)
+    t_stop -= datetime.timedelta(minutes=t_stop.minute % 10,
+                                 seconds=t_stop.second,
+                                 microseconds=t_stop.microsecond)
 
     #print 'plume velocity m/s', mean_velocity
     print 'plume velocity m/s', max_velocity
