@@ -141,6 +141,9 @@ def compute_plume_vector(plume_geom_geo, plume_geom_utm, pp, t):
     # head = np.array(pv.coords[1])
 
     head_dict = find_plume_head(plume_geom_geo, plume_geom_utm, pp, t)
+
+
+    # TODO change how plume tail is determined using new data (first need to redigitise)
     tail_dict = find_plume_tail(head_dict['head'],
                                      plume_geom_utm, plume_geom_geo)
 

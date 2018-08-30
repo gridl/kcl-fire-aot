@@ -410,7 +410,6 @@ def main():
                 append_to_list(pp, bp, pt, t, viirs_sdr_fname, plumes_list)
 
             # covert pixel/background lists to dataframes and concatenate to main dataframes
-            print plumes_list
             temp_plume_df = pd.DataFrame(plumes_list)
             viirs_plume_df = pd.concat([viirs_plume_df, temp_plume_df])
             viirs_plume_df.to_pickle(fp.plume_polygon_path)

@@ -171,7 +171,8 @@ def read_plume_polygons(path):
     except Exception, e:
         logger.warning('Could not load pickle with error:' + str(e) + ' ...attempting to load csv')
         df = pd.read_csv(path, quotechar='"', sep=',', converters={'plume_extent': ast.literal_eval,
-                                                                   'background_extent': ast.literal_eval})
+                                                                   'background_extent': ast.literal_eval,
+                                                                   'plume_tail': ast.literal_eval})
     return df
 
 
@@ -285,6 +286,10 @@ def construct_shapely_vector(bounding_lats, bounding_lons):
     return LineString(zip(bounding_lons[0:2], bounding_lats[0:2]))
 
 
+def construct_shapely_point(bounding_lat, bounding_lon):
+    return Point(bounding_lon, bounding_lat)
+
+
 def reproject_shapely(shapely_object, utm_resampler):
     project = partial(
         pyproj.transform,
@@ -367,12 +372,17 @@ def setup_plume_data(plume, ds_utm):
         poly_lats, poly_lons = extract_subset_geo_bounds(plume.plume_extent, d['plume_bounding_box'],
                                                             d['plume_lats'], d['plume_lons'])
 
+        # get tail point
+        tail_lat, tail_lon = extract_subset_geo_bounds(plume.plume_tail, d['plume_bounding_box'],
+                                                            d['plume_lats'], d['plume_lons'])
+
         # get plume mask
         d['plume_mask'] = construct_mask(plume.plume_extent, d['plume_bounding_box'])
 
         # setup shapely objects for plume geo data
         d['plume_points'] = construct_shapely_points(poly_lats, poly_lons)
         d['plume_polygon'] = construct_shapely_polygon(poly_lats, poly_lons)
+        d['plume_tail'] = construct_shapely_point(tail_lat, tail_lon)
 
         d['background_bounding_box'] = construct_bounding_box(plume.background_extent)
         d['background_mask'] = construct_mask(plume.background_extent, d['background_bounding_box'])
@@ -415,6 +425,7 @@ def resample_plume_geom_to_utm(plume_geom_geo):
                                                 constants.utm_grid_size)
     d['utm_plume_points'] = reproject_shapely(plume_geom_geo['plume_points'], d['utm_resampler_plume'])
     d['utm_plume_polygon'] = reproject_shapely(plume_geom_geo['plume_polygon'], d['utm_resampler_plume'])
+    d['utm_plume_tail'] = reproject_shapely(plume_geom_geo['plume_tail'], d['utm_resampler_plume'])
     return d
 
 
