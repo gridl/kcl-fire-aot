@@ -1,7 +1,7 @@
 # load in required packages
 import glob
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 import re
 
@@ -390,7 +390,7 @@ def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
     flow_images = []
     flows = []
     current_tracked_plume_distance = 0
-    for i in xrange(len(geostationary_fnames) - 1):
+    for i in xrange(6):
 
         im_subset = load_image(geostationary_fnames[i], bbox, him_segment)
         im_subset_reproj = reproject_image(im_subset, him_geo_dict, plume_geom_utm)
@@ -425,10 +425,10 @@ def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
         # adust flow for utm
         plume_flow_y *= -1
 
-        projected_flow = np.dot(plume_vector, (plume_flow_x, plume_flow_y)) / \
-                         np.dot(plume_vector, plume_vector) * plume_vector
+        # projected_flow = np.dot(plume_vector, (plume_flow_x, plume_flow_y)) / \
+        #                  np.dot(plume_vector, plume_vector) * plume_vector
 
-        current_tracked_plume_distance += np.linalg.norm(projected_flow)
+        current_tracked_plume_distance += np.linalg.norm((plume_flow_x, plume_flow_y))
         if (((plume_length - current_tracked_plume_distance) < constants.utm_grid_size) |
                 (current_tracked_plume_distance > plume_length)):
             break
@@ -493,16 +493,6 @@ def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
                 (current_tracked_plume_distance > plume_length)):
             break
 
-    if pp['plot']:
-        plot_images = flow_images[:i+1]
-        plot_names = geostationary_fnames[:i+1]
-        t = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[i]).group(), '%Y%m%d_%H%M')
-        plot_fires.append(ff.fire_locations_for_plume_roi(plume_geom_geo, pp['frp_df'], t))
-
-        vis.run_plot(plot_images, plot_fires, plume_flows, projected_flows,
-                     plume_head, plume_tail, plume_geom_utm['utm_plume_points'], plume_geom_utm['utm_resampler_plume'],
-                     plume_logging_path, plot_names, i+1)
-
     # get the plume start and stop times
     t_start = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[0]).group(), '%Y%m%d_%H%M')
 
@@ -514,8 +504,8 @@ def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
     t_stop = t_start - datetime.timedelta(seconds=time_for_plume)
 
     # round to nearest 10 minutes
-    t_stop += datetime.timedelta(minutes=5)
-    t_stop -= datetime.timedelta(minutes=t_stop.minute % 10,
+    t_stop += timedelta(minutes=5)
+    t_stop -= timedelta(minutes=t_stop.minute % 10,
                                  seconds=t_stop.second,
                                  microseconds=t_stop.microsecond)
 
@@ -525,6 +515,18 @@ def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
     print t_start
     print t_stop
     print
+
+    if pp['plot']:
+        n = np.round(time_for_plume / 600)
+        plot_images = flow_images[:n+1]
+        plot_names = geostationary_fnames[:n+1]
+        t = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[n]).group(), '%Y%m%d_%H%M')
+        plot_fires.append(ff.fire_locations_for_plume_roi(plume_geom_geo, pp['frp_df'], t))
+
+        vis.run_plot(plot_images, plot_fires, plume_flows, projected_flows,
+                     plume_head, plume_tail, plume_geom_utm['utm_plume_points'], plume_geom_utm['utm_resampler_plume'],
+                     plume_logging_path, plot_names, n+1)
+
 
     # return the projected flow means in UTM coords, and the list of himawari filenames asspocated with the flows
     return projected_flows[:i], geostationary_fnames[:i], t_start, t_stop, time_for_plume
