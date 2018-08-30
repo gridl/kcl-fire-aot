@@ -280,7 +280,7 @@ def digitise(tcc, viirs_aod, viirs_flags, orac_aod, orac_cost, viirs_fname):
         # get the polygon points from the closed image, only keep if plume and background polygons
         plume_pts = zip(annotator.plume_x, annotator.plume_y)
         background_pts = zip(annotator.background_x, annotator.background_y)
-        tail_pts = annotator.tail_x, annotator.tail_y
+        tail_pts = (annotator.tail_x, annotator.tail_y)
 
         if plume_pts and background_pts:
             plume_polygons.append(plume_pts)

@@ -20,7 +20,7 @@ def proc_params():
     d['plot'] = True
 
     d['resampled_pix_size'] = 750  # size of UTM grid in meters
-    d['frp_df'] = ut.read_frp_df(fp.path_to_himawari_frp)
+    #d['frp_df'] = ut.read_frp_df(fp.path_to_himawari_frp)
     d['plume_df'] = ut.read_plume_polygons(fp.plume_polygon_path_csv)
 
     geo_file = os.path.join(fp.path_to_himawari_imagery, 'Himawari_lat_lon.img')

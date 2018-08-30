@@ -46,41 +46,32 @@ def find_plume_head(plume_geom_geo, plume_geom_utm, pp, t):
             'head': mean_fire_utm}
 
 
-def find_tail_edge(head, plume_geom_utm):
+def find_tail_edge(plume_geom_utm):
 
     # convex hull of plume
     x, y = plume_geom_utm['utm_plume_points'].minimum_rotated_rectangle.exterior.xy
 
     # get parallel edges of convex hull
-    edge_pair_a = [LineString([(x[0], y[0]), (x[1], y[1])]),
-                   LineString([(x[2], y[2]), (x[3], y[3])])]
+    edge_a = LineString([(x[0], y[0]), (x[1], y[1])])
+    edge_b = LineString([(x[2], y[2]), (x[3], y[3])])
+    edge_c = LineString([(x[1], y[1]), (x[2], y[2])])
+    edge_d = LineString([(x[3], y[3]), (x[4], y[4])])
+
     edge_pair_b = [LineString([(x[1], y[1]), (x[2], y[2])]),
                    LineString([(x[3], y[3]), (x[4], y[4])])]
 
-    # distance between edges and head of fire
-    distances_pair_a = [head.distance(i) for i in edge_pair_a]
-    distances_pair_b = [head.distance(i) for i in edge_pair_b]
+    edges = [edge_a, edge_b, edge_c, edge_d]
+    distances = [plume_geom_utm['utm_plume_tail'].distance(i) for i in edges]
 
-    # compute the ratios between the distances.  A larger ratio will
-    # indicate the longest axis (perhaps change this to most extreme ratio)
-    ratios_pair_a = np.divide(distances_pair_a, distances_pair_a[::-1])
-    ratios_pair_b = np.divide(distances_pair_b, distances_pair_b[::-1])
-
-    # find the largest ratio
-    argmax_a = np.argmax(ratios_pair_a)
-    argmax_b = np.argmax(ratios_pair_b)
-
-    # select side most distant from plume for side pair with largest ratio
-    if ratios_pair_a[argmax_a] > ratios_pair_b[argmax_b]:
-        return edge_pair_a[np.argmax(distances_pair_a)]
-    else:
-        return edge_pair_b[np.argmax(distances_pair_b)]
+    return edges[np.argmin(distances)]
 
 
-def find_plume_tail(head, plume_geom_utm, plume_geom_geo):
+
+
+def find_plume_tail(head, plume_geom_utm):
 
     # find tail edge
-    tail_edge = find_tail_edge(head, plume_geom_utm)
+    tail_edge = find_tail_edge(plume_geom_utm)
 
     # check all pixels on tail edge.  If all background, then
     # plume finishes before edge.  Iterate over lat/lon in
@@ -140,7 +131,7 @@ def compute_plume_vector(plume_geom_geo, plume_geom_utm, pp, t):
     # tail = np.array(pv.coords[0])
     # head = np.array(pv.coords[1])
 
-    head_dict = find_plume_head(plume_geom_geo, plume_geom_utm, pp, t)
+    #head_dict = find_plume_head(plume_geom_geo, plume_geom_utm, pp, t)
 
 
     # TODO change how plume tail is determined using new data (first need to redigitise)

@@ -265,7 +265,10 @@ def construct_mask(e, bounds):
 
 def extract_subset_geo_bounds(ext, bounds, lats, lons):
     # adjust plume extent for the subset
-    extent = [[x - bounds['min_x'], y - bounds['min_y']] for x, y in ext]
+    if len(ext) > 2:
+        extent = [[x - bounds['min_x'], y - bounds['min_y']] for x, y in ext]
+    else:
+        extent = zip(ext[0] - bounds['min_x'], ext[1] - bounds['min_y'])
 
     # when digitising points are appended (x,y).  However, arrays are accessed
     # in numpy as row, col which is y, x.  So we need to switch
@@ -287,7 +290,7 @@ def construct_shapely_vector(bounding_lats, bounding_lons):
 
 
 def construct_shapely_point(bounding_lat, bounding_lon):
-    return Point(bounding_lon, bounding_lat)
+    return Point(bounding_lon[0], bounding_lat[0])
 
 
 def reproject_shapely(shapely_object, utm_resampler):
