@@ -66,56 +66,12 @@ def find_tail_edge(plume_geom_utm):
     return edges[np.argmin(distances)]
 
 
-
-
 def find_plume_tail(head, plume_geom_utm):
 
     # find tail edge
     tail_edge = find_tail_edge(plume_geom_utm)
 
-    # check all pixels on tail edge.  If all background, then
-    # plume finishes before edge.  Iterate over lat/lon in
-    # plume, project and compute distance to line
-    # aods = []
-    # flags = []
-    # flat_lats = plume_geom_geo['plume_lats'].flatten()
-    # flat_lons = plume_geom_geo['plume_lons'].flatten()
-    # flat_aods = plume_geom_geo['plume_aod'].flatten()
-    # flat_flags = plume_geom_geo['plume_flag'].flatten()
-    # for i, (lon, lat) in enumerate(zip(flat_lons, flat_lats)):
-    #     utm_point = ut.reproject_shapely(Point(lon, lat), plume_geom_utm['utm_resampler_plume'])
-    #     dist_tail = utm_point.distance(tail_edge)
-    #     if dist_tail < 325: # half a viirs pixel
-    #         # get the aods and flags that intersect the line
-    #         aods.append(flat_aods[i])
-    #         flags.append(flat_flags[i])
-
-    # select appropriate processing to determine if plume
-    # finishes on edge or not.
-    # if np.min(flags) <= 1:
-    #     min_test = np.min(flags) <= 1
-    #     bg_mask = plume_geom_geo['bg_flag'] <= 1
-    #     bg_aod = plume_geom_geo['bg_aod'][bg_mask]
-    #     aod_test = np.mean(aods[flags <= 1]) <= (np.mean(bg_aod) + 2*np.std(bg_aod))
-    # else:
-    #     min_test = False
-    #     aod_test = False
-
-    # if no
-    # if np.max(flags) == 3:
-    #     # if the plume does intersect, the tail is point with the
-    #     # least distance from the edge
-    #     tail = tail_edge.interpolate(tail_edge.project(head))
-    #     tail_lon, tail_lat = plume_geom_utm['utm_resampler_plume'].resample_point_to_geo(tail.y, tail.x)
-    #     return {'tail_lon': tail_lon,
-    #             'tail_lat': tail_lat,
-    #             'tail': tail}
-    # else:
-    #     # in this instance the plume does not intersect with the end of
-    #     # bounding box.  So we can assume that the frp that produced the
-    #     # observed plume all occurred since the last minimum.
-    #     return None
-
+    # using head, project it on to the tail edge to find plume tail for purposes of the code
     tail = tail_edge.interpolate(tail_edge.project(head))
     tail_lon, tail_lat = plume_geom_utm['utm_resampler_plume'].resample_point_to_geo(tail.y, tail.x)
     return {'tail_lon': tail_lon,
