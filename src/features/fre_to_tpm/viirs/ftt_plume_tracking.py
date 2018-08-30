@@ -57,9 +57,6 @@ def find_tail_edge(plume_geom_utm):
     edge_c = LineString([(x[1], y[1]), (x[2], y[2])])
     edge_d = LineString([(x[3], y[3]), (x[4], y[4])])
 
-    edge_pair_b = [LineString([(x[1], y[1]), (x[2], y[2])]),
-                   LineString([(x[3], y[3]), (x[4], y[4])])]
-
     edges = [edge_a, edge_b, edge_c, edge_d]
     distances = [plume_geom_utm['utm_plume_tail'].distance(i) for i in edges]
 
@@ -84,19 +81,8 @@ def compute_plume_vector(plume_geom_geo, plume_geom_utm, pp, t):
     # second cehck if one of the heads is outside of the bounding polygon
     # if both inside find the orientation of the rectangle
 
-    # tail = np.array(pv.coords[0])
-    # head = np.array(pv.coords[1])
-
-    #head_dict = find_plume_head(plume_geom_geo, plume_geom_utm, pp, t)
-
-
-    # TODO change how plume tail is determined using new data (first need to redigitise)
-    tail_dict = find_plume_tail(head_dict['head'],
-                                     plume_geom_utm, plume_geom_geo)
-
-    if tail_dict is None:
-        return None, None, None
-
+    head_dict = find_plume_head(plume_geom_geo, plume_geom_utm, pp, t)
+    tail_dict = find_plume_tail(head_dict['head'], plume_geom_utm)
     vect = np.array(head_dict['head'].coords) - np.array(tail_dict['tail'].coords)
     return head_dict, tail_dict, vect[0]
 
