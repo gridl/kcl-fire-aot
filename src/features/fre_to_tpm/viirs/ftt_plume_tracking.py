@@ -117,15 +117,19 @@ def spatial_subset(lats_1, lons_1, lats_2, lons_2):
     coords = np.where((lats_2 >= min_lat) & (lats_2 <= max_lat) &
                       (lons_2 >= min_lon) & (lons_2 <= max_lon))
 
-    min_x = np.min(coords[1])
-    max_x = np.max(coords[1])
-    min_y = np.min(coords[0])
-    max_y = np.max(coords[0])
+    min_x = np.min(coords[1]) - padding
+    max_x = np.max(coords[1]) + padding
+    min_y = np.min(coords[0]) - padding
+    max_y = np.max(coords[0]) + padding
 
-    return {'max_x': max_x + padding,
-            'min_x': min_x - padding,
-            'max_y': max_y + padding,
-            'min_y': min_y - padding}
+    if min_x < 0: min_x = 50
+    if min_y < 0: min_y = 50
+    # todo implement an appropriate max threshold
+
+    return {'max_x': max_x,
+            'min_x': min_x,
+            'max_y': max_y,
+            'min_y': min_y}
 
 
 def subset_geograpic_data(geostationary_lats, geostationary_lons, bb):
@@ -287,26 +291,25 @@ def angle_between(v1, v2):
 def extract_plume_flow(plume_geom_geo, plume_geom_utm, f1_subset_reproj, flow,
                        plume_vector, plume_head, plume_tail,
                        plume_logging_path, fname, stage_name, plot=True):
-    # plume_mask = plume_geom_geo['plume_mask']
-    #
-    # # if plume mask not same shape as himawari subset them
-    # # adjust it to match.  Exact overlay doesn't matter as
-    # # we are looking for average plume motion
-    # if plume_mask.shape != f1_subset_reproj.shape:
-    #     if plume_mask.size < f1_subset_reproj.size:
-    #         ax0_diff = f1_subset_reproj.shape[0] - plume_mask.shape[0]
-    #         ax0_pad = (ax0_diff, 0)  # padding n_before, n_after.  n_after always zero
-    #         ax1_diff = f1_subset_reproj.shape[1] - plume_mask.shape[1]
-    #         ax1_pad = (ax1_diff, 0)
-    #         plume_mask = np.pad(plume_mask, (ax0_pad, ax1_pad), 'edge')
-    #     else:
-    #         plume_mask = plume_mask[:f1_subset_reproj.shape[0], :f1_subset_reproj.shape[1]]
-    #
-    # # mask flow to plume extent and invert
-    # # the x displacements.
-    # flow *= plume_mask[..., np.newaxis]
+    plume_mask = plume_geom_geo['plume_mask']
 
+    # if plume mask not same shape as himawari subset them
+    # adjust it to match.  Exact overlay doesn't matter as
+    # we are looking for average plume motion
+    if plume_mask.shape != f1_subset_reproj.shape:
+        if plume_mask.size < f1_subset_reproj.size:
+            ax0_diff = f1_subset_reproj.shape[0] - plume_mask.shape[0]
+            ax0_pad = (ax0_diff, 0)  # padding n_before, n_after.  n_after always zero
+            ax1_diff = f1_subset_reproj.shape[1] - plume_mask.shape[1]
+            ax1_pad = (ax1_diff, 0)
+            plume_mask = np.pad(plume_mask, (ax0_pad, ax1_pad), 'edge')
+        else:
+            plume_mask = plume_mask[:f1_subset_reproj.shape[0], :f1_subset_reproj.shape[1]]
 
+    # mask flow to plume extent
+    flow *= plume_mask[..., np.newaxis]
+
+    # now limit to only vectors in general flow direction
     angles = angle_between(flow.copy(), plume_vector)
     angular_mask = angles <= constants.angular_limit
     flow *= angular_mask[..., np.newaxis]
@@ -358,15 +361,13 @@ def extract_plume_flow(plume_geom_geo, plume_geom_utm, f1_subset_reproj, flow,
     return plume_flow
 
 
-def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
+def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp, p_number):
 
     # get bounding box around smoke plume in geostationary imager coordinates
     # and extract the geographic coordinates for the roi, also set up plot stuff
     bbox = spatial_subset(plume_geom_geo['plume_lats'], plume_geom_geo['plume_lons'],
                           pp['geostationary_lats'], pp['geostationary_lons'])
-
     him_geo_dict = subset_geograpic_data(pp['geostationary_lats'], pp['geostationary_lons'], bbox)
-
     him_segment = find_min_himawari_image_segment(bbox)
     adjust_bb_for_segment(bbox, him_segment - 1)
 
@@ -388,7 +389,7 @@ def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
 
     # a priori flow determination
     flow_images = []
-    flows = []
+    prior_flows = []
     current_tracked_plume_distance = 0
     for i in xrange(6):
 
@@ -414,7 +415,7 @@ def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
 
         # lets do an additional median smoothing here and store flows
         #scene_flow = ndimage.filters.median_filter(scene_flow, 2)
-        flows.append(scene_flow)
+        prior_flows.append(scene_flow)
 
         plume_flow_x, plume_flow_y = extract_plume_flow(plume_geom_geo, plume_geom_utm, flow_images[i-1], scene_flow,
                                                         plume_vector, plume_head, plume_tail,
@@ -434,16 +435,11 @@ def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
             break
 
     # repeat first flow as best estimate
-    flows.insert(0, flows[0])
-
-    # a posteriori flow determination
-    if pp['plot']:
-        plot_fires = []
-        plume_flows = []
-        projected_flows = []
+    prior_flows.insert(0, prior_flows[0])
 
     current_tracked_plume_distance = 0
-    velocity = []
+    velocities = []
+    post_flows = []
     for i in xrange(6):  # look at the last hour of data
 
         # again skip first image
@@ -452,10 +448,10 @@ def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
 
         # prev, next, flow, pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags
         scene_flow = cv2.calcOpticalFlowFarneback(flow_images[i-1], flow_images[i],
-                                                  flow=flows[i-1],
+                                                  flow=prior_flows[i-1],
                                                   pyr_scale=0.5, levels=1,
-                                                  winsize=flow_win_size, iterations=3,
-                                                  poly_n=7, poly_sigma=1.4,
+                                                  winsize=flow_win_size, iterations=7,
+                                                  poly_n=7, poly_sigma=1.5,
                                                   flags=cv2.OPTFLOW_USE_INITIAL_FLOW + cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
 
         # we should not do this for the second round, as have already applied it in the first.  Instead
@@ -471,19 +467,13 @@ def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
         # projected_flow = np.dot(plume_vector, (plume_flow_x, plume_flow_y)) / \
         #                  np.dot(plume_vector, plume_vector) * plume_vector
         # distance_travelled = np.linalg.norm(projected_flow)
-        distance_travelled = np.linalg.norm((plume_flow_x, plume_flow_y))
 
+        post_flows.append((plume_flow_x, plume_flow_y))
+        distance_travelled = np.linalg.norm((plume_flow_x, plume_flow_y))
         current_tracked_plume_distance += distance_travelled
 
         # record the the velocity in the plume direction
-        velocity.append(distance_travelled / 600)  # gives velocity in m/s (600 seconds between images)
-
-
-        if pp['plot']:
-            t = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[i-1]).group(), '%Y%m%d_%H%M')
-            plot_fires.append(ff.fire_locations_for_plume_roi(plume_geom_geo, pp['frp_df'], t))
-            plume_flows.append((plume_flow_x, plume_flow_y))
-            projected_flows.append((plume_flow_x, plume_flow_y))
+        velocities.append(distance_travelled / 600)  # gives velocity in m/s (600 seconds between images)
 
         print current_tracked_plume_distance
         print plume_length
@@ -498,10 +488,11 @@ def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
 
     #mean_velocity = np.mean(velocity)
     #time_for_plume = plume_length / mean_velocity
-    max_velocity = np.max(velocity)
+    max_velocity_index = np.argmax(velocities)
+    max_flow = post_flows[max_velocity_index]
+    max_velocity = velocities[max_velocity_index]
     time_for_plume = plume_length / max_velocity  # in seconds
-
-    t_stop = t_start - datetime.timedelta(seconds=time_for_plume)
+    t_stop = t_start - timedelta(seconds=time_for_plume)
 
     # round to nearest 10 minutes
     t_stop += timedelta(minutes=5)
@@ -516,17 +507,12 @@ def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp):
     print t_stop
     print
 
-    if pp['plot']:
-        n = np.round(time_for_plume / 600)
-        plot_images = flow_images[:n+1]
-        plot_names = geostationary_fnames[:n+1]
-        t = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[n]).group(), '%Y%m%d_%H%M')
-        plot_fires.append(ff.fire_locations_for_plume_roi(plume_geom_geo, pp['frp_df'], t))
-
-        vis.run_plot(plot_images, plot_fires, plume_flows, projected_flows,
+    if (pp['plot']) & (p_number > 13):
+        n = int(time_for_plume / 600)
+        vis.run_plot(max_flow, geostationary_fnames, plume_geom_geo, pp, bbox, him_segment, him_geo_dict, plume_geom_utm,
                      plume_head, plume_tail, plume_geom_utm['utm_plume_points'], plume_geom_utm['utm_resampler_plume'],
-                     plume_logging_path, plot_names, n+1)
+                     plume_logging_path, n+1)
 
 
-    # return the projected flow means in UTM coords, and the list of himawari filenames asspocated with the flows
-    return projected_flows[:i], geostationary_fnames[:i], t_start, t_stop, time_for_plume
+    # return the times
+    return t_start, t_stop, time_for_plume

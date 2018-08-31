@@ -44,7 +44,7 @@ def main():
     for p_number, plume in pp['plume_df'].iterrows():
 
         #
-        #if p_number not in [36]:
+        # if p_number not in [13]:
         #     continue
 
         # make a directory to hold the plume logging information
@@ -78,15 +78,16 @@ def main():
         plume_geom_utm = ut.resample_plume_geom_to_utm(plume_geom_geo)
 
         # get start stop times
-        try:
-            utm_flow_means, geostationary_fnames, t_start, t_stop, time_for_plume = pt.tracker(plume_logging_path,
-                                                                                               plume_geom_utm,
-                                                                                               plume_geom_geo,
-                                                                                               pp,
-                                                                                               current_timestamp)
-        except Exception, e:
-            logger.error(str(e))
-            continue
+        # try:
+        t_start, t_stop, time_for_plume = pt.tracker(plume_logging_path,
+                                                     plume_geom_utm,
+                                                     plume_geom_geo,
+                                                     pp,
+                                                     current_timestamp,
+                                                     p_number)
+        # except Exception, e:
+        #    logger.error(str(e))
+        #    continue
         ut.process_plume(t_start, t_stop, time_for_plume,
                          pp, plume_data_utm, plume_geom_utm, plume_geom_geo, plume_logging_path, p_number, df_list)
 
