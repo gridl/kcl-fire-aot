@@ -79,16 +79,16 @@ def main():
 
         # get start stop times
         # try:
-        t_start, t_stop, time_for_plume = pt.tracker(plume_logging_path,
-                                                     plume_geom_utm,
-                                                     plume_geom_geo,
-                                                     pp,
-                                                     current_timestamp,
-                                                     p_number)
+        t_start, t_stop, time_for_plume, plume_length, mean_velocity = pt.tracker(plume_logging_path,
+                                                                                  plume_geom_utm,
+                                                                                  plume_geom_geo,
+                                                                                  pp,
+                                                                                  current_timestamp,
+                                                                                  p_number)
         # except Exception, e:
         #    logger.error(str(e))
         #    continue
-        ut.process_plume(t_start, t_stop, time_for_plume,
+        ut.process_plume(t_start, t_stop, time_for_plume, plume_length, mean_velocity,
                          pp, plume_data_utm, plume_geom_utm, plume_geom_geo, plume_logging_path, p_number, df_list)
 
     # dump data to csv via df

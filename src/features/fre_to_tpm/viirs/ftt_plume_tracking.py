@@ -381,9 +381,6 @@ def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp, p
                           '%Y%m%d_%H%M')
     plume_head, plume_tail, plume_vector = compute_plume_vector(plume_geom_geo, plume_geom_utm, pp, t0)
 
-    # determine window size as a function of the smallest axis of the plume polygon exterior
-    #flow_win_size = compute_flow_window_size(plume_geom_utm)
-
     # plume length in metres
     plume_length = np.linalg.norm(plume_vector)
 
@@ -491,6 +488,11 @@ def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp, p
     max_velocity_index = np.argmax(velocities)
     max_flow = post_flows[max_velocity_index]
     max_velocity = velocities[max_velocity_index]
+
+    #print post_flows
+    #mean_flow = np.mean(post_flows, axis=0)
+    #mean_velocity = np.mean(velocities)
+
     time_for_plume = plume_length / max_velocity  # in seconds
     t_stop = t_start - timedelta(seconds=time_for_plume)
 
@@ -505,9 +507,10 @@ def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp, p
     print 'time for plume s', time_for_plume
     print t_start
     print t_stop
-    print
+    print max_flow
 
-    if (pp['plot']) & (p_number > 13):
+
+    if (pp['plot']):
         n = int(time_for_plume / 600)
         vis.run_plot(max_flow, geostationary_fnames, plume_geom_geo, pp, bbox, him_segment, him_geo_dict, plume_geom_utm,
                      plume_head, plume_tail, plume_geom_utm['utm_plume_points'], plume_geom_utm['utm_resampler_plume'],
@@ -515,4 +518,4 @@ def tracker(plume_logging_path, plume_geom_utm, plume_geom_geo, pp, timestamp, p
 
 
     # return the times
-    return t_start, t_stop, time_for_plume
+    return t_start, t_stop, time_for_plume, plume_length, max_velocity
