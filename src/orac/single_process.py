@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python2.7
 # Run preprocessor for ORAC community code
 # 16 Feb 2016, AP: Initial version
 # 24 Jun 2016, AP: P2.7 rewrite
@@ -7,7 +7,11 @@
 # 25 Apr 2018. AP: Tidy code more sensibly into a module
 
 from argparse import ArgumentParser
-#from pyorac.arguments import *
+import sys
+print(sys.version)
+
+
+from pyorac.arguments import *
 from pyorac.colour_print import colour_print
 from pyorac.definitions import COLOURING, FileName, OracError, OracWarning
 from pyorac.local_defaults import log_dir
