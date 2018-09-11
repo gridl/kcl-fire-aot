@@ -24,14 +24,15 @@ def run_pre(pp):
     viirs_files = glob.glob(pp.data_dir + 'SVM01*')
 
     for input_file_path in viirs_files:
-	print input_file_path
         output_file_path = os.path.join(pp.output_dir, 'pre')
 
         if not os.path.exists(output_file_path):
             os.makedirs(output_file_path)
 
         # call ORAC preproc
-        pre_cmd = input_file_path
+        pre_cmd = input_file_path \
+                  + ' -o ' + output_file_path \
+                  + ' -r ' + '0'
         os.system('./single_process.py ' + pre_cmd)
 
 
