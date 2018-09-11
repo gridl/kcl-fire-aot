@@ -31,11 +31,7 @@ def run_pre(pp):
             os.makedirs(output_file_path)
 
         # call ORAC preproc
-        pre_cmd = '-i ' + input_file_path \
-                  + ' -o ' + output_file_path \
-                  + ' -c 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 ' \
-                  + ' --skip_ecmwf_hr ' \
-                  #+ ' --batch '
+        pre_cmd = '-i ' + input_file_path
         os.system('./single_process.py ' + pre_cmd)
 
 
