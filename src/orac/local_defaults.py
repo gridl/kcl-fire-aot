@@ -21,7 +21,7 @@ mcd43c1_dir = '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/modis/MCD4
 nise_dir    = '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/ice_snow'
 occci_dir   = '/group_workspaces/jasmin2/aerosol_cci/aux/oceancolour_cci/geographic_iop_v2.0'
 orac_lib    = environ['ORAC_LIB']
-orac_trunk  = '/home/users/dnfisher/soft/orac/trunk'
+orac_trunk  = '/home/users/dnfisher/soft/orac_test/orac'
 spam_dir    = '/badc/ecmwf-era-interim/data/sp/am'
 usgs_file   = '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/dem/Aux_file_CM_SAF_AVHRR_GAC_ori_0.05deg.nc'
 
