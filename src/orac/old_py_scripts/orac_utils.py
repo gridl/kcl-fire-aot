@@ -8,20 +8,20 @@
 # 20 Jul 2016, AP: Remove shell=True from subprocess calls.
 # 3  Aug 2016, SP: Fixed exception handling in the regression test function.
 
-import argparse
-import colours
 import copy
 import datetime
 import glob as glob
-import local_defaults as defaults
 import os
 import re
 import subprocess
 import sys
 import tempfile
 import time
-import warnings
 import uuid
+import warnings
+
+import colours
+import local_defaults as defaults
 
 # -----------------------------------------------------------------------------
 # ----- ERROR HANDLING CLASSES ------------------------------------------------
