@@ -7,9 +7,6 @@
 # 25 Apr 2018. AP: Tidy code more sensibly into a module
 
 from argparse import ArgumentParser
-import sys
-print(sys.version)
-
 
 from pyorac.arguments import *
 from pyorac.colour_print import colour_print
@@ -28,6 +25,7 @@ pars = ArgumentParser(description='Run one part of ORAC on a given file. Note '
                       'that this *DOES NOT* consider default settings for each '
                       'aerosol phase.')
 pars.add_argument('target', type=str, help = 'File to be processed.')
+
 args_common(pars)
 args_cc4cl(pars)
 args_preproc(pars)
