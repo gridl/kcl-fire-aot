@@ -506,7 +506,7 @@ class FileName:
                       'b(?P<orbit>\d{5})_'
                       'c(?P<proc_time>\d{20})_noaa_ops.h5', filename)
         if m:
-            self.sensor = 'VIIRS'
+            self.sensor = 'VIIRSM'
             self.platform = 'NPP'
             self.inst = 'NPP'
             self.time = datetime.datetime(
@@ -651,7 +651,7 @@ map_wvl_to_inst = {
                              13.3, 13.6, 13.9, 14.2)),
     'SEVIRI': dict_from_list((0.67, 0.81, 1.64, 3.92, 6.25, 7.35,
                               8.7, 9.7, 11, 12, 13.3)),
-    'VIIRS': dict_from_list((0.41, 0.44, 0.49, 0.55, 0.67, 0.75, 0.87, 1.2,
+    'VIIRSM': dict_from_list((0.41, 0.44, 0.49, 0.55, 0.67, 0.75, 0.87, 1.2,
                              1.4, 1.6, 2.3, 3.7, 4.1, 8.6, 11, 12))
 }
 
@@ -1154,7 +1154,7 @@ def build_preproc_driver(args):
 
     inst = FileName(args.target)
     file = glob_dirs(args.in_dir, args.target, 'L1B file')
-    if (inst.sensor == 'MODIS') or (inst.sensor == 'VIIRS'):
+    if (inst.sensor == 'MODIS') or (inst.sensor == 'VIIRSM'):
         geo = glob_dirs(args.geo_dir, inst.geo, 'geolocation file')
     else:
         geo = glob_dirs(args.in_dir, inst.geo, 'geolocation file')

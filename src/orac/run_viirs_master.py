@@ -9,7 +9,7 @@ from datetime import datetime
 class ProcParams(object):
     def __init__(self):
         self.sensor = "viirs"
-        self.proc_level = 'pro'
+        self.proc_level = 'pre'
 
         self.data_dir = '/group_workspaces/jasmin2/nceo_aerosolfire/data/orac_proc/viirs/sdr/'
         self.geo_dir = '/group_workspaces/jasmin2/nceo_aerosolfire/data/orac_proc/viirs/geo/'
@@ -40,7 +40,7 @@ def run_pre(pp):
                   + ' -g ' + pp.geo_dir \
                   + ' -c 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 ' \
                   + ' --skip_ecmwf_hr ' \
-                  + ' --batch '
+                  #+ ' --batch '
         os.system('./orac_preproc.py ' + pre_cmd)
 
 
