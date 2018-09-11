@@ -31,7 +31,7 @@ def run_pre(pp):
             os.makedirs(output_file_path)
 
         # call ORAC preproc
-        pre_cmd = '-i ' + input_file_path
+        pre_cmd = input_file_path
         os.system('./single_process.py ' + pre_cmd)
 
 
