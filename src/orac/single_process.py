@@ -7,7 +7,7 @@
 # 25 Apr 2018. AP: Tidy code more sensibly into a module
 
 from argparse import ArgumentParser
-from pyorac.arguments import *
+#from pyorac.arguments import *
 from pyorac.colour_print import colour_print
 from pyorac.definitions import COLOURING, FileName, OracError, OracWarning
 from pyorac.local_defaults import log_dir
@@ -30,7 +30,6 @@ args_preproc(pars)
 args_main(pars)
 args_postproc(pars)
 args = pars.parse_args()
-
 
 check_args_common(args)
 check_args_cc4cl(args)
