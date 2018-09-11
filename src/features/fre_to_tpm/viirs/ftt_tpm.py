@@ -277,11 +277,8 @@ def compute_tpm_full(plume_data_utm, plume_geom_utm, plume_geom_geo, bg_aod_dict
         interpolated_aod_diff[interpolated_aod_diff < 0] = 0
 
         d['mean_plume_aod_bg_adjusted'] = np.mean(combined_aod_diff)
-        d['summed_plume_aod_bg_adjusted'] = np.sum(combined_aod_diff)
         d['std_plume_aod_bg_adjusted'] = np.std(combined_aod_diff)
         d['mean_interpolated_plume_aod_adjusted'] = np.mean(interpolated_aod_diff)
-        d['summed_interpolated_plume_aod_adjusted'] = np.sum(interpolated_aod_diff)
-
 
         # convert to mean PM using conversion factor
         plume_pm = d['mean_interpolated_plume_aod_adjusted'] / d['pm_factor']  # in g/m^2

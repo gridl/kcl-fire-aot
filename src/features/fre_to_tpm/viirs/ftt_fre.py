@@ -187,19 +187,12 @@ def compute_fre_full_plume(t_start, t_stop, time_for_plume,
         grouped_frp_subset = group_subset(frp_subset)
         grouped_frp_subset.to_csv(os.path.join(plume_logging_path, 'fires_grouped.csv'))
 
-        # integrate to get the fre as we are only doing one timestamp
-        # assume that the fires is burning the same for the next ten
-        # minutes
-        fre = integrate_frp(grouped_frp_subset)
-
-        # lets set up an alternative FRE using mean and multiplying by time in seconds for plume
+        # set up FRE using mean and multiplying by time in seconds for plume
         # (should be more accurate).
-        # alt_fre = grouped_frp_subset['FRP_0'].mean() * (grouped_frp_subset.index[-1] -
-        #                                                 grouped_frp_subset.index[0]).total_seconds()
-        alt_fre = grouped_frp_subset['FRP_0'].mean() * time_for_plume
+        fre = grouped_frp_subset['FRP_0'].mean() * time_for_plume
 
+        out_dict['mean_frp'] = grouped_frp_subset['FRP_0'].mean()
         out_dict['fre'] = fre
-        out_dict['alt_fre'] = alt_fre
         out_dict['mean_fire_confience'] = np.mean(grouped_frp_subset['FIRE_CONFIDENCE_mean'])
         out_dict['std_fire_confience'] = np.mean(grouped_frp_subset['FIRE_CONFIDENCE_std'])
 

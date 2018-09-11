@@ -7,10 +7,14 @@ import numpy as np
 from matplotlib.patheffects import Stroke
 import cv2
 import scipy.interpolate as interpolate
+from datetime import datetime
+import re
 
 import os
 
+import src.data.readers.load_hrit as load_hrit
 import src.config.filepaths as fp
+import src.features.fre_to_tpm.viirs.ftt_fre as ff
 
 
 def draw_str(dst, target, s):
@@ -253,10 +257,35 @@ def draw_flow(img, flow, path, fname, stage_name, step=2):
     plt.close()
 
 
+def extract_observation(f, bb, segment):
+    # load geostationary files for the segment
+    rad_segment_1, _ = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_imagery, f))
 
-def run_plot(plot_images, fires, flow_mean, projected_flow_mean,
+    # load for the next segment
+    f_new = f.replace('S' + str(segment).zfill(2), 'S' + str(segment + 1).zfill(2))
+    rad_segment_2, _ = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_imagery, f_new))
+
+    # concat the himawari files
+    rad = np.vstack((rad_segment_1, rad_segment_2))
+
+    # extract geostationary image subset using adjusted bb and rescale to 8bit
+    rad_bb = rad[bb['min_y']:bb['max_y'], bb['min_x']:bb['max_x']]
+
+    return rad_bb
+
+
+def load_image(geostationary_fname, bbox, min_geo_segment):
+    return extract_observation(geostationary_fname, bbox, min_geo_segment)
+
+
+def reproject_image(im, geo_dict, plume_geom_utm):
+        return plume_geom_utm['utm_resampler_plume'].resample_image(im, geo_dict['geostationary_lats_subset'],
+                                                                        geo_dict['geostationary_lons_subset'])
+
+
+def run_plot(flow, geostationary_fnames, plume_geom_geo, pp, bbox, him_segment, him_geo_dict, plume_geom_utm,
              plume_head, plume_tail, plume_points, utm_resampler,
-             plume_logging_path, fnames, i):
+             plume_logging_path, n):
 
     plume_tail = np.array(plume_tail['tail'].coords)[0]
     plume_head = np.array(plume_head['head'].coords)[0]
@@ -264,28 +293,42 @@ def run_plot(plot_images, fires, flow_mean, projected_flow_mean,
     utm_flow_vectors = []
     utm_plume_projected_flow_vectors = [plume_tail]
 
-    display_masked_map_first(plot_images[0],
-                             fires[0],
-                             plume_points,
-                             utm_resampler,
-                             plume_head,
-                             plume_tail,
-                             plume_logging_path,
-                             'subset_' + fnames[0].split('/')[-1].split('.')[0] + '.jpg')
+    for i in xrange(n):
 
-    for obs in np.arange(i-1):
-        utm_flow_vectors += [utm_plume_projected_flow_vectors[-1] + flow_mean[obs]]
-        utm_plume_projected_flow_vectors += [utm_plume_projected_flow_vectors[-1] + projected_flow_mean[obs]]
-        display_masked_map(plot_images[obs+1],
-                           fires[obs+1],
-                           plume_points,
-                           utm_resampler,
-                           plume_head,
-                           plume_tail,
-                           utm_flow_vectors,
-                           utm_plume_projected_flow_vectors,
-                           plume_logging_path,
-                           'subset_' + fnames[obs+1].split('/')[-1].split('.')[0] + '.jpg')
+        fname = geostationary_fnames[i]
+        t = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", geostationary_fnames[i]).group(), '%Y%m%d_%H%M')
+        fires = ff.fire_locations_for_plume_roi(plume_geom_geo, pp['frp_df'], t)
+        im_subset = load_image(geostationary_fnames[i], bbox, him_segment)
+        im_subset_reproj = reproject_image(im_subset, him_geo_dict, plume_geom_utm)
+
+        if i == 0 :
+            display_masked_map_first(im_subset_reproj,
+                                     fires,
+                                     plume_points,
+                                     utm_resampler,
+                                     plume_head,
+                                     plume_tail,
+                                     plume_logging_path,
+                                     'subset_' + fname.split('/')[-1].split('.')[0] + '.jpg')
+
+        else:
+            utm_flow_vectors += [utm_plume_projected_flow_vectors[-1] + flow]
+            utm_plume_projected_flow_vectors += [utm_plume_projected_flow_vectors[-1] + flow]
+            display_masked_map(im_subset_reproj,
+                               fires,
+                               plume_points,
+                               utm_resampler,
+                               plume_head,
+                               plume_tail,
+                               utm_flow_vectors,
+                               utm_plume_projected_flow_vectors,
+                               plume_logging_path,
+                               'subset_' + fname.split('/')[-1].split('.')[0] + '.jpg')
+
+        # set a max numbner of plot and then break
+        max_plots = 6
+        if i == max_plots:
+            break
 
 
 def plot_plume_data(sat_data_utm, plume_data_utm, plume_bounding_box, plume_logging_path):

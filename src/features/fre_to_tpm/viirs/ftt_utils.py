@@ -331,7 +331,7 @@ def setup_sat_data(ts):
     return d
 
 
-def resample_satellite_datasets(sat_data, pp=None, plume=None, fill_value=0):
+def resample_satellite_datasets(sat_data, pp=None, plume=None, fill_value=-999):
 
     # set up resampler
     utm_rs = utm_resampler(sat_data['lats'], sat_data['lons'], constants.utm_grid_size)
@@ -366,6 +366,9 @@ def setup_plume_data(plume, ds_utm):
     try:
         # get plume extent geographic data (bounding box in in UTM as plume extent is UTM)
         d['plume_bounding_box'] = construct_bounding_box(plume.plume_extent)
+
+        # TODO fix subsetting of lats nad lons for plume 13 where zeros get inserted into the array
+
         d['plume_lats'] = subset_data(ds_utm['lats'], d['plume_bounding_box'])
         d['plume_lons'] = subset_data(ds_utm['lons'], d['plume_bounding_box'])
         d['plume_aod'] = subset_data(ds_utm['viirs_aod_utm'], d['plume_bounding_box'])
@@ -423,6 +426,7 @@ def subset_sat_data_to_plume(sat_data_utm, plume_geom_geo):
 
 def resample_plume_geom_to_utm(plume_geom_geo):
     d = {}
+    # TODO here is the problem with the zero lats and lons
     d['utm_resampler_plume'] = utm_resampler(plume_geom_geo['plume_lats'],
                                                 plume_geom_geo['plume_lons'],
                                                 constants.utm_grid_size)
@@ -432,7 +436,7 @@ def resample_plume_geom_to_utm(plume_geom_geo):
     return d
 
 
-def process_plume(t_start, t_stop, time_for_plume,
+def process_plume(t_start, t_stop, time_for_plume, plume_length, mean_velocity,
                   pp, plume_data_utm, plume_geom_utm, plume_geom_geo, plume_logging_path, p_number,
                   df_list):
     # get background aod for sub plume
@@ -441,6 +445,9 @@ def process_plume(t_start, t_stop, time_for_plume,
     # compute tpm
     out_dict = tt.compute_tpm_full(plume_data_utm, plume_geom_utm, plume_geom_geo, bg_aod_dict, plume_logging_path, pp)
     out_dict['plume_number'] = p_number
+    out_dict['plume_length'] = plume_length
+    out_dict['mean_velocity'] = mean_velocity
+    out_dict['time_for_plume'] = time_for_plume
 
     # compute fre
     ff.compute_fre_full_plume(t_start, t_stop, time_for_plume,
@@ -502,7 +509,7 @@ class utm_resampler(object):
         return pr.kd_tree.resample_nearest(swath_def,
                                            image,
                                            self.area_def,
-                                           radius_of_influence=1500,
+                                           radius_of_influence=3000,
                                            fill_value=fill_value)
 
     def resample_points_to_utm(self, point_lats, point_lons):
