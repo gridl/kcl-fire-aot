@@ -89,7 +89,7 @@ extra_lines = {
 
 # ===== DEFAULT RETRIEVAL SETTINGS =====
 
-# retrieval_settings = {}
+retrieval_settings = {}
 #
 # # Permute a set of standard cloud retrievals over each sensor
 # cld_retrievals = {
@@ -115,7 +115,7 @@ extra_lines = {
 #     ]
 #
 # # Permute dual-view aerosol retrievals
-# aer_phases = range(70, 80)
+aer_phases = range(70, 80)
 # aer_dual_retrievals = {
 #     "aer_ox" : "--phase A{:02d} --ret_class ClsAerOx --approach AppAerOx "
 #                "--no_land --sub_dir sea",
@@ -132,21 +132,21 @@ extra_lines = {
 #         for ret in aer_dual_retrievals.values() for phs in aer_phases
 #     ]
 #
-# # Permute single-view aerosol retrievals
-# aer_single_retrievals = {
-#     "aer_o1" : "--phase A{:02d} --ret_class ClsAerOx --approach AppAerO1 "
-#                "--no_land --sub_dir sea",
-# }
-# aer_single_channels = {
-#     "AVHRR" : "--use channels 1 2 3",
-#     "MODIS" : "--use_channels 4 1 2 6",
-#     "SEVIRI" : "--use_channels 1 2 3",
-# }
-# for sensor, channels in aer_single_channels.items():
-#     retrieval_settings[sensor + "_A"] = [
-#         channels + " " + ret.format(phs)
-#         for ret in aer_single_retrievals.values() for phs in aer_phases
-#     ]
+# Permute single-view aerosol retrievals
+aer_single_retrievals = {
+    "aer_o1" : "--phase A{:02d} --ret_class ClsAerOx --approach AppAerO1 "
+               "--no_land --sub_dir sea",
+}
+aer_single_channels = {
+    "AVHRR" : "--use channels 1 2 3",
+    "MODIS" : "--use_channels 4 1 2 6",
+    "SEVIRI" : "--use_channels 1 2 3",
+}
+for sensor, channels in aer_single_channels.items():
+    retrieval_settings[sensor + "_A"] = [
+        channels + " " + ret.format(phs)
+        for ret in aer_single_retrievals.values() for phs in aer_phases
+    ]
 #
 # # Joint aerosol-cloud retrievals
 # for sensor, channels in cld_channels.items():
@@ -169,35 +169,35 @@ extra_lines = {
 #     retrieval_settings[sensor] = retrieval_settings[sensor + "_C"]
 #
 #
-# # ===== DEFAULT CHANNELS FOR EACH SENSOR =====
-#
-# channels = {
-#     "AATSR" : (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11),
-#     "ATSR2" : (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11),
-#     "AVHRR" : (1, 2, 3, 4, 5, 6),
-#     "MODIS" : (1, 2, 6, 20, 31, 32),
-#     "SEVIRI" : (1, 2, 3, 4, 9, 10),
-# }
-#
-#
-# # ===== REGRESSION TEST SETTINGS =====
-#
-# # Fields to ignore during regression testing
-# atts_to_ignore = ('L2_Processor_Version', 'Production_Time', 'File_Name')
-# vars_to_accept = ('costjm', 'costja', 'niter')
-#
-# # Tollerances in regression testing
-# rtol = 1e-7 # Maximum permissable relative difference
-# atol = 1e-7 # Maximum permissable absolute difference
-#
-# # Filters to apply regression test warnings
-# # (see https://docs.python.org/2/library/warnings.html#the-warnings-filter)
-# warn_filt = {
-#     'FieldMissing'    : 'once',
-#     'InconsistentDim' : 'error',
-#     'RoundingError'   : 'once',
-#     'Acceptable'      : 'once',
-# }
+# ===== DEFAULT CHANNELS FOR EACH SENSOR =====
+
+channels = {
+    "AATSR" : (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11),
+    "ATSR2" : (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11),
+    "AVHRR" : (1, 2, 3, 4, 5, 6),
+    "MODIS" : (1, 2, 6, 20, 31, 32),
+    "SEVIRI" : (1, 2, 3, 4, 9, 10),
+}
+
+
+# ===== REGRESSION TEST SETTINGS =====
+
+# Fields to ignore during regression testing
+atts_to_ignore = ('L2_Processor_Version', 'Production_Time', 'File_Name')
+vars_to_accept = ('costjm', 'costja', 'niter')
+
+# Tollerances in regression testing
+rtol = 1e-7 # Maximum permissable relative difference
+atol = 1e-7 # Maximum permissable absolute difference
+
+# Filters to apply regression test warnings
+# (see https://docs.python.org/2/library/warnings.html#the-warnings-filter)
+warn_filt = {
+    'FieldMissing'    : 'once',
+    'InconsistentDim' : 'error',
+    'RoundingError'   : 'once',
+    'Acceptable'      : 'once',
+}
 
 
 # ===== BATCH PROCESSING SETTINGS =====
