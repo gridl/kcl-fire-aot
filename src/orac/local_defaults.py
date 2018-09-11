@@ -141,6 +141,7 @@ aer_single_channels = {
     "AVHRR" : "--use channels 1 2 3",
     "MODIS" : "--use_channels 4 1 2 6",
     "SEVIRI" : "--use_channels 1 2 3",
+    "VIIRSM" : '--use_channels 4 5 7 10 11'
 }
 for sensor, channels in aer_single_channels.items():
     retrieval_settings[sensor + "_A"] = [
@@ -177,6 +178,7 @@ channels = {
     "AVHRR" : (1, 2, 3, 4, 5, 6),
     "MODIS" : (1, 2, 6, 20, 31, 32),
     "SEVIRI" : (1, 2, 3, 4, 9, 10),
+    "VIIRSM": (5, 7, 10, 12, 15, 16)
 }
 
 
