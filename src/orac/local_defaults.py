@@ -39,7 +39,7 @@ auxiliaries = {
     'hr_dir'      : '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/ecmwf',
     # Directory to store the EMOS interpolation file (CF_T0255_R0036000, which
     # will be generated if not already present)
-    'emos_dir'    : '/home/users/dnfisher/data/emos_data#',
+    'emos_dir'    : '/home/users/dnfisher/data/emos_data',
     # Directory of NSIDC ice/snow extent maps
     'nise_dir'    : '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/ice_snow',
     # Directory of Ocean Colour CCI retrievals
