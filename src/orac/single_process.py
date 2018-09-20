@@ -33,16 +33,12 @@ args_main(pars)
 args_postproc(pars)
 args = pars.parse_args()
 
+print args.phase
+
 check_args_common(args)
-#check_args_cc4cl(args)
+check_args_cc4cl(args)
 
-
-print args.target
-print args.in_dir
-print args.out_dir
-print log_dir
 log_path = os.path.join(args.out_dir, log_dir)
-
 try:
     inst = FileName(args.in_dir, args.target)
 
@@ -51,6 +47,7 @@ try:
 
     elif inst.oractype is None:
         jid, _ = process_pre(args, log_path)
+        print 'out of preproc'
 
     elif inst.oractype in ('alb', 'clf', 'config', 'geo', 'loc', 'lsf',
                            'lwrtm', 'msi', 'prtm', 'swrtm'):
