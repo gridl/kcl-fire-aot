@@ -107,6 +107,7 @@ def proc_params():
 def main():
     pp = proc_params()
     approx_y, approx_x = approx_loc_index(pp)
+    print approx_y, approx_x
     him_segment = find_segment(approx_y)
     approx_y = adjust_y_segment(approx_y, him_segment)
 
@@ -135,6 +136,7 @@ def main():
             ts = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", fname).group(),
                                    '%Y%m%d_%H%M').replace(microsecond=0).isoformat()
             plt.text(-50, -50, ts)
+            plt.plot(approx_x, approx_y, 'ro')
             plt.savefig(os.path.join(pp['output_path'], fname), bbox_inches='tight')
             plt.close()
 
