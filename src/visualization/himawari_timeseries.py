@@ -18,13 +18,10 @@ def approx_loc_index(pp):
     Get approximate location of a geographic point is an array of
     geographic coordinates
     """
-    coords = np.where((pp['geostationary_lats'] >= pp['singapore_lat']) &
-                      (pp['geostationary_lats'] <= pp['singapore_lat']) &
-                      (pp['geostationary_lons'] >= pp['singapore_lon']) &
-                      (pp['geostationary_lons'] <= pp['singapore_lon']))
 
-    approx_x = np.min(coords[1])
-    approx_y = np.min(coords[0])
+    lat_abs_diff = np.abs(pp['geostationary_lats'] - pp['lat'])
+    lon_abs_diff = np.abs(pp['geostationary_lons'] - pp['lon'])
+    approx_y, approx_x = np.argmin(lat_abs_diff + lon_abs_diff)
     return approx_y, approx_x
 
 
@@ -91,8 +88,8 @@ def proc_params():
     d['start_time'] = datetime.datetime(2012, 9, 16, 0, 0)
     d['n_days'] = 10
 
-    d['singapore_lat'] = 1.24
-    d['singapore_lon'] = 103.84
+    d['lat'] = 1.24
+    d['lon'] = 103.84
 
     him_base_path = '/group_workspaces/cems2/nceo_generic/users/xuwd/Himawari8/'
     d['him_base_path'] = him_base_path
