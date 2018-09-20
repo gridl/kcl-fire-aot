@@ -21,7 +21,7 @@ def approx_loc_index(pp):
 
     lat_abs_diff = np.abs(pp['geostationary_lats'] - pp['lat'])
     lon_abs_diff = np.abs(pp['geostationary_lons'] - pp['lon'])
-    approx_y, approx_x = np.argmin(lat_abs_diff + lon_abs_diff)
+    approx_y, approx_x  = np.unravel_index((lat_abs_diff + lon_abs_diff).argmin(), lat_abs_diff.shape)
     return approx_y, approx_x
 
 
@@ -45,7 +45,7 @@ def get_geostationary_fnames(pp, day, image_segment):
     :return: the geostationary files for the day of and the day before the fire
     """
     ym = str(pp['start_time'].year) + str(pp['start_time'].month).zfill(2)
-    day = str(pp['start_time'].day + timedelta(days=day)).zfill(2)
+    day = str(int(pp['start_time'].day) + day).zfill(2)
 
     # get all files in the directory using glob with band 3 for main segment
     p = os.path.join(pp['him_base_path'], ym, day)
@@ -109,10 +109,12 @@ def main():
     approx_y, approx_x = approx_loc_index(pp)
     print approx_y, approx_x
     him_segment = find_segment(approx_y)
+    print him_segment
     approx_y = adjust_y_segment(approx_y, him_segment)
+    print approx_y    
 
     # iterate over the days
-    for day in xrange(pp.days):
+    for day in xrange(pp['n_days']):
 
         geostationary_files_for_day = get_geostationary_fnames(pp, day, him_segment)
         for geo_f in geostationary_files_for_day:
