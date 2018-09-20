@@ -88,7 +88,7 @@ def subset_image(im, y, x):
 def proc_params():
     d = {}
 
-    d['start_time'] = datetime.datetime(2012, 9, 16, 0, 0)
+    d['start_time'] = datetime(2012, 8, 20, 0, 0)
     d['n_days'] = 10
 
     d['singapore_lat'] = 1.24
@@ -118,7 +118,7 @@ def main():
 
         geostationary_files_for_day = get_geostationary_fnames(pp, day, him_segment)
         for geo_f in geostationary_files_for_day:
-
+            print geo_f
             im_B01 = load_image(geo_f, him_segment, 'B01')
             im_B02 = load_image(geo_f, him_segment, 'B02')
             im_B03 = load_image(geo_f, him_segment, 'B03')
