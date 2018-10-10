@@ -46,6 +46,7 @@ path_to_frp_tpm_models = os.path.join(root_models, '{0}_samples.csv'.format(roi)
 # visualisation filepaths
 root_vis = os.path.join(root, 'visualisations')
 pt_vis_path = os.path.join(root_vis, '{0}_plume_tracking/'.format(roi))
+path_to_exe_dir = '/home/users/dnfisher/projects/kcl-fire-aot/src/visualization/'
 path_to_aeronet_visuals = os.path.join(root_vis, 'aeronet/')
 
 # filelist paths
