@@ -16,8 +16,8 @@ def main():
     filenames = filenames[~time_mask]
 
     # next get time subset
-    min_time = datetime.datetime(2015, 9, 23)
-    max_time = datetime.datetime(2015, 9, 30)
+    min_time = datetime(2015, 9, 23)
+    max_time = datetime(2015, 9, 30)
     times = [datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", f).group(), '%Y%m%d_%H%M') for f in filenames]
     time_mask = [min_time < t < max_time for t in times]
     filenames = filenames[time_mask]
