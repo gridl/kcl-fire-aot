@@ -76,7 +76,7 @@ def main():
     him_segment = int(sys.argv[3])
     approx_y =int(sys.argv[4])
     approx_x = int(sys.argv[5])
-    output_path = int(sys.argv[6])
+    output_path = sys.argv[6]
 
     ts = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", fname).group(),
                            '%Y%m%d_%H%M')

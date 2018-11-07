@@ -65,8 +65,8 @@ class BatchSystem:
 def proc_params():
     d = {}
 
-    d['start_time'] = datetime(2015, 9, 2, 0, 0)
-    d['n_days'] = 15
+    d['start_time'] = datetime(2015, 10, 1, 0, 0)
+    d['n_days'] = 60
 
     d['lat'] = 1.24
     d['lon'] = 103.84
