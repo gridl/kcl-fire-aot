@@ -37,8 +37,8 @@ def cloud_mask(data):
     for fire detection
     """
     # threshold for Albedo
-    vis_day = 0.20
-    bt10_day = 278.
+    vis_day = 0.1
+    bt10_day = 290.
     bt10_day_vz = 290
 
     bt4_ni = 272.
