@@ -6,6 +6,7 @@ from datetime import datetime
 import scipy.ndimage as ndimage
 import numpy as np
 import matplotlib.pyplot as plt
+import cv2
 
 import src.data.readers.load_hrit as load_hrit
 import src.config.filepaths as fp
@@ -57,6 +58,64 @@ def extract_observation(f, bb):
     return rad_subset, ref_subset
 
 
+def assess_coregistration(im_1, mask_1, im_2, mask_2, sift, flann, plot=True):
+
+    # convert datatypes to the used in opencv
+    mask_1 = mask_1.astype('uint8')
+    im_1 = (im_1 * 255).astype('uint8')
+    mask_2 = mask_2.astype('uint8')
+    im_2 = (im_2 * 255).astype('uint8')
+
+    # # find the keypoints and descriptors with SIFT
+    kp_1, des_1 = sift.detectAndCompute(im_1, mask_1)
+    kp_2, des_2 = sift.detectAndCompute(im_2, mask_2)
+
+    # BFMatcher with default params
+    matches = flann.knnMatch(des_1, des_2, k=2)
+
+    # Apply ratio test
+    good = []
+    for m,n in matches:
+        if m.distance < 0.75*n.distance:
+            good.append(m)
+
+    src_pts = np.float32([kp_1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
+    dst_pts = np.float32([kp_2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
+
+    M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+    matches_mask = mask.ravel().tolist()
+
+    if plot:
+        draw_params = dict(matchColor=(0, 255, 0),  # draw matches in green color
+                           singlePointColor=None,
+                           matchesMask=matches_mask,  # draw only inliers
+                           flags=2)
+        img = cv2.drawMatches(im_1, kp_1, im_2, kp_2, good, None, **draw_params)
+        plt.imshow(img)
+        plt.show()
+
+    src_pts[np.where(matches_mask), :].squeeze()
+    dst_pts[np.where(matches_mask), :].squeeze()
+
+    #
+    d = (src_pts - dst_pts).squeeze()
+    x, y = d[0,:], d[1,:]
+
+    return x, y
+
+
+
+
+
+
+def correct_coregistration():
+    pass
+
+
+def assess_dense_flow():
+    pass
+
+
 
 def main():
 
@@ -68,6 +127,14 @@ def main():
     # get vis filenames
     geostationary_file_names = setup_geostationary_files('201507', '06', 5)
 
+    # init sift feature detector and brute force matcher
+    sift = cv2.xfeatures2d.SIFT_create(contrastThreshold=0.01, edgeThreshold=20)
+
+    FLANN_INDEX_KDTREE = 0
+    index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
+    search_params = dict(checks=50)
+    flann = cv2.FlannBasedMatcher(index_params, search_params)
+
     # iterate over vis files
     for f1, f2 in zip(geostationary_file_names[0:-1], geostationary_file_names[1:]):
 
@@ -75,11 +142,14 @@ def main():
         rad_1, ref_1 = extract_observation(f1, bb)
         rad_2, ref_2 = extract_observation(f2, bb)
 
-        # generate cloud mask
-        cm_1 = ref_1 > MAX_REFLEC
-        cm_2 = ref_2 > MAX_REFLEC
+        # generate cloud mask and erode
+        cloudfree_1 = ref_1 < MAX_REFLEC
+        cloudfree_2 = ref_2 < MAX_REFLEC
+        cloudfree_1 = ndimage.binary_erosion(cloudfree_1)
+        cloudfree_2 = ndimage.binary_erosion(cloudfree_2)
 
-        # do sift tracking (looking for image shifts)
+        # check image to image coregistation
+        assess_coregistration(ref_1, cloudfree_1, ref_2, cloudfree_2, sift, flann)
 
         # do dense tracking (looking for plume motion)
 

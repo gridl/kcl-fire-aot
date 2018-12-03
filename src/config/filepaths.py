@@ -6,8 +6,8 @@ import os
 
 
 # root path to data folder
-root = '/Volumes/INTENSO/kcl-fire-aot/ODA/'
-#root = '/Users/danielfisher/Projects/kcl-fire-aot/data/ODA/'
+#root = '/Volumes/INTENSO/kcl-fire-aot/ODA/'
+root = '/Users/danielfisher/Projects/kcl-fire-aot/data/ODA/'
 roi = 'combined'
 
 # select list of files to process
