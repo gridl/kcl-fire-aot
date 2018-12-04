@@ -89,7 +89,6 @@ def assess_coregistration(im_1, mask_1, im_2, mask_2, sift, flann, f, plot=True)
                            matchesMask=matches_mask,  # draw only inliers
                            flags=2)
         img = cv2.drawMatches(im_1, kp_1, im_2, kp_2, good, None, **draw_params)
-        plt.imshow(img)
         plt.savefig(os.path.join(fp.path_to_opt_flow_visuals, f.replace('.DAT.bz2', '_surf.png')), bbox_inches='tight')
 
     src_pts = src_pts[np.where(matches_mask), :].squeeze()
@@ -121,7 +120,7 @@ def assess_dense_flow(im_1, mask_1, im_2, mask_2, f, plot=True):
                                         flags=cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
 
     if plot:
-        step = 15
+        step = 30
 
         plt.close('all')
         h, w = im_1.shape[:2]
@@ -145,7 +144,21 @@ def assess_dense_flow(im_1, mask_1, im_2, mask_2, f, plot=True):
         plt.savefig(os.path.join(fp.path_to_opt_flow_visuals, f.replace('.DAT.bz2', '_flow.png')), bbox_inches='tight')
         plt.close()
 
+    # get masked flows
+    y = flow[:,:,1][mask_1 * mask_2]
+    x = flow[:,:,0][mask_1 * mask_2]
+
+    # remove outliers
+    mean_x = np.mean(x)
+    std_x = np.std(x)
+    x = x[np.abs(x) < mean_x + 3 * std_x]
+
+    mean_y = np.mean(y)
+    std_y = np.std(y)
+    y = y[np.abs(y) < mean_y + 3 * std_y]
+
     # return outputs
+    return x, y
 
 
 def main():
@@ -166,7 +179,8 @@ def main():
     flann = cv2.FlannBasedMatcher(index_params, search_params)
 
     # set up some lists to store the outputs
-
+    sparse_flow_list = []
+    dense_flow_list = []
 
     # iterate over vis files
     for f1, f2 in zip(geostationary_file_paths[0:-1], geostationary_file_paths[1:]):
@@ -185,7 +199,7 @@ def main():
         cloudfree_2 = ndimage.binary_erosion(cloudfree_2)
 
         # check image to image coregistation
-        # assess_coregistration(ref_1, cloudfree_1, ref_2, cloudfree_2, sift, flann, fname)
+        #assess_coregistration(ref_1, cloudfree_1, ref_2, cloudfree_2, sift, flann, fname)
 
         # do dense tracking (looking for plume motion)
         assess_dense_flow(rad_1, cloudfree_1, rad_2, cloudfree_2, fname)
