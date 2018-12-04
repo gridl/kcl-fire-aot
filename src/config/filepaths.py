@@ -6,8 +6,8 @@ import os
 
 
 # root path to data folder
-#root = '/Volumes/INTENSO/kcl-fire-aot/ODA/'
-root = '/Users/danielfisher/Projects/kcl-fire-aot/data/ODA/'
+root = '/Volumes/INTENSO/kcl-fire-aot/ODA/'
+#root = '/Users/danielfisher/Projects/kcl-fire-aot/data/ODA/'
 roi = 'combined'
 
 # select list of files to process
@@ -48,6 +48,7 @@ root_vis = os.path.join(root, 'visualisations')
 pt_vis_path = os.path.join(root_vis, '{0}_plume_tracking/'.format(roi))
 path_to_exe_dir = '/home/users/dnfisher/projects/kcl-fire-aot/src/visualization/'
 path_to_aeronet_visuals = os.path.join(root_vis, 'aeronet/')
+path_to_opt_flow_visuals = os.path.join(root_vis, 'flow_accuracy/')
 
 # filelist paths
 

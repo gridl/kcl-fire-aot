@@ -23,7 +23,6 @@ def get_geostationary_fnames(ym, day, image_segment):
     :return: the geostationary files for the day of and the day before the fire
     """
 
-
     # get all files in the directory using glob with band 3 for main segment
     p = os.path.join(fp.path_to_himawari_imagery, ym, day)
     return glob.glob(p + '/*/*/B03/*S' + str(image_segment).zfill(2) + '*')
@@ -49,7 +48,7 @@ def setup_geostationary_files(ym, day, image_segment):
 
 def extract_observation(f, bb):
     # load geostationary files for the segment
-    #rad_segment, _ = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_imagery, f))
+    # rad_segment, _ = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_imagery, f))
     rad_segment, ref_segment = load_hrit.H8_file_read(os.path.join(fp.path_to_himawari_imagery, f))
 
     # extract geostationary image subset using adjusted bb
@@ -58,8 +57,7 @@ def extract_observation(f, bb):
     return rad_subset, ref_subset
 
 
-def assess_coregistration(im_1, mask_1, im_2, mask_2, sift, flann, plot=True):
-
+def assess_coregistration(im_1, mask_1, im_2, mask_2, sift, flann, f, plot=True):
     # convert datatypes to the used in opencv
     mask_1 = mask_1.astype('uint8')
     im_1 = (im_1 * 255).astype('uint8')
@@ -75,8 +73,8 @@ def assess_coregistration(im_1, mask_1, im_2, mask_2, sift, flann, plot=True):
 
     # Apply ratio test
     good = []
-    for m,n in matches:
-        if m.distance < 0.75*n.distance:
+    for m, n in matches:
+        if m.distance < 0.75 * n.distance:
             good.append(m)
 
     src_pts = np.float32([kp_1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
@@ -92,43 +90,75 @@ def assess_coregistration(im_1, mask_1, im_2, mask_2, sift, flann, plot=True):
                            flags=2)
         img = cv2.drawMatches(im_1, kp_1, im_2, kp_2, good, None, **draw_params)
         plt.imshow(img)
-        plt.show()
+        plt.savefig(os.path.join(fp.path_to_opt_flow_visuals, f.replace('.DAT.bz2', '_surf.png')), bbox_inches='tight')
 
-    src_pts[np.where(matches_mask), :].squeeze()
-    dst_pts[np.where(matches_mask), :].squeeze()
+    src_pts = src_pts[np.where(matches_mask), :].squeeze()
+    dst_pts = dst_pts[np.where(matches_mask), :].squeeze()
 
     #
     d = (src_pts - dst_pts).squeeze()
-    x, y = d[0,:], d[1,:]
+    x, y = d[:, 0], d[:, 1]
+
+    # remove outliers
+    mean_x = np.mean(x)
+    std_x = np.std(x)
+    x = x[np.abs(x) < mean_x + 3 * std_x]
+
+    mean_y = np.mean(y)
+    std_y = np.std(y)
+    y = y[np.abs(y) < mean_y + 3 * std_y]
 
     return x, y
 
 
+def assess_dense_flow(im_1, mask_1, im_2, mask_2, f, plot=True):
+    flow_win_size = 5
+    flow = cv2.calcOpticalFlowFarneback(im_1, im_2,
+                                        flow=None,
+                                        pyr_scale=0.5, levels=1,
+                                        winsize=flow_win_size, iterations=7,
+                                        poly_n=7, poly_sigma=1.5,
+                                        flags=cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
 
+    if plot:
+        step = 15
 
+        plt.close('all')
+        h, w = im_1.shape[:2]
+        y, x = np.mgrid[step / 2:h:step, step / 2:w:step].reshape(2, -1).astype(int)
+        fx, fy = flow[y, x].T
 
+        x_shift = x + fx
+        y_shift = y + fy
 
-def correct_coregistration():
-    pass
+        mask = (x_shift > 0) & (x_shift < w) & (y_shift > 0) & (y_shift < h)
+        x = x[mask]
+        y = y[mask]
+        x_shift = x_shift[mask]
+        y_shift = y_shift[mask]
 
+        ax = plt.axes()
+        ax.imshow(im_1, cmap='gray')
+        ax.plot((x, x_shift), (y, y_shift), 'r-', linewidth=0.25)
+        ax.plot(x, y, 'r.', markersize=0.25)
 
-def assess_dense_flow():
-    pass
+        plt.savefig(os.path.join(fp.path_to_opt_flow_visuals, f.replace('.DAT.bz2', '_flow.png')), bbox_inches='tight')
+        plt.close()
 
+    # return outputs
 
 
 def main():
-
     bb = {'min_x': 4500,
           'min_y': 750,
           'max_x': 6500,
           'max_y': -1}
 
     # get vis filenames
-    geostationary_file_names = setup_geostationary_files('201507', '06', 5)
+    geostationary_file_paths = setup_geostationary_files('201507', '06', 5)
 
     # init sift feature detector and brute force matcher
-    sift = cv2.xfeatures2d.SIFT_create(contrastThreshold=0.01, edgeThreshold=20)
+    sift = cv2.xfeatures2d.SIFT_create(contrastThreshold=0.001, edgeThreshold=30)
 
     FLANN_INDEX_KDTREE = 0
     index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
@@ -139,7 +169,10 @@ def main():
 
 
     # iterate over vis files
-    for f1, f2 in zip(geostationary_file_names[0:-1], geostationary_file_names[1:]):
+    for f1, f2 in zip(geostationary_file_paths[0:-1], geostationary_file_paths[1:]):
+
+        fname = f1.split('/')[-1]
+        print fname
 
         # read in the data for roi
         rad_1, ref_1 = extract_observation(f1, bb)
@@ -152,18 +185,12 @@ def main():
         cloudfree_2 = ndimage.binary_erosion(cloudfree_2)
 
         # check image to image coregistation
-        assess_coregistration(ref_1, cloudfree_1, ref_2, cloudfree_2, sift, flann)
+        # assess_coregistration(ref_1, cloudfree_1, ref_2, cloudfree_2, sift, flann, fname)
 
         # do dense tracking (looking for plume motion)
-
-        # mask samples
+        assess_dense_flow(rad_1, cloudfree_1, rad_2, cloudfree_2, fname)
 
         # record
-
-    # visualise
-
-
-
 
 
 if __name__ == "__main__":
