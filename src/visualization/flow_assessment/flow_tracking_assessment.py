@@ -135,6 +135,9 @@ def main():
     search_params = dict(checks=50)
     flann = cv2.FlannBasedMatcher(index_params, search_params)
 
+    # set up some lists to store the outputs
+
+
     # iterate over vis files
     for f1, f2 in zip(geostationary_file_names[0:-1], geostationary_file_names[1:]):
 
