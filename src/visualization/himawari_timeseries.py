@@ -33,14 +33,14 @@ def load_image(f, segment, channel):
 
 def subset_image(im, y, x):
     
-    y_shift = 50    
+    y_shift = 100    
     x_shift = 100
 
     min_y = y - y_shift
     min_x = x - x_shift
 
-    max_y = min_y + 550
-    max_x = x + 250
+    max_y = y + y_shift
+    max_x = x + x_shift
 
     return im[min_y:max_y, min_x:max_x]
 
@@ -105,7 +105,7 @@ def main():
     plt.imshow(rgb)
     ts = ts.replace(microsecond=0).isoformat()
     plt.text(0, -30, ts)
-    plt.plot(100, 50, 'r*')
+    plt.plot(100, 100, 'r*')
     plt.axis('off')
     plt.savefig(os.path.join(output_path, fname), bbox_inches='tight')
     plt.close()

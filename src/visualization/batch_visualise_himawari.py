@@ -1,7 +1,7 @@
 import re
 import os
 import tempfile
-from datetime import datetime
+from datetime import datetime, timedelta
 import glob
 import subprocess
 
@@ -65,11 +65,11 @@ class BatchSystem:
 def proc_params():
     d = {}
 
-    d['start_time'] = datetime(2015, 10, 1, 0, 0)
-    d['n_days'] = 60
+    d['start_time'] = datetime(2015, 8, 1, 0, 0)
+    d['n_days'] = 91
 
-    d['lat'] = 1.24
-    d['lon'] = 103.84
+    d['lat'] = -1.632
+    d['lon'] = 103.642
 
     him_base_path = '/group_workspaces/cems2/nceo_generic/users/xuwd/Himawari8/'
     d['him_base_path'] = him_base_path
@@ -115,8 +115,9 @@ def get_geostationary_fnames(pp, day, image_segment):
     :param image_segment: the Himawari image segment
     :return: the geostationary files for the day of and the day before the fire
     """
-    ym = str(pp['start_time'].year) + str(pp['start_time'].month).zfill(2)
-    day = str(int(pp['start_time'].day) + day).zfill(2)
+    updated_time = pp['start_time'] + timedelta(days=day)
+    ym = str(updated_time.year) + str(updated_time.month).zfill(2)
+    day = str(updated_time.day).zfill(2)
 
     # get all files in the directory using glob with band 3 for main segment
     p = os.path.join(pp['him_base_path'], ym, day)
@@ -126,7 +127,9 @@ def get_geostationary_fnames(pp, day, image_segment):
 def submit(pp, geo_file_path, fname, ts, him_segment, approx_y, approx_x):
 
     # check if time stamp is ok
-    if (int(ts.hour) > 11) & (int(ts.hour) < 22):
+    #if (int(ts.hour) > 11) & (int(ts.hour) < 22):
+    #    return
+    if ts.hour not in [0, 1, 23]:
         return
 
     # check if we have already processed the file and skip if so
@@ -188,12 +191,15 @@ approx_y, approx_x = approx_loc_index(pp)
 him_segment = find_segment(approx_y)
 approx_y = adjust_y_segment(approx_y, him_segment)
 
+print approx_y, approx_x
+
 # iterate over the days
 for day in xrange(pp['n_days']):
     geostationary_files_for_day = get_geostationary_fnames(pp, day, him_segment)
     for geo_file_path in geostationary_files_for_day:
 
         fname = geo_file_path.split('/')[-1]
+        print fname
         ts = datetime.strptime(re.search("[0-9]{8}[_][0-9]{4}", fname).group(),
                                '%Y%m%d_%H%M')
 
