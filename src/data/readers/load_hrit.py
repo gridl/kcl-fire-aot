@@ -37,8 +37,8 @@ def cloud_mask(data):
     for fire detection
     """
     # threshold for Albedo
-    vis_day = 0.20
-    bt10_day = 278.
+    vis_day = 0.1
+    bt10_day = 290.
     bt10_day_vz = 290
 
     bt4_ni = 272.
@@ -451,7 +451,7 @@ def get_path(root, band, time_key=None, path_tree=None):
             band_vis_05 = band
 
     else:
-        root = root + "lcov/"
+        root = os.path.join(root, "lcov/")
         band_vis_05 = band
     #print "root: %s" % root
     #print "band: %s" % band
@@ -564,11 +564,7 @@ def load_h8(in_root, time_key, path_tree=None, mode=0):
 
 
 if __name__ == '__main__':
-    user_home = os.environ['HOME']
-    in_root = '/Volumes/INTENSO/Asia/raw/himawari/'
+    in_root = '/Volumes/INTENSO/him_downlaod'
     # root for the output files
-    out_root = in_root + 'fire_result/'
-    # slot time YYYYMMDDHHMM
-    time_key = "201507020920"
+    time_key = "201507060000"
     data = load_h8(in_root, time_key, path_tree="HSFD")
-    hold = 1
