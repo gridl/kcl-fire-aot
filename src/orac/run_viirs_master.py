@@ -11,13 +11,14 @@ class ProcParams(object):
         self.sensor = "viirs"
         self.proc_level = 'pre'
 
-        self.data_dir = '/group_workspaces/jasmin2/nceo_aerosolfire/data/orac_proc/viirs/sdr/'
-        self.geo_dir = '/group_workspaces/jasmin2/nceo_aerosolfire/data/orac_proc/viirs/geo/'
-        self.output_dir = '/group_workspaces/jasmin2/nceo_aerosolfire/data/orac_proc/viirs/outputs/'
+        self.data_dir = '/group_workspaces/jasmin2/nceo_aerosolfire/data/orac_proc/viirs/inputs/'
+        self.geo_dir = '/group_workspaces/jasmin2/nceo_aerosolfire/data/orac_proc/viirs/inputs/'
+        #self.output_dir = '/group_workspaces/jasmin2/nceo_aerosolfire/data/orac_proc/viirs/outputs/'
+        self.output_dir = '/home/users/dnfisher/data/kcl-fire-aot/orac_aod/'
 
         self.cldsaddir = '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/sad_dir/viirs-npp_WAT'
         self.cldphs = ['WAT']
-        self.aersaddir = '/group_workspaces/jasmin2/nceo_aerosolfire/data/orac_proc/viirs/luts'
+        self.aersaddir = '/group_workspaces/jasmin2/nceo_aerosolfire/luts/sad/'
         self.aerphs = ['AR2']
 
 
@@ -38,11 +39,12 @@ def run_pre(pp):
         pre_cmd = input_file_path \
                   + ' -o ' + output_file_path \
                   + ' -g ' + pp.geo_dir \
-                  + ' -c 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 ' \
+                  + ' -c 1 2 3 4 5 6 7 8 9 10 ' \
                   + ' --skip_ecmwf_hr ' \
+                  + ' --verbose ' \
                   #+ ' --batch '
         os.system('./orac_preproc.py ' + pre_cmd)
-
+        break
 
 def run_pro(pp):
 

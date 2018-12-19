@@ -18,7 +18,8 @@ import sys
 import tempfile
 import time
 import uuid
-import warnings
+import warning
+import random
 
 import colours
 import local_defaults as defaults
@@ -146,11 +147,27 @@ def bound_time(dt=None,  # Initial time
 # -----------------------------------------------------------------------------
 
 def build_orac_library_path(libs):
-    """Build required LD_LIBRARY_PATH variable"""
+    """ld required LD_LIBRARY_PATH variable"""
+    from os import environ
 
-    ld_path = ':'.join([libs[key] for key in ("SZLIB", "EPR_APILIB", "GRIBLIB",
-                                              "HDF5LIB", "HDFLIB",
-                                              "NCDF_FORTRAN_LIB", "NCDFLIB")])
+    if libs is None:
+        try:
+            libs = read_orac_libraries(environ["ORAC_LIB"])
+        except KeyError:
+            print 'here'
+            #libs = read_orac_libraries(orac_lib)
+
+    if "GRIBLIB" in libs:
+        glib = "GRIBLIB"
+    elif "ECCODESLIB" in libs:
+        glib = "ECCODESLIB"
+    else:
+        raise OracError('Neither GRIB_API or ECCODES libraries found')
+    ld_path = ':'.join([libs[key] for key in (
+        "SZLIB", "EPR_APILIB", glib, "HDF5LIB", "HDFLIB",
+        "NCDF_FORTRAN_LIB", "NCDFLIB"
+    )])
+
     if "LD_LIBRARY_PATH" in os.environ.keys():
         ld_path += ':' + os.environ["LD_LIBRARY_PATH"]
     return ld_path
@@ -173,11 +190,18 @@ def call_exe(args,  # Arguments of scripts
         return
 
     # Write driver file
-    (fd, driver_file) = tempfile.mkstemp('.driver', os.path.basename(exe) + '.',
-                                         args.out_dir, True)
-    f = os.fdopen(fd, "w")
-    f.write(driver)
-    f.close()
+    #(fd, driver_file) = tempfile.mkstemp('.driver', os.path.basename(exe) + '.',
+    #                                     args.out_dir, True)
+    #with os.fdopen(fd, "w") as f:
+    #    f.write(driver)
+    #    f.close()
+    
+    uid = '%030x' % random.randrange(16**30)
+    print uid
+    driver_file = os.apth.join(args.out_dir, os.path.basename(exe) + '.' + uid + '.' + 'driver')     
+    print driver_file
+    with open(driver_file, 'w') as fh:
+        fh.writelines(driver)    
 
     if not args.batch:
         # Form processing environment
@@ -601,12 +625,19 @@ class FileName:
 
 def read_orac_libraries(filename):
     """Read the ORAC library definitions into a Python dictionary"""
-
+    print filename
     libraries = {}
     try:
-        if os.environ['LIBBASE']:
-            libraries['LIBBASE'] = os.environ['LIBBASE']
+        if os.environ['ORAC_LIBBASE']:
+            libraries['ORAC_LIBBASE'] = os.environ['ORAC_LIBBASE']
     except KeyError:
+        print 'failed orac libbase'
+        pass
+    try:
+        if os.environ['ORAC_LIBBASE_FORTRAN']:
+            libraries['ORAC_LIBBASE_FORTRAN'] = os.environ['ORAC_LIBBASE_FORTRAN']
+    except KeyError:
+        print 'failed'
         pass
 
     # Open ORAC library file
@@ -620,7 +651,6 @@ def read_orac_libraries(filename):
 
                 # Replace any variables in this line with those we already know
                 fixed = re.sub(r"\$\(.*?\)", parse_with_lib(libraries), parts[1])
-
                 # Add this line to the dictionary
                 libraries[parts[0]] = fixed
 
@@ -1222,6 +1252,7 @@ def build_preproc_driver(args):
         uid = 'n/a'
 
     # Add NetCDF library to path so following calls works
+    print args.orac_lib
     libs = read_orac_libraries(args.orac_lib)
     os.environ["PATH"] = libs["NCDFLIB"][:-4] + '/bin:' + os.environ["PATH"]
 
