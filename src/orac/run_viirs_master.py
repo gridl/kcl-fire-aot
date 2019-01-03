@@ -9,7 +9,7 @@ from datetime import datetime
 class ProcParams(object):
     def __init__(self):
         self.sensor = "viirs"
-        self.proc_level = 'pre'
+        self.proc_level = 'pro'
 
         self.data_dir = '/group_workspaces/jasmin2/nceo_aerosolfire/data/orac_proc/viirs/inputs/'
         self.geo_dir = '/group_workspaces/jasmin2/nceo_aerosolfire/data/orac_proc/viirs/inputs/'
@@ -18,8 +18,8 @@ class ProcParams(object):
 
         self.cldsaddir = '/group_workspaces/cems2/nceo_generic/cloud_ecv/data_in/sad_dir/viirs-npp_WAT'
         self.cldphs = ['WAT']
-        self.aersaddir = '/group_workspaces/jasmin2/nceo_aerosolfire/luts/sad/'
-        self.aerphs = ['AR2']
+        self.aersaddir = '/group_workspaces/jasmin2/nceo_aerosolfire/data/orac_proc/viirs/luts'
+        self.aerphs = ['AMW']
 
 
 def run_pre(pp):
@@ -39,11 +39,11 @@ def run_pre(pp):
         pre_cmd = input_file_path \
                   + ' -o ' + output_file_path \
                   + ' -g ' + pp.geo_dir \
-                  + ' -c 1 2 3 4 5 6 7 8 9 10 ' \
-                  + ' --skip_ecmwf_hr ' \
+                  + ' -c 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 ' \
                   + ' --verbose ' \
-                  #+ ' --batch '
+                  + ' --skip_ecmwf_hr '
         os.system('./orac_preproc.py ' + pre_cmd)
+
         break
 
 def run_pro(pp):
@@ -62,6 +62,7 @@ def run_pro(pp):
 
         for msi_root in msi_roots:
             msi_root = os.path.basename(msi_root)[:-7]
+            print msi_root
 
             # check if msi_root is one of the files to be processed in the file list
             #msi_time = datetime.strptime(msi_root.split('_')[-2], '%Y%m%d%H%M')
@@ -72,15 +73,18 @@ def run_pro(pp):
             # Set up and call ORAC for the defined phases --ret_class ClsAerOx
             proc_cmd = '-i ' + root \
                        + ' -o ' + pro_dir \
-                       + ' --sad_dir ' + pp.cldsaddir \
-                       + ' --use_channel 0 0 0 1 1 0 1 0 0 0 1 0 0 0 0 0 -a AppCld1L --ret_class ClsAerOx ' \
-                       + '  --batch ' \
+                       + ' --sad_dir ' + pp.aersaddir \
+                       + ' --use_channel 0 0 0 1 1 0 1 0 0 0 1 0 0 0 0 0 -a AppAerO1 --ret_class ClsAerOx ' \
+                       + ' --keep_driver ' \
+                       + ' --verbose ' \
                        + ' --phase '
 
             #for phs in pp.aerphs:
-            for phs in pp.cldphs:
+            for phs in pp.aerphs:
                 # call orac
                 os.system('./orac_main.py ' + proc_cmd + phs + ' ' + msi_root)
+            
+            break
 
 
 def main():

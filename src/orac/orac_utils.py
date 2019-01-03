@@ -18,7 +18,7 @@ import sys
 import tempfile
 import time
 import uuid
-import warning
+import warnings
 import random
 
 import colours
@@ -154,7 +154,7 @@ def build_orac_library_path(libs):
         try:
             libs = read_orac_libraries(environ["ORAC_LIB"])
         except KeyError:
-            print 'here'
+            print 'error line 157 orac_utils'
             #libs = read_orac_libraries(orac_lib)
 
     if "GRIBLIB" in libs:
@@ -190,20 +190,13 @@ def call_exe(args,  # Arguments of scripts
         return
 
     # Write driver file
-    #(fd, driver_file) = tempfile.mkstemp('.driver', os.path.basename(exe) + '.',
-    #                                     args.out_dir, True)
-    #with os.fdopen(fd, "w") as f:
-    #    f.write(driver)
-    #    f.close()
-    
-    uid = '%030x' % random.randrange(16**30)
-    print uid
-    driver_file = os.apth.join(args.out_dir, os.path.basename(exe) + '.' + uid + '.' + 'driver')     
-    print driver_file
-    with open(driver_file, 'w') as fh:
-        fh.writelines(driver)    
+    (fd, driver_file) = tempfile.mkstemp('.driver', os.path.basename(exe) + '.',
+                                             args.out_dir, True)
+    with os.fdopen(fd, "w") as f:
+        f.write(driver)
 
     if not args.batch:
+
         # Form processing environment
         libs = read_orac_libraries(args.orac_lib)
         os.environ["LD_LIBRARY_PATH"] = build_orac_library_path(libs)
@@ -228,7 +221,6 @@ def call_exe(args,  # Arguments of scripts
         finally:
             if not args.keep_driver:
                 os.remove(driver_file)
-
     else:
 
         # Write temporary script to call executable
@@ -625,7 +617,6 @@ class FileName:
 
 def read_orac_libraries(filename):
     """Read the ORAC library definitions into a Python dictionary"""
-    print filename
     libraries = {}
     try:
         if os.environ['ORAC_LIBBASE']:
@@ -744,7 +735,7 @@ class ParticleType():
 
 tau = Invpar('ITau', ap=-0.3, sx=10e8)
 aer = Invpar('IRe', ap=0.01, sx=10e8)  # this is NOT in log scale
-wvl = (0.488, 0.555, 0.672, 0.865, 2.25)
+wvl = (0.555, 0.672, 0.865)
 
 settings['WAT'] = ParticleType(wvl=wvl, inv=(tau, aer), sad=defaults.sad_dir, ls=False)
 settings['ICE'] = ParticleType(wvl=wvl,sad=defaults.sad_dir, ls=False)
@@ -752,14 +743,15 @@ settings['ICE'] = ParticleType(wvl=wvl,sad=defaults.sad_dir, ls=False)
 # TODO check whether thess use the correct SAD dirs and that the wavelenght are appropriate
 # TODO and get updated ap and sx values from gareth
   # this needs to change depending on the channels that I am using in the retrieval?
-settings['BOR'] = ParticleType(wvl=wvl, inv=(tau, aer))
-settings['BOW'] = ParticleType(wvl=wvl, inv=(tau, aer))
-settings['CER'] = ParticleType(wvl=wvl, inv=(tau, aer))
-settings['AMZ'] = ParticleType(wvl=wvl, inv=(tau, aer))
-settings['AMW'] = ParticleType(wvl=wvl, inv=(tau, aer))
-settings['AFR'] = ParticleType(wvl=wvl, inv=(tau, aer))
-settings['AFW'] = ParticleType(wvl=wvl, inv=(tau, aer))
-settings['CEW'] = ParticleType(wvl=wvl, inv=(tau, aer))
+settings['BOR'] = ParticleType(wvl=wvl, inv=(tau, aer), ls=False)
+settings['BOW'] = ParticleType(wvl=wvl, inv=(tau, aer), ls=False)
+settings['CER'] = ParticleType(wvl=wvl, inv=(tau, aer), ls=False)
+settings['AMZ'] = ParticleType(wvl=wvl, inv=(tau, aer), ls=False)
+settings['AMW'] = ParticleType(wvl=wvl, inv=(tau, aer), ls=False)
+settings['AFR'] = ParticleType(wvl=wvl, inv=(tau, aer), ls=False)
+settings['AFW'] = ParticleType(wvl=wvl, inv=(tau, aer), ls=False)
+settings['CEW'] = ParticleType(wvl=wvl, inv=(tau, aer), ls=False)
+settings['AR2'] = ParticleType(wvl=wvl, inv=(tau, aer), ls=False)
 
 # -----------------------------------------------------------------------------
 # ----- PARSER ARGUMENT DEFINITIONS -------------------------------------------
@@ -1050,7 +1042,7 @@ def args_main(parser):
                       help='Channels to be evaluated by main processor.')
     main.add_argument('--llim_IRe', type=str, default='0.001',
                       help='Lower limit value for effective radius')
-    main.add_argument('--ulim_IRe', type=str, default='10',
+    main.add_argument('--ulim_IRe', type=str, default='50',
                       help='Upper limit value for effective radius')
     main.add_argument('--llim_ITau', type=str, default='-3',
                       help='Lower limit value for optical depth (log)')
@@ -1214,6 +1206,7 @@ def build_preproc_driver(args):
         brdf = date_back_search(args.mcd43c1_dir, inst.time,
                                 '/%Y/MCD43C1.A%Y%j.006.*.hdf')
     if not args.use_modis_emis:
+        print 'emis here'
         emis = date_back_search(args.emis_dir, inst.time,
                                 '/global_emis_inf10_monthFilled_MYD11C3.A%Y%j.041.nc')
 
@@ -1252,7 +1245,6 @@ def build_preproc_driver(args):
         uid = 'n/a'
 
     # Add NetCDF library to path so following calls works
-    print args.orac_lib
     libs = read_orac_libraries(args.orac_lib)
     os.environ["PATH"] = libs["NCDFLIB"][:-4] + '/bin:' + os.environ["PATH"]
 
@@ -1419,6 +1411,7 @@ USE_OCCCI={use_occci}""".format(
         references=args.references,
         rttov_version=rttov_version,
         sensor=inst.sensor,
+        #sensor='VIIRS',
         spam=spam,
         summary=args.summary,
         svn_version=svn_version,
