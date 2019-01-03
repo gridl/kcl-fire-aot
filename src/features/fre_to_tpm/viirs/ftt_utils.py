@@ -120,6 +120,9 @@ def sat_data_reader(p, sensor, var, timestamp):
             # get string from time in the right format
             viirs_time_format = datetime.strftime(timestamp, 'd%Y%m%d_t%H%M%S')
 
+        # reduce timestamp to relevant part
+        viirs_time_format = viirs_time_format[:-2]
+
         if 'M' in var:
             viirs_fname = [f for f in os.listdir(p) if (viirs_time_format in f) and (var in f)]
         else:

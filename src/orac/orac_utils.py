@@ -1015,7 +1015,7 @@ def args_main(parser):
 
     main = parser.add_argument_group('Main processor arguments')
     main.add_argument('-a', '--approach', type=str, nargs='?',
-                      choices=('AppCld1L', 'AppCld2L', 'AppAerOx', 'AppAerSw'),
+                      choices=('AppCld1L', 'AppCld2L', 'AppAerOx', 'AppAerSw', 'AppAerO1'),
                       help='Retrieval approach to be used.')
     main.add_argument('--ret_class', type=str, nargs='?',
                       choices=('ClsCldWat', 'ClsCldIce', 'ClsAerOx',

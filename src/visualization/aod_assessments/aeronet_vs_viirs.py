@@ -147,10 +147,11 @@ def get_aod(sat_data_utm, x, y):
 
     # do orac proc
     orac_aod_subset = sat_data_utm['orac_aod_utm'][min_y:max_y, min_x:max_x]
-    orac_cost_subset = sat_data_utm['orac_flags_utm'][min_y:max_y, min_x:max_x]
+    orac_cost_subset = sat_data_utm['orac_cost_utm'][min_y:max_y, min_x:max_x]
 
-    mask = orac_cost_subset <= 3
+    mask = orac_cost_subset <= 100
     n_orac = np.sum(mask)
+    print 'n_orac cost <3', n_orac
     if n_orac:
         mean_orac_aod = np.mean(orac_aod_subset[mask])
         mean_orac_cost = np.mean(orac_cost_subset[mask])
@@ -160,7 +161,7 @@ def get_aod(sat_data_utm, x, y):
 
     # do viirs
     viirs_aod_subset = sat_data_utm['viirs_aod_utm'][min_y:max_y, min_x:max_x]
-    viirs_flag_subset = sat_data_utm['viirs_flags_utm'][min_y:max_y, min_x:max_x]
+    viirs_flag_subset = sat_data_utm['viirs_flag_utm'][min_y:max_y, min_x:max_x]
 
     mask = viirs_flag_subset == 0
     n_viirs = np.sum(mask)
@@ -187,30 +188,33 @@ def image_histogram_equalization(image, number_bins=256):
 
     return image_equalized.reshape(image.shape)
 
-
-def create_png(viirs_data, utm_rs, masked_lats, masked_lons, image_id, x, y, station):
+def create_png(viirs_data, image_id, x, y, station):
 
     im_size = 200
     half_im_size = im_size/2
 
-    # m1_params = viirs_data['All_Data']['VIIRS-M1-SDR_All']['RadianceFactors']
-    m1 = viirs_data['All_Data']['VIIRS-M1-SDR_All']['Radiance'][:]
-    # m4_params = viirs_data['All_Data']['VIIRS-M1-SDR_All']['RadianceFactors']
-    m4 = viirs_data['All_Data']['VIIRS-M4-SDR_All']['Radiance'][:]
-    # m5_params = viirs_data['All_Data']['VIIRS-M1-SDR_All']['RadianceFactors']
-    m5 = viirs_data['All_Data']['VIIRS-M5-SDR_All']['Radiance'][:]
+    # # m1_params = viirs_data['All_Data']['VIIRS-M1-SDR_All']['RadianceFactors']
+    # m1 = viirs_data['All_Data']['VIIRS-M1-SDR_All']['Radiance'][:]
+    # # m4_params = viirs_data['All_Data']['VIIRS-M1-SDR_All']['RadianceFactors']
+    # m4 = viirs_data['All_Data']['VIIRS-M4-SDR_All']['Radiance'][:]
+    # # m5_params = viirs_data['All_Data']['VIIRS-M1-SDR_All']['RadianceFactors']
+    # m5 = viirs_data['All_Data']['VIIRS-M5-SDR_All']['Radiance'][:]
+    #
+    # resampled_m1 = utm_rs.resample_image(m1, masked_lats, masked_lons, fill_value=0)
+    # resampled_m4 = utm_rs.resample_image(m4, masked_lats, masked_lons, fill_value=0)
+    # resampled_m5 = utm_rs.resample_image(m5, masked_lats, masked_lons, fill_value=0)
 
-    resampled_m1 = utm_rs.resample_image(m1, masked_lats, masked_lons, fill_value=0)
-    resampled_m4 = utm_rs.resample_image(m4, masked_lats, masked_lons, fill_value=0)
-    resampled_m5 = utm_rs.resample_image(m5, masked_lats, masked_lons, fill_value=0)
+    resampled_m3 = viirs_data['m3']
+    resampled_m4 = viirs_data['m4']
+    resampled_m5 = viirs_data['m5']
 
     min_y = int(y-half_im_size) if y-half_im_size > 0 else 0
     min_x = int(x-half_im_size) if x-half_im_size > 0 else 0
-    max_y = int(y+half_im_size) if y+half_im_size < resampled_m1.shape[0] else resampled_m1.shape[0]
-    max_x = int(x+half_im_size) if x+half_im_size < resampled_m1.shape[1] else resampled_m1.shape[1]
+    max_y = int(y+half_im_size) if y+half_im_size < resampled_m3.shape[0] else resampled_m3.shape[0]
+    max_x = int(x+half_im_size) if x+half_im_size < resampled_m3.shape[1] else resampled_m3.shape[1]
 
     # subset to roi
-    resampled_m1 = resampled_m1[min_y:max_y, min_x:max_x]
+    resampled_m3 = resampled_m3[min_y:max_y, min_x:max_x]
     resampled_m4 = resampled_m4[min_y:max_y, min_x:max_x]
     resampled_m5 = resampled_m5[min_y:max_y, min_x:max_x]
 
@@ -237,7 +241,11 @@ def create_png(viirs_data, utm_rs, masked_lats, masked_lons, image_id, x, y, sta
     # b = image_histogram_equalization(resampled_m1)
     r = resampled_m5
     g = resampled_m4
-    b = resampled_m1
+    b = resampled_m3
+
+    r[r < 0] = 0
+    g[g < 0] = 0
+    b[b < 0] = 0
 
     r = np.round((r * (255 / np.max(r))) * 1).astype('uint8')
     g = np.round((g * (255 / np.max(g))) * 1).astype('uint8')
@@ -254,14 +262,14 @@ def create_png(viirs_data, utm_rs, masked_lats, masked_lons, image_id, x, y, sta
     plt.plot(pos_x-5, pos_y+5, 'bx')
     plt.plot(pos_x+5, pos_y+5, 'bx')
 
-    plt.savefig(os.path.join(fp.path_to_aeronet_visuals, 'images',
+    plt.savefig(os.path.join(fp.path_to_aeronet_visuals, 'images_v2',
                              'id_' + str(image_id) + '_station_' + station + '.png'),
                 bbox_inches='tight')
 
 
 def main():
     aeronet_station_data = load_aeronet()
-    viirs_orac_filepaths = glob.glob(fp.path_to_viirs_orac + '*')
+    viirs_orac_filepaths = glob.glob(fp.path_to_viirs_orac + '/*')
 
     image_id = 0
     data_dict = dict(x=[], y=[], dist=[], aod550=[], aod500=[], aod675=[], orac_aod=[], orac_cost=[],
@@ -271,17 +279,21 @@ def main():
     # iterate over VIIRS AOD files
     for o_f in viirs_orac_filepaths:
 
+        if not '.nc' in o_f:
+            continue
+
         print o_f
-        # i_f = '/Volumes/INTENSO/Asia/processed/orac/viirs/KCL-NCEO-L2-CLOUD-CLD-VIIRS_ORAC_NPP_201508160633_R4591AMW.primary.nc'
-        # if o_f != i_f:
+        #i_f = '/Volumes/INTENSO/kcl-fire-aot/ODA/raw/viirs/orac/KCL-NCEO-L2-CLOUD-CLD-VIIRS_ORAC_NPP_201508070603_R4591AR2.primary.nc'
+        #if o_f != i_f:
         #    continue
 
         timestamp = ut.get_timestamp(o_f, 'orac')
+        dt = datetime.strptime(timestamp, '_%Y%m%d%H%M_')
+
 
         # check if station has intersection for given time stamp, if not continue
-        if not aeronet_intersections(timestamp, aeronet_station_data):
+        if not aeronet_intersections(dt, aeronet_station_data):
             continue
-
 
         try:
             sat_data = ut.setup_sat_data(timestamp)
@@ -289,7 +301,11 @@ def main():
             logger.info('Could not load all datasets for: ' + str(timestamp) + '. Failed with error: ' + str(e))
             continue
 
-        sat_data_utm = ut.resample_satellite_datasets(sat_data, fill_value=-999)
+        try:
+            sat_data_utm = ut.resample_satellite_datasets(sat_data, fill_value=-999)
+        except:
+            logger.warning('Could not resample sat data, continuing')
+            continue
 
         # generate coordinate array from resampled grid
         rows = np.arange(sat_data_utm['lats'].shape[0])
@@ -314,7 +330,7 @@ def main():
             # locate aeronet station in scene
             x, y, dist, n_aeronet, aod550, aod500, aod675 = collocate_station(station_df,
                                                                                balltree, cols, rows,
-                                                                               timestamp)
+                                                                               dt)
 
             # if nothing in scene continue
             if not x:
@@ -347,6 +363,8 @@ def main():
             data_dict['orac_file'].append(o_f)
             data_dict['station'].append(station)
 
+            create_png(sat_data_utm, image_id, x, y, station)
+
             # update image
             image_id += 1
 
@@ -354,7 +372,7 @@ def main():
     df = pd.DataFrame.from_dict(data_dict)
 
     # dump to csv
-    df.to_csv(os.path.join(fp.path_to_dataframes, 'aeronet_comp.csv'))
+    df.to_csv(os.path.join(fp.path_to_dataframes, 'aeronet_comp_v2.csv'))
 
 
 if __name__ == "__main__":

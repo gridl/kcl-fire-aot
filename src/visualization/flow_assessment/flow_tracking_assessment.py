@@ -121,7 +121,7 @@ def assess_dense_flow(im_1, mask_1, im_2, mask_2, f, plot=True):
     flow_win_size = 5
     flow = cv2.calcOpticalFlowFarneback(im_1, im_2,
                                         flow=None,
-                                        pyr_scale=0.5, levels=1,
+                                        pyr_scale=0.5, levels=5,
                                         winsize=flow_win_size, iterations=7,
                                         poly_n=7, poly_sigma=1.5,
                                         flags=cv2.OPTFLOW_FARNEBACK_GAUSSIAN)
@@ -210,10 +210,10 @@ def main():
         cloudfree_2 = ndimage.binary_erosion(cloudfree_2)
 
         # check image to image coregistation
-        sparse_df = assess_coregistration(ref_1, cloudfree_1, ref_2, cloudfree_2, sift, flann, fname)
+        sparse_df = assess_coregistration(ref_1, cloudfree_1, ref_2, cloudfree_2, sift, flann, fname, plot=False)
 
         # do dense tracking (looking for plume motion)
-        dense_df = assess_dense_flow(rad_1, cloudfree_1, rad_2, cloudfree_2, fname)
+        dense_df = assess_dense_flow(rad_1, cloudfree_1, rad_2, cloudfree_2, fname, plot=True)
 
         # record
         sparse_flow_list.append(sparse_df)
