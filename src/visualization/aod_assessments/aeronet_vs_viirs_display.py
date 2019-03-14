@@ -18,38 +18,50 @@ def main():
 
     df = pd.read_csv(os.path.join(fp.path_to_dataframes, 'aeronet_comp.csv'))
 
-    orac_aod_df = df[(df.orac_aod != -999) & (df.aod550 >= 2)]
-    viirs_aod_df = df[(df.viirs_aod != -999) & (df.aod550 < 2)]
+    orac_aod_df = df[(df.orac_aod != -999)]
+    viirs_aod_df = df[(df.viirs_aod != -999)]
+
+    orac_aod_model_df = orac_aod_df[orac_aod_df.aod550 >= 2]
+    viirs_aod_model_df = viirs_aod_df[viirs_aod_df.aod550 < 2]
+
+    orac_invalid_df = orac_aod_df[orac_aod_df.aod550 < 2]
+    viirs_invalid_df = viirs_aod_df[viirs_aod_df.aod550 >= 2]
 
     fig = plt.figure(figsize=(10,5))
     ax0 = plt.subplot(121)
     ax1 = plt.subplot(122)
 
     ax0.set_xlim([0,10])
-    ax1.set_xlim([0,2])
+    ax1.set_xlim([0,4])
 
     ax0.set_ylim([0,10])
-    ax1.set_ylim([0,2])
+    ax1.set_ylim([0,4])
 
     ax0.plot([-1000, 7500], [-1000, 7500], '--', color='grey')
     ax1.plot([-1000, 6000], [-1000, 6000], '--', color='grey')
 
-    sns.regplot(orac_aod_df.aod550, orac_aod_df.orac_aod, ax=ax0, scatter=True, color='k')
-    sns.regplot(viirs_aod_df.aod550, viirs_aod_df.viirs_aod, ax=ax1, scatter=True, color='k')
+    sns.regplot(orac_aod_model_df.aod550, orac_aod_model_df.orac_aod, ax=ax0, scatter=True, color='k')
+    sns.regplot(viirs_aod_model_df.aod550, viirs_aod_model_df.viirs_aod, ax=ax1, scatter=True, color='k')
 
+    sns.scatterplot(orac_invalid_df.aod550, orac_invalid_df.orac_aod, ax=ax0, color='k', marker='x')
+    sns.scatterplot(viirs_invalid_df.aod550, viirs_invalid_df.viirs_aod, ax=ax1, color='k', marker='x')
 
     # stats
-    slope0, intercept0, r_value0, _, _ = scipy.stats.linregress(orac_aod_df.aod550, orac_aod_df.orac_aod)
-    slope1, intercept1, r_value1, _, _ = scipy.stats.linregress(viirs_aod_df.aod550, viirs_aod_df.viirs_aod)
+    slope0, intercept0, r_value0, _, _ = scipy.stats.linregress(orac_aod_model_df.aod550, orac_aod_model_df.orac_aod)
+    slope1, intercept1, r_value1, _, _ = scipy.stats.linregress(viirs_aod_model_df.aod550, viirs_aod_model_df.viirs_aod)
 
-    orac_rmse = rmse(orac_aod_df.aod550, orac_aod_df.orac_aod)
-    viirs_rmse = rmse(viirs_aod_df.aod550, viirs_aod_df.viirs_aod)
+    # adjust orac based on aeronet
+    adjusted_orac = (orac_aod_model_df.orac_aod - intercept0) / slope0
+    #sns.regplot(orac_aod_df.aod550, adjusted_orac, ax=ax0, scatter=True, color='r')
 
-    orac_mean = np.mean(orac_aod_df.aod550 - orac_aod_df.orac_aod)
-    viirs_mean = np.mean(viirs_aod_df.aod550 - viirs_aod_df.viirs_aod)
+    orac_rmse = rmse(orac_aod_model_df.aod550, orac_aod_model_df.orac_aod)
+    viirs_rmse = rmse(viirs_aod_model_df.aod550, viirs_aod_model_df.viirs_aod)
 
-    orac_sd = np.std(orac_aod_df.aod550 - orac_aod_df.orac_aod)
-    viirs_sd = np.std(viirs_aod_df.aod550 - viirs_aod_df.viirs_aod)
+    orac_mean = np.mean(orac_aod_model_df.aod550 - orac_aod_model_df.orac_aod)
+    viirs_mean = np.mean(viirs_aod_model_df.aod550 - viirs_aod_model_df.viirs_aod)
+
+    orac_sd = np.std(orac_aod_model_df.aod550 - orac_aod_model_df.orac_aod)
+    viirs_sd = np.std(viirs_aod_model_df.aod550 - viirs_aod_model_df.viirs_aod)
 
     textstr0 = '$R^2=%.3f$\n$RMSE=%.2f$\nMean($\pm$SD)=$%.2f(\pm%.2f)$\n Samples$=%.0f$' % (
     r_value0 ** 2, orac_rmse, orac_mean, orac_sd, orac_aod_df.aod550.shape[0])
@@ -69,7 +81,7 @@ def main():
     ax0.set_ylabel('ORAC 550 um AOD')
     ax1.set_ylabel('VIIRS SP 550 um AOD')
 
-
+    plt.savefig(os.path.join(fp.figure_dir, 'aeronet_comparison.png'), dpi=600, bbox_inches='tight')
     plt.show()
 
 

@@ -23,6 +23,11 @@ def proc_params():
     d['frp_df'] = ut.read_frp_df(fp.path_to_himawari_frp)
     d['plume_df'] = ut.read_plume_polygons(fp.plume_polygon_path_csv)
 
+    # set up ORAC bias adjustment from AERONET comparison
+    d['bias_adjust'] = True
+    d['orac_slope'] = 1.24459532607
+    d['orac_intercept'] = 0.939506768761
+
     geo_file = os.path.join(fp.path_to_himawari_imagery, 'Himawari_lat_lon.img')
     geostationary_lats, geostationary_lons = load_hrit.geo_read(geo_file)
     d['geostationary_lats'] = geostationary_lats
@@ -57,6 +62,11 @@ def main():
         if current_timestamp != previous_timestamp:
             try:
                 sat_data = ut.setup_sat_data(current_timestamp)
+
+                if pp['bias_adjust']:
+                    sat_data['orac_aod'] = (sat_data['orac_aod'] -
+                                            pp['orac_intercept']) / pp['orac_slope']
+
             except Exception, e:
                 logger.info('Could not load all datasets for: ' + plume.filename + '. Failed with error: ' + str(e))
                 continue

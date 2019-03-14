@@ -10,6 +10,9 @@ root = '/Volumes/INTENSO/kcl-fire-aot/ODA/'
 #root = '/Users/danielfisher/Projects/kcl-fire-aot/data/ODA/'
 roi = 'combined'
 
+# figures path
+figure_dir = os.path.expanduser('~/Dropbox/working_documents/papers/oda-extremefireemissions/figures')
+
 # select list of files to process
 analysis_filelist_path = os.path.join(root, 'filelists', '{0}_files.txt'.format(roi))
 
